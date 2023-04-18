@@ -130,7 +130,8 @@ if __name__ == '__main__':
     IS_OPPO_AGENT_GREEDY = 0
     greedy_0 = [IS_TRAIN_AGENT_GREEDY, IS_OPPO_AGENT_GREEDY,
                 IS_TRAIN_AGENT_GREEDY, IS_OPPO_AGENT_GREEDY]
-    cards, ddts = load_rl_dataset("train", flatten=True)
+    dataset = load_rl_dataset("train")
+    cards, ddts = dataset["cards"], dataset["ddts"]
     replay_buffer = rl_cpp.ReplayBuffer(OBS_TENSOR_SIZE, NUM_CALLS, args.buffer_capacity)
     envs = []
     context = rl_cpp.Context()

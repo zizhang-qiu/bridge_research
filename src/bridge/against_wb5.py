@@ -4,27 +4,32 @@
 @date:2023/3/4
 @encoding:utf-8
 """
+import argparse
+import json
 import os
+import pickle
 import re
 import socket
 import subprocess
-from typing import Dict, Optional
+from typing import Dict, Optional, TextIO
 
 import numpy as np
 import torch.multiprocessing as mp
 
 import torch
+import yaml
 
 import rl_cpp
 
 from src.bridge.bluechip_bridge import Controller, BlueChipBridgeBot
 from src.bridge.agent_for_cpp import SingleEnvAgent
-from src.bridge.bridge_vars import NUM_PLAYERS
+from src.bridge.bridge_vars import NUM_PLAYERS, PLUS_MINUS_SYMBOL
 from src.bridge.nets import PolicyNet
 from src.bridge.utils import load_rl_dataset
+from src.common_utils.array_utils import get_avg_and_sem
 from src.common_utils.assert_utils import assert_eq
 from src.common_utils.logger import Logger
-from src.common_utils.other_utils import mkdir_with_time
+from src.common_utils.other_utils import mkdir_with_time, allocate_tasks_uniformly
 from src.common_utils.torch_utils import create_shared_dict
 
 
@@ -97,7 +102,7 @@ def controller_factory(port: int):
 
 class AgainstWb5Worker(mp.Process):
     def __init__(self, process_id: int, num_deals: int, port: int, cards: np.ndarray, ddts: np.ndarray,
-                 shared_dict: Dict, device: str, save_dir: Optional[str] = None, imps_queue: Optional[mp.Queue] = None):
+                 shared_dict: Dict, device: str, save_dir: Optional[str] = None):
         """
         A worker to play against Wbridge5.
         Args:
@@ -109,7 +114,6 @@ class AgainstWb5Worker(mp.Process):
             shared_dict: The shared dict of policy network.
             device: The device of the agent.
             save_dir: The directory to save results.
-            imps_queue: The queue to store imps.
         """
         super().__init__()
         assert_eq(num_deals, cards.shape[0])
@@ -122,14 +126,14 @@ class AgainstWb5Worker(mp.Process):
         self._device = device
         self.shared_dict = shared_dict.copy()
         self.logger: Optional[Logger] = None
-        self.save_dir = save_dir if save_dir is not None else None
-        self.imps_queue = imps_queue
+        self.save_dir = save_dir
 
     def run(self) -> None:
         p_net = PolicyNet()
         p_net.load_state_dict(self.shared_dict)
         agent = SingleEnvAgent(p_net)
         agent.to(self._device)
+        f: Optional[TextIO] = None
         if self.save_dir is not None:
             f = open(os.path.join(self.save_dir, f"log_{self._process_id}.txt"), "w")
         i_deal = 0
@@ -147,7 +151,7 @@ class AgainstWb5Worker(mp.Process):
                     if current_player % 2 == 0:
                         obs = rl_cpp.make_obs_tensor(state_0, 1)
                         obs = obs.to(self._device)
-                        action, _ = agent.act(obs)
+                        action, _, _ = agent.act(obs)
                         action = action.item()
                     else:
                         action = bots[current_player].step(state_0)
@@ -160,7 +164,7 @@ class AgainstWb5Worker(mp.Process):
                     if current_player % 2 == 1:
                         obs = rl_cpp.make_obs_tensor(state_1, 1)
                         obs = obs.to(self._device)
-                        action, _ = agent.act(obs)
+                        action, _, _ = agent.act(obs)
                         action = action.item()
                     else:
                         action = bots[current_player].step(state_1)
@@ -168,42 +172,61 @@ class AgainstWb5Worker(mp.Process):
 
                 imp = rl_cpp.get_imp(int(state_0.returns()[0]), int(state_1.returns()[0]))
                 _imps.append(imp)
-                print(imp)
-                if self.imps_queue is not None:
-                    self.imps_queue.put(imp)
-                    print(f"qsize:{self.imps_queue.qsize()}")
                 msg = f"open:\n{state_0}\n\nclose:\n{state_1}\n\nimp: {imp}\n\n"
                 if self.save_dir is not None:
                     f.write(msg)
+                    _imps_np = np.array(_imps)
+                    np.save(os.path.join(self.save_dir, f"imps_{self._process_id}.npy"), _imps_np)
                 # print(msg)
                 i_deal += 1
-            except Exception:
+                print(f"Process {self._process_id}, {i_deal}/{self._num_deals}, imp:{imp}")
+            except Exception as e:
+                print(f"Process {self._process_id} meet exception: {e}.")
                 continue
 
-        if self.save_dir is not None:
-            _imps_np = np.array(_imps)
-            np.save(os.path.join(self.save_dir, f"imps_{self._process_id}.npy"))
 
-
-if __name__ == '__main__':
-    mp.set_start_method("spawn", force=True)
-    cards, ddts = load_rl_dataset("vs_wb5", flatten=True)
+def main():
+    # cards, ddts = load_rl_dataset("vs_wb5_fb", flatten=True)
+    with open("../../dataset/rl_data/vs_wb5_open_spiel.pkl", "rb") as fp:
+        dataset = pickle.load(fp)
+    cards = dataset["cards"]
+    ddts = dataset["ddts"].reshape(-1, 20)
+    with open("../../config/against_wb5.yaml", "r") as fp:
+        config: Dict = yaml.safe_load(fp)
+    # print(config)
     net = PolicyNet()
-    net.load_state_dict(torch.load(r"/src/policy_gradient/20230316170427/checkpoint_1737.pth")
-                        ["model_state_dict"]["policy"])
+    net.load_state_dict(torch.load(config["checkpoint_path"])["model_state_dict"]["policy"])
     net.to("cuda")
+    num_processes = config["num_processes"]
+    num_deals_per_process = allocate_tasks_uniformly(num_processes, config["num_deals"])
     shared_dict = create_shared_dict(net)
-    num_deals = 100
-    save_dir = mkdir_with_time("../vs_wbridge5")
-    q = mp.Queue()
-    base_port = 1
+    save_dir = mkdir_with_time(config["save_dir"])
+    base_port = 5050
+    start = config["start"]
+
     workers = []
-    for i in range(8):
-        w = AgainstWb5Worker(i, num_deals, base_port + 10 * i, cards[num_deals * i:num_deals * (i + 1)],
-                             ddts[num_deals * i:num_deals * (i + 1)], shared_dict, "cuda", save_dir, q)
+    for i in range(config["num_processes"]):
+        num_deals = num_deals_per_process[i]
+        w = AgainstWb5Worker(i, num_deals,
+                             base_port + 10 * i,
+                             cards[start + num_deals * i:start + num_deals * (i + 1)],
+                             ddts[start + num_deals * i:start + num_deals * (i + 1)],
+                             shared_dict, "cuda", save_dir)
         workers.append(w)
     for w in workers:
         w.start()
 
     for w in workers:
         w.join()
+
+    # get average and standard error of mean
+    imps_list = [np.load(os.path.join(save_dir, f"imps_{i}.npy")) for i in range(num_processes)]
+    imps = np.concatenate(imps_list)
+    avg, sem = get_avg_and_sem(imps)
+    print(f"result is {avg}{PLUS_MINUS_SYMBOL}{sem}")
+    np.save(os.path.join(save_dir, "imps.npy"), imps)
+
+
+if __name__ == '__main__':
+    mp.set_start_method("spawn", force=True)
+    main()

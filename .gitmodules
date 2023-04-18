@@ -5,9 +5,3 @@
 [submodule "cpp/third_party/dds"]
 	path = cpp/third_party/dds
 	url = https://github.com/dds-bridge/dds.git
-[submodule "cpp/third_party/cnpy"]
-	path = cpp/third_party/cnpy
-	url = https://github.com/rogersce/cnpy.git
-[submodule "cpp/third_party/zlib"]
-	path = cpp/third_party/zlib
-	url = https://github.com/madler/zlib.git

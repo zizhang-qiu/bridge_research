@@ -3,7 +3,7 @@
 //
 #include "logging.h"
 #include "bridge_state.h"
-#include "absl/strings/str_join.h"
+#include "str_utils.h"
 #include <string>
 #include <vector>
 #include <array>
@@ -62,12 +62,12 @@ std::string GetHandString(std::vector<int> cards) {
 
     for (int i = 0; i < kNumSuits; i++) {
         if (!suits[i].empty()) {
-            suits_str[i] = Suits[i] + " " + absl::StrJoin(suits[i], " ") + ".";
+            suits_str[i] = Suits[i] + " " + utils::StrJoin(suits[i], " ") + ".";
         } else {
             suits_str[i] = Suits[i] + " -.";
         }
     }
-    std::string ret = absl::StrJoin(suits_str, " ");
+    std::string ret = utils::StrJoin(suits_str, " ");
     return ret;
 }
 

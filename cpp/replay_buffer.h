@@ -55,7 +55,8 @@ public:
         return int(cursor_);
     }
 
-    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> Sample(int batch_size) {
+    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
+    Sample(int batch_size, const std::string &device) {
 //        std::cout << "enter sample" << std::endl;
         std::unique_lock<std::mutex> lk(m_);
 //        std::cout << "full: " << full_ << std::endl;
@@ -66,6 +67,13 @@ public:
         auto sample_actions = action_storage_.index_select(0, indices);
         auto sample_rewards = reward_storage_.index_select(0, indices);
         auto sample_log_probs = log_probs_storage_.index_select(0, indices);
+        if (device != "cpu") {
+            auto d = torch::device(device);
+            sample_states = sample_states.to(d);
+            sample_actions = sample_actions.to(d);
+            sample_rewards = sample_rewards.to(d);
+            sample_log_probs = sample_log_probs.to(d);
+        }
         return std::make_tuple(sample_states, sample_actions, sample_rewards, sample_log_probs);
     }
 

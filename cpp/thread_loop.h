@@ -43,6 +43,11 @@ public:
         return vec_;
     }
 
+    void Clear() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        vec_.clear();
+    }
+
 private:
     mutable std::mutex mutex_;
     std::vector<T> vec_;

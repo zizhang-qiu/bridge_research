@@ -7,12 +7,11 @@
 """
 import datetime
 import os
-import pickle
 import platform
-from typing import Any, List
+import random
+from typing import List
 
 import numpy as np
-import random
 import torch
 
 
@@ -28,14 +27,6 @@ def set_random_seeds(seed: int = 42):
 
     # Python built-in
     random.seed(seed)
-
-
-def check_picklable(obj: Any):
-    try:
-        pickle.dumps(obj)
-        return True
-    except Exception:
-        return False
 
 
 def gcd(a: int, b: int) -> int:
@@ -89,3 +80,28 @@ def mkdir_with_time(_dir: str, _format: str = '%Y%m%d%H%M%S') -> str:
     path = os.path.join(_dir, time_str)
     os.mkdir(path)
     return path
+
+
+def allocate_tasks_uniformly(num_processes: int, num_tasks: int) -> List[int]:
+    """
+    Divides the given number of tasks as uniformly as possible among the given number of processes.
+
+    Args:
+        num_processes (int): The number of processes.
+        num_tasks (int): The total number of tasks to be executed.
+
+    Returns:
+        List[int]: A list of integers representing the number of tasks to be allocated to each process.
+
+    Example:
+        >>> allocate_tasks_uniformly(4, 13)
+        [4, 3, 3, 3]
+    """
+    tasks_per_process = num_tasks // num_processes
+    extra_tasks = num_tasks % num_processes
+
+    task_counts = [tasks_per_process] * num_processes
+    for i in range(extra_tasks):
+        task_counts[i] += 1
+
+    return task_counts

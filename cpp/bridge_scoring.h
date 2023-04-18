@@ -2,13 +2,16 @@
 // Created by qzz on 2023/2/23.
 //
 #include <array>
-#include "third_party/abseil-cpp/absl/strings/str_cat.h"
-#include "string"
+#include <string>
 #include "utils.h"
 #include "logging.h"
+#include "str_utils.h"
 #ifndef BRIDGE_RESEARCH_BRIDGE_SCORING_H
 #define BRIDGE_RESEARCH_BRIDGE_SCORING_H
 namespace rl::bridge{
+using Cards = std::vector<Action>;
+using DDT = std::vector<int>;
+
 enum Denomination {
     kClubs = 0, kDiamonds, kHearts, kSpades, kNoTrump
 };
@@ -45,10 +48,10 @@ struct Contract {
 
     std::string ToString() const{
         if (level == 0) return "Passed Out";
-        std::string str = absl::StrCat(level, std::string{kDenominationChar[trumps]});
-        if (double_status == kDoubled) absl::StrAppend(&str, "X");
-        if (double_status == kRedoubled) absl::StrAppend(&str, "XX");
-        absl::StrAppend(&str, " ", std::string{kPlayerChar[declarer]});
+        std::string str = utils::StrCat(level, std::string{kDenominationChar[trumps]});
+        if (double_status == kDoubled) utils::StrAppend(&str, "X");
+        if (double_status == kRedoubled) utils::StrAppend(&str, "XX");
+        utils::StrAppend(&str, " ", std::string{kPlayerChar[declarer]});
         return str;
     }
 

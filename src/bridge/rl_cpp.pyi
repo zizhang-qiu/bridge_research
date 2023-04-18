@@ -1,4 +1,4 @@
-from typing import List, overload, Tuple, NoReturn, Union
+from typing import List, overload, Tuple, NoReturn, Union, Optional
 
 import numpy as np
 import torch
@@ -7,7 +7,6 @@ Player = int
 Action = int
 CardsLike = Union[np.ndarray, List[Action]]
 DDTLike = Union[np.ndarray, List[Action]]
-
 
 
 class ModelLocker:
@@ -99,11 +98,12 @@ class ReplayBuffer:
         """
         ...
 
-    def sample(self, batch_size: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def sample(self, batch_size: int, device: str) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample a batch of obs, actions, rewards and log_probs
         Args:
-            batch_size(int): sample batch size
+            device: The device
+            batch_size(int): Sample batch size
 
         Returns:
             Tuple of obs, actions, rewards and log_probs
@@ -135,31 +135,40 @@ class ReplayBuffer:
         ...
 
 
+class BridgeDeal:
+    def __init__(self):
+        self.cards: CardsLike = ...
+        self.dealer: Player = ...
+        self.is_dealer_vulnerable: bool = ...
+        self.is_non_dealer_vulnerable: bool = ...
+        self.ddt : Optional[DDTLike] = ...
+        self.par_score : Optional[int] = ...
+
 class BridgeBiddingState:
-    def __init__(self, dealer: Player, cards: CardsLike, is_dealer_vulnerable: bool, is_non_dealer_vulnerable: bool,
-                 ddt: DDTLike):
+    def __init__(self, deal:BridgeDeal):
         """
         A states records bridge bidding. The players are represented as 0,1,2,3 for NESW.
         The cards are represented as rank * NumSuits + suit, i.e. 0=2C, 1=2D, 2=2H, 3=2S, etc.
         Args:
-            dealer: The player to start bidding
-            cards: A array of cards to deal, the cards are dealt clockwise,
-                i.e. cards[0] gives to north, cards[1] gives to East
-            is_dealer_vulnerable: whether the dealer size is vulnerable
-            is_non_dealer_vulnerable: whether the non-dealer side is vulnerable
-            ddt: The double dummy table, which is a 20-element array. The array should be ordered as
-                C(NESW)-D-H-S-NT. An example:
-                	C	D	H	S	NT
+            deal: The BridgeDeal which should contain
+                dealer: The player to start bidding
+                cards: A array of cards to deal, the cards are dealt clockwise,
+                    i.e. cards[0] gives to north, cards[1] gives to East
+                is_dealer_vulnerable: whether the dealer size is vulnerable
+                is_non_dealer_vulnerable: whether the non-dealer side is vulnerable
+                ddt: The double dummy table, which is a 20-element array. The array should be ordered as
+                    C(NESW)-D-H-S-NT. An example:
+                        C	D	H	S	NT
 
-                N	0	0	10	9	0
+                    N	0	0	10	9	0
 
-                E	12	12	3	4	8
+                    E	12	12	3	4	8
 
-                S	0	0	10	9	0
+                    S	0	0	10	9	0
 
-                W	12	12	3	4	8
+                    W	12	12	3	4	8
 
-                the ddt array should be [ 0 12  0 12  0 12  0 12 10  3 10  3  9  4  9  4  0  8  0  8]
+                    the ddt array should be [ 0 12  0 12  0 12  0 12 10  3 10  3  9  4  9  4  0  8  0  8]
         """
         ...
 
@@ -314,8 +323,8 @@ class BridgeBiddingEnv:
         """
         A Bridge Bidding Environment.
         Args:
-            cards: The cards list to play.
-            ddts: The ddt list associated with cards.
+            cards: The cards list to play. Also, can be 1 deal(1 dimension) which contains 52 cards.
+            ddts: The ddt list associated with cards. Also, can be 1 deal with 20 elements.
             greedy: Whether greedy for four players. e.g. [1,1,1,1] means all the players are greedy.
         """
         ...
@@ -344,6 +353,81 @@ class BridgeBiddingEnv:
         Get duplicate scores for each player. Should be called after the env terminated.
         Returns:
             The list of duplicate scores.
+        """
+        ...
+
+    def terminated(self) -> bool:
+        """
+        Whether the env is terminated.
+        Returns:
+            A boolean value of terminal.
+        """
+        ...
+
+    def get_current_cards_and_ddt(self) -> Tuple[List[Action], List[int]]:
+        """
+        Get the cards and ddt which is played now.
+        Returns:
+            The list of cards and ddt.
+        """
+        ...
+
+    def get_state(self) -> BridgeBiddingState:
+        """
+        Get the state.
+        Returns:
+            The BridgeBiddingState.
+        """
+        ...
+
+    def num_states(self) -> int:
+        """
+        Get the number of deals played in the env.
+        Returns:
+            The number of deals.
+        """
+        ...
+
+    def __repr__(self) -> str:
+        ...
+
+
+class BridgeBiddingEnv2:
+    def __init__(self, cards: CardsLike, ddts: DDTLike, par_scores: Union[np.ndarray, List[int]], greedy: List[int]):
+        """
+        A Bridge Bidding Environment using real score - par score as reward.
+        Args:
+            cards: The cards list to play.
+            ddts: The ddt list associated with cards.
+            par_scores: The par scores for N-S.
+            greedy: Whether greedy for four players. e.g. [1,1,1,1] means all the players are greedy.
+        """
+        ...
+
+    def reset(self) -> torch.Tensor:
+        """
+        Reset the state and return a initial obs. Should be called at first of each game.
+        Returns:
+            The initial obs tensor.
+        """
+        ...
+
+    def step(self, action: torch.Tensor) -> Tuple[torch.Tensor, float, bool]:
+        """
+        Make one step in environment and get next obs, reward and terminal signal.
+        Args:
+            action: The action to step.
+
+        Returns:
+            next obs tensor, reward and terminal.
+        """
+        ...
+
+    def returns(self) -> List[float]:
+        """
+        Get rewards as real score - par score for each player. Should be called after the env terminated.
+        Returns:
+            The list of rewards.
         """
         ...
 
@@ -585,6 +669,13 @@ class IntConVec:
         """
         ...
 
+    def clear(self):
+        """
+        Clear the vector.
+        Returns:
+            No returns.
+        """
+
 
 class ThreadLoop:
     ...
@@ -804,6 +895,7 @@ def bid_action_to_str(bid: int) -> str:
     """
     ...
 
+
 def get_hand_string(cards: CardsLike) -> str:
     """
     Get the string of hand according to bluechip protocol
@@ -813,3 +905,11 @@ def get_hand_string(cards: CardsLike) -> str:
     Returns:
         str: The string of hand
     """
+
+
+def calc_all_tables(cards: np.ndarray) -> Tuple[List[List[int]], List[int]]:
+    ...
+
+
+def generate_deals(num_deals: int, seed: int) -> Tuple[List[List[Action]], List[List[int]], List[int]]:
+    ...

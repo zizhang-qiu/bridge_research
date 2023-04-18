@@ -1,24 +1,22 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.20)
 project(bridge_research)
 
 set(CMAKE_CXX_STANDARD 17)
-set(ABSL_PROPAGATE_CXX_STD ON)
 set(CONDA_PREFIX "D:/ProgramData/Anaconda/envs/bridge_research")
+#SET(CONDA_PREFIX $ENV{CONDA_PREFIX})
+#MESSAGE(CONDA_PREFIX)
 set(PYTHON_EXECUTABLE "${CONDA_PREFIX}/python.exe")
 set(PYTHON_INCLUDE_DIR "${CONDA_PREFIX}/include")
 set(PYTHON_LIBRARIES "${CONDA_PREFIX}/libs/python3.lib")
 find_package(PythonInterp REQUIRED)
 find_package(PythonLibs REQUIRED)
 
-add_subdirectory(third_party/abseil-cpp)
 add_subdirectory(third_party/pybind11)
-include_directories(third_party/abseil-cpp/absl)
 include_directories(third_party/pybind11/include)
-set(CUDA_HOME "D:/cuda-11.7")
 execute_process(
-          COMMAND ${PYTHON_EXECUTABLE} -c "import torch; import os; print(os.path.dirname(torch.__file__), end='')"
-          OUTPUT_VARIABLE TorchPath
-        )
+        COMMAND ${PYTHON_EXECUTABLE} -c "import torch; import os; print(os.path.dirname(torch.__file__), end='')"
+        OUTPUT_VARIABLE TorchPath
+)
 
 message(STATUS TorchPath=${TorchPath})
 
@@ -26,8 +24,11 @@ message(STATUS TorchPath=${TorchPath})
 list(APPEND CMAKE_PREFIX_PATH ${TorchPath})
 
 find_package(Torch REQUIRED)
-set(TORCH_PYTHON_LIBRARIES  "${TorchPath}/lib/torch_python.lib")
-
+if (WIN32)
+    set(TORCH_PYTHON_LIBRARIES "${TorchPath}/lib/torch_python.lib")
+else ()
+    set(TORCH_PYTHON_LIBRARIES "${TorchPath}/lib/libtorch_python.so")
+endif ()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
 
@@ -93,22 +94,13 @@ add_library(bridge_double_dummy_solver OBJECT
 target_include_directories(bridge_double_dummy_solver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(bridge_double_dummy_solver PUBLIC DDS_NO_STATIC_INIT)
 
-add_library(_br bridge_actor.h model_locker.h logging.h tests/test_bridge_scoring.h
-        bridge_state.h  types.h bridge_env.h thread_loop.h context.h utils.h replay_buffer.h tests/cards_and_ddts.h base.h bluechip_utils.h)
+add_library(_br encode_bridge.h bridge_actor.h model_locker.h logging.h bridge_scoring.h tests/test_bridge_scoring.h
+        bridge_state.h types.h bridge_env.h thread_loop.h context.h utils.h replay_buffer.h tests/cards_and_ddts.h base.h bluechip_utils.h generate_deals.h str_utils.h span.h)
 target_include_directories(_br PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_include_directories(_br PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(_br PUBLIC ${PYTHON_INCLUDE_DIRS})
-target_include_directories(_br PUBLIC third_party/zlib)
 target_link_libraries(_br PUBLIC
         bridge_double_dummy_solver
-        absl::base
-        absl::algorithm
-        absl::flags
-        absl::optional
-        absl::random_random
-        absl::strings
-        absl::str_format
-        absl::time
         ${TORCH_LIBRARIES}
         ${TORCH_PYTHON_LIBRARIES})
 
@@ -117,19 +109,10 @@ target_include_directories(rl_cpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_include_directories(rl_cpp PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(rl_cpp PUBLIC ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(rl_cpp PUBLIC
-        absl::base
-        absl::algorithm
-        absl::flags
-        absl::optional
-        absl::random_random
-        absl::strings
-        absl::str_format
-        absl::time
         bridge_double_dummy_solver
         ${TORCH_LIBRARIES}
         ${TORCH_PYTHON_LIBRARIES})
 set_target_properties(rl_cpp PROPERTIES OUTPUT_NAME "rl_cpp")
-
 
 
 add_executable(test test.cc tests/test_bluechip_utils.h tests/test_imp_env.h)
@@ -138,16 +121,7 @@ set_target_properties(test PROPERTIES LINKER_LANGUAGE CXX)
 target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_include_directories(test PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(test PUBLIC ${PYTHON_INCLUDE_DIRS})
-target_include_directories(test PUBLIC third_party/zlib)
 target_link_libraries(test PUBLIC
-        absl::base
-        absl::algorithm
-        absl::flags
-        absl::optional
-        absl::random_random
-        absl::strings
-        absl::str_format
-        absl::time
         ${TORCH_LIBRARIES}
         ${PYTHON_LIBRATIES}
         bridge_double_dummy_solver)

@@ -38,7 +38,7 @@ class SingleEnvAgent(nn.Module):
         return probs * legal_actions
 
     @torch.jit.export
-    def act(self, obs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def act(self, obs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, bool]:
         """
         Get an action for given obs
         Args:
@@ -54,16 +54,18 @@ class SingleEnvAgent(nn.Module):
         obs_ = obs.unsqueeze(0)
         log_probs = self.get_log_probs(obs_).squeeze()
         probs = torch.exp(log_probs) * legal_actions
+        available = True
         # print(probs)
         if greedy:
             action = torch.argmax(probs)
         else:
             if torch.equal(probs, torch.zeros_like(probs)):
-                print("Warning: all the probs are zero")
+                # print("Warning: all the probs are zero")
                 action = torch.multinomial(legal_actions, 1)
+                available = False
             else:
                 action = torch.multinomial(probs, 1).squeeze()
-        return action, log_probs.detach()
+        return action, log_probs.detach(), available
 
     @torch.jit.export
     def get_log_probs(self, obs: torch.Tensor) -> torch.Tensor:

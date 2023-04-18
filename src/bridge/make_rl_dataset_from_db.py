@@ -56,11 +56,11 @@ def main():
     ddts = np.zeros([num_deals, 20], dtype=int)
     pars = np.zeros(num_deals, dtype=int)
 
-    cards_, ddts_ = load_rl_dataset(db_name, flatten=True)
+    # cards_, ddts_ = load_rl_dataset(db_name, flatten=True)
     for i in trange(num_deals):
         card, ddt = get_card_and_ddt_from_str(result[i][1])
-        if not np.array_equal(cards_[i], card) or not np.array_equal(ddts_[i], ddt):
-            print(i, " not equal!")
+        # if not np.array_equal(cards_[i], card) or not np.array_equal(ddts_[i], ddt):
+        #     print(i, " not equal!")
         cards[i] = card
         ddts[i] = ddt
 
@@ -77,8 +77,11 @@ def main():
         "par_scores": pars
     }
 
-    with open(os.path.join("../dataset/rl_data", f"{db_name}.pkl"), "wb") as f:
+    with open(os.path.join("../../dataset/rl_data", f"train.pkl"), "wb") as f:
         pickle.dump(dataset, f)
+
+    # np.save(os.path.join("../../dataset/rl_data", "vs_wb5_fb_trajectories.npy"), cards)
+    # np.save(os.path.join("../../dataset/rl_data", "vs_wb5_fb_ddts.npy"), ddts)
 
 
 if __name__ == '__main__':

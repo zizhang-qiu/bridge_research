@@ -6,8 +6,7 @@
 #define BRIDGE_RESEARCH_ENCODE_BRIDGE_H
 
 #include <vector>
-#include "third_party/abseil-cpp/absl/types/span.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "span.h"
 
 namespace bridge_encode {
 
@@ -114,7 +113,7 @@ std::vector<float> Encode(int player, bool is_dealer_vulnerable,
 
     bool is_vulnerable[kNumPartnerships] = {is_dealer_vulnerable, is_non_dealer_vulnerable};
     std::vector<float> observation_tensor(kAuctionTensorSize);
-    absl::Span<float> values = absl::MakeSpan(observation_tensor);
+    auto values = rl::utils::Span<float>(observation_tensor);
     std::fill(values.begin(), values.end(), 0.0);
     int partnership = GetPartnership(player);
     auto ptr = values.begin();

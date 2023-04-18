@@ -1,12 +1,12 @@
 *.pth
 *.pt
 *.p
-/cpp/third_party
 /cpp/cmake-build-release-visual-studio
-/src/models
-/src/policy_gradient
-/src/imitation_learning
+/models
+policy_gradient
+/imitation_learning
 /src/vs_wbridge5
-/src/dataset
+/dataset
 /src/cfg
 /.idea
+results.md

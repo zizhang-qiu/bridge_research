@@ -10,6 +10,7 @@ import re
 from typing import Tuple, Union, List
 
 import numpy as np
+from tqdm import tqdm
 
 from src.bridge.bridge_vars import Suit, RANK_STR, NUM_CARDS_PER_HAND, NUM_PLAYERS, NUM_CARDS, NUM_DENOMINATIONS, \
     Denomination, NUM_SUITS, PLAYER_STR, PBN_TEMPLATE, PBN_PREFIX
@@ -169,11 +170,20 @@ def create_pbn_file(file_name: str, file_dir: str, game_strs: List[str]):
         file_name += ".pbn"
     file_path = os.path.join(file_dir, file_name)
     pbn_str = PBN_PREFIX
-    for game_str in game_strs:
-        pbn_str += game_str + "\n\n"
+    pbn_str += "\n\n".join(game_strs)
 
     with open(file_path, "w") as f:
         f.write(pbn_str)
+
+
+def write_pbn_file(cards: np.ndarray, file_name: str, file_dir: str):
+    assert_eq(cards.ndim, 2)
+    game_strs = []
+    for c in tqdm(cards):
+        game_str = get_pbn_game_string(cards_to_pbn(c, 0), 0)
+        game_strs.append(game_str)
+
+    create_pbn_file(file_name, file_dir, game_strs)
 
 
 if __name__ == '__main__':

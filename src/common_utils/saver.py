@@ -35,20 +35,20 @@ class TopKSaver:
             del self.topk[-1]
             assert len(self.topk) == self.k
 
-    def save(self, obj: object, performance: float):
+    def save(self, obj: object, performance: float, save_latest=True):
         """
         Save the model with performance
         Args:
-            obj: The object to save
-            performance: The performance
-
-        Returns:
-            No returns
+            obj: The object to save.
+            performance: The performance.
+            save_latest: Whether save the latest model.
         """
+        if save_latest:
+            torch.save(obj, os.path.join(self.save_dir, f"{self.prefix}_latest.pth"))
         self._save_if_topk(obj, performance)
         perf_str = ""
-        for i, (perf, net) in enumerate(self.topk):
-            torch.save(net, os.path.join(self.save_dir, f"{self.prefix}_{i}.pth"))
+        for i, (perf, obj) in enumerate(self.topk):
+            torch.save(obj, os.path.join(self.save_dir, f"{self.prefix}_{i}.pth"))
             perf_str += f"{i}: {perf}\n"
         with open(os.path.join(self.save_dir, "performances.txt"), "w") as f:
             f.write(perf_str)
