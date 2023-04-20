@@ -101,7 +101,7 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def(py::init<std::vector<std::vector<Action>>,
                     std::vector<std::vector<int>>,
                     std::vector<int> // greedy
-                    >())
+      >())
       .def(py::init<std::vector<Action>, std::vector<int>, std::vector<int>>())
       .def("reset", &BridgeBiddingEnv::Reset)
       .def("step", &BridgeBiddingEnv::Step)
@@ -197,6 +197,14 @@ PYBIND11_MODULE(rl_cpp, m) {
                     std::shared_ptr<bridge::BridgeBiddingEnv>,
                     std::shared_ptr<bridge::ReplayBuffer>, bool>())
       .def("main_loop", &BridgePGThreadLoop::MainLoop);
+
+  py::class_<BridgeThreadLoop, ThreadLoop, std::shared_ptr<BridgeThreadLoop>>(m, "BridgeThreadLoop")
+      .def(py::init<
+          std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
+          std::shared_ptr<bridge::BridgeBiddingEnv2>,
+          std::shared_ptr<bridge::ReplayBuffer>,
+          bool>())
+      .def("main_loop", &BridgeThreadLoop::MainLoop);
 
   py::class_<ImpEnvThreadLoop, ThreadLoop, std::shared_ptr<ImpEnvThreadLoop>>(
       m, "ImpEnvThreadLoop")

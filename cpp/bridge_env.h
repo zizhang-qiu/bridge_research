@@ -42,6 +42,10 @@ torch::Tensor MakeObsTensor(const std::shared_ptr<BridgeBiddingState> &state,
   return obs;
 }
 
+class BridgeDealManager{
+
+};
+
 class BridgeBiddingEnv : public Env {
 public:
   BridgeBiddingEnv(const std::vector<std::vector<Action>> &card_trajectories,

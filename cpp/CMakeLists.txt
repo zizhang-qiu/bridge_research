@@ -1,13 +1,31 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.10)
 project(bridge_research)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CONDA_PREFIX "D:/ProgramData/Anaconda/envs/bridge_research")
 #SET(CONDA_PREFIX $ENV{CONDA_PREFIX})
 #MESSAGE(CONDA_PREFIX)
-set(PYTHON_EXECUTABLE "${CONDA_PREFIX}/python.exe")
-set(PYTHON_INCLUDE_DIR "${CONDA_PREFIX}/include")
-set(PYTHON_LIBRARIES "${CONDA_PREFIX}/libs/python3.lib")
+if (WIN32)
+    MESSAGE("Compiling on Windows")
+    set(PYTHON_EXECUTABLE "${CONDA_PREFIX}/python.exe")
+    set(PYTHON_INCLUDE_DIR "${CONDA_PREFIX}/include")
+    set(PYTHON_LIBRARIES "${CONDA_PREFIX}/libs/python3.lib")
+else ()
+    MESSAGE("Compiling on Linux")
+    set(CMAKE_CXX_FLAGS
+            "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Wno-register -fPIC -march=native -Wfatal-errors")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DPYBIND11_COMPILER_TYPE=\\\"_gcc\\\" -DPYBIND11_STDLIB=\\\"_libstdcpp\\\" -DPYBIND11_BUILD_ABI=\\\"_cxxabi1011\\\"")
+    set(CMAKE_CUDA_FLAGS "-std=c++17")
+    SET(CUDA_HOME /usr/local/cuda-11.8)
+    set(CMAKE_CUDA_COMPILER /usr/local/cuda-11.8/bin/nvcc)
+    set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.8")
+    #    set(CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES /usr/local/cuda-11.8)
+    set(CUDA_NVCC_EXECUTABLE /usr/local/cuda-11.8/bin/nvcc)
+    set(CMAKE_CUDA_EXTENSIONS ON)
+    set(PYTHON_EXECUTABLE /root/miniconda3/bin/python)
+endif ()
+
+
 find_package(PythonInterp REQUIRED)
 find_package(PythonLibs REQUIRED)
 
@@ -115,16 +133,16 @@ target_link_libraries(rl_cpp PUBLIC
 set_target_properties(rl_cpp PROPERTIES OUTPUT_NAME "rl_cpp")
 
 
-add_executable(test test.cc tests/test_bluechip_utils.h tests/test_imp_env.h)
-set_target_properties(test PROPERTIES LINKER_LANGUAGE CXX)
-
-target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
-target_include_directories(test PUBLIC ${TORCH_INCLUDE_DIRS})
-target_include_directories(test PUBLIC ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(test PUBLIC
-        ${TORCH_LIBRARIES}
-        ${PYTHON_LIBRATIES}
-        bridge_double_dummy_solver)
+#add_executable(test test.cc tests/test_bluechip_utils.h tests/test_imp_env.h)
+#set_target_properties(test PROPERTIES LINKER_LANGUAGE CXX)
+#
+#target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+#target_include_directories(test PUBLIC ${TORCH_INCLUDE_DIRS})
+#target_include_directories(test PUBLIC ${PYTHON_INCLUDE_DIRS})
+#target_link_libraries(test PUBLIC
+#        ${TORCH_LIBRARIES}
+#        ${PYTHON_LIBRATIES}
+#        bridge_double_dummy_solver)
 
 
 

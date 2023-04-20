@@ -20,16 +20,14 @@ import torchviz
 from torchviz import make_dot
 import torchview
 
-from src.bridge import dds
-from src.bridge.agent_for_cpp import SingleEnvAgent
-from src.bridge.bridge_vars import NUM_SUITS, PLUS_MINUS_SYMBOL, NUM_CARDS, NUM_PLAYERS
-from src.bridge.dds import get_par_score_from_par_results
-from src.bridge.global_vars import RLDataset
-from src.bridge.nets import PolicyNet
-from src.bridge.pbn import get_trajectories_and_ddts_from_pbn_file, write_pbn_file
-from src.bridge.utils import sl_net, Evaluator, load_rl_dataset
-from src.common_utils.array_utils import get_avg_and_sem
-from src.common_utils.other_utils import set_random_seeds
+import dds
+from agent_for_cpp import SingleEnvAgent
+from bridge_vars import NUM_SUITS, PLUS_MINUS_SYMBOL, NUM_CARDS, NUM_PLAYERS
+from dds import get_par_score_from_par_results
+from global_vars import RLDataset
+from nets import PolicyNet
+from common_utils.array_utils import get_avg_and_sem
+from common_utils.other_utils import set_random_seeds
 
 
 def json_2_np(path):
@@ -136,7 +134,7 @@ if __name__ == '__main__':
     # with open(os.path.join(r"D:\Projects\bridge_research\dataset\rl_data", f"vs_wb5_open_spiel.pkl"), "wb") as f:
     #     pickle.dump(dataset, f)
 
-    with open("../../dataset/rl_data/train.pkl", "rb") as fp:
+    with open("../dataset/rl_data/train.pkl", "rb") as fp:
         dataset: RLDataset = pickle.load(fp)
 
     # print(dataset["par_scores"][:100])
@@ -152,11 +150,12 @@ if __name__ == '__main__':
     # print(env)
     # print(dataset["par_scores"][0])
     # print(env.returns())
-    deal = rl_cpp.BridgeDeal()
-    deal.cards = dataset["cards"][0]
-    # deal.ddt = dataset["ddts"][0]
-    state = rl_cpp.BridgeBiddingState(deal)
-    print(state)
-    for a in [3, 0, 0, 0]:
-        state.apply_action(a)
-    print(state)
+    # deal = rl_cpp.BridgeDeal()
+    # deal.cards = dataset["cards"][0]
+    # # deal.ddt = dataset["ddts"][0]
+    # state = rl_cpp.BridgeBiddingState(deal)
+    # print(state)
+    # for a in [3, 0, 0, 0]:
+    #     state.apply_action(a)
+    # print(state)
+    print(torch.cuda.device_count())

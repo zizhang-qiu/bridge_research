@@ -6,11 +6,11 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-from src.bridge.nets import PolicyNet
-from src.common_utils.logger import Logger
-from src.common_utils.other_utils import set_random_seeds, mkdir_with_time
-from src.common_utils.torch_utils import initialize_fc
-from src.common_utils.value_stats import MultiStats
+from nets import PolicyNet
+from common_utils.logger import Logger
+from common_utils.other_utils import set_random_seeds, mkdir_with_time
+from common_utils.torch_utils import initialize_fc
+from common_utils.value_stats import MultiStats
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 NUM_ACTIONS = 38

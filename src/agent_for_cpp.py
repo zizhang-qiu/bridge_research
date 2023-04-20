@@ -9,7 +9,7 @@ from typing import Optional, Tuple
 import torch
 from torch import nn
 
-from src.bridge.nets import PolicyNet, ValueNet
+from nets import PolicyNet, ValueNet
 
 
 class SingleEnvAgent(nn.Module):

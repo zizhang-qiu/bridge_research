@@ -12,10 +12,9 @@ import sqlite3
 import numpy as np
 from tqdm import trange
 
-from src.bridge.dds import calc_all_tables, get_par_score_from_par_results
-from src.bridge.bridge_vars import NUM_CARDS, RANK_STR, NUM_CARDS_PER_HAND, NUM_PLAYERS
-from src.bridge.pbn import get_card, cards_to_pbn, get_pbn_game_string, create_pbn_file
-from src.bridge.utils import load_rl_dataset
+from dds import calc_all_tables, get_par_score_from_par_results
+from bridge_vars import NUM_CARDS, RANK_STR, NUM_CARDS_PER_HAND, NUM_PLAYERS
+from pbn import get_card
 
 db_dir = r"D:\RL\rlul\pyrlul\bridge\dataset\rl_data"
 db_name = "train"
@@ -77,7 +76,7 @@ def main():
         "par_scores": pars
     }
 
-    with open(os.path.join("../../dataset/rl_data", f"train.pkl"), "wb") as f:
+    with open(os.path.join("../dataset/rl_data", f"train.pkl"), "wb") as f:
         pickle.dump(dataset, f)
 
     # np.save(os.path.join("../../dataset/rl_data", "vs_wb5_fb_trajectories.npy"), cards)

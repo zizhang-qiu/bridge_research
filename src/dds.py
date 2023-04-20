@@ -14,8 +14,8 @@ from typing import Tuple, List
 import numpy as np
 from tqdm import tqdm
 
-from src.bridge.bridge_vars import NUM_CARDS, NUM_SUITS, NUM_CARDS_PER_SUIT, NUM_PLAYERS
-from src.common_utils.assert_utils import assert_eq, assert_lteq
+from bridge_vars import NUM_CARDS, NUM_SUITS, NUM_CARDS_PER_SUIT, NUM_PLAYERS
+from common_utils.assert_utils import assert_eq, assert_lteq
 
 MAXNOOFBOARDS = 200
 DDS_STRAINS = 5

@@ -5,10 +5,9 @@
 @encoding:utf-8
 """
 import os
-from typing import List, Dict, Tuple, Any
+from typing import List, Tuple
 
 import torch
-from torch import nn
 
 
 class TopKSaver:
@@ -34,6 +33,11 @@ class TopKSaver:
         if len(self.topk) > self.k:
             del self.topk[-1]
             assert len(self.topk) == self.k
+
+    def get(self, k: int) -> Tuple[float, object]:
+        if (n := len(self.topk)) < k:
+            raise ValueError(f"No enough items, the saver only have {n} items, but asks for {k}.")
+        return self.topk[k]
 
     def save(self, obj: object, performance: float, save_latest=True):
         """

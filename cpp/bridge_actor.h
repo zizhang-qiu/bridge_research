@@ -123,7 +123,7 @@ public:
 
   void PostToReplayBuffer(const std::shared_ptr<ReplayBuffer> &buffer,
                           float final_reward) {
-    transition_buffer_->PostToReplayBuffer(buffer, final_reward);
+    transition_buffer_->PostToReplayBuffer(buffer, final_reward, true);
   }
 
 private:

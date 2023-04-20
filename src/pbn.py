@@ -12,10 +12,10 @@ from typing import Tuple, Union, List
 import numpy as np
 from tqdm import tqdm
 
-from src.bridge.bridge_vars import Suit, RANK_STR, NUM_CARDS_PER_HAND, NUM_PLAYERS, NUM_CARDS, NUM_DENOMINATIONS, \
+from src.bridge_vars import Suit, RANK_STR, NUM_CARDS_PER_HAND, NUM_PLAYERS, NUM_CARDS, NUM_DENOMINATIONS, \
     Denomination, NUM_SUITS, PLAYER_STR, PBN_TEMPLATE, PBN_PREFIX
-from src.bridge.dds import DDS_STRAINS, DDS_HANDS
-from src.common_utils.assert_utils import assert_eq
+from dds import DDS_STRAINS, DDS_HANDS
+from common_utils.assert_utils import assert_eq
 
 
 def get_card(suit: int, rank: int) -> int:

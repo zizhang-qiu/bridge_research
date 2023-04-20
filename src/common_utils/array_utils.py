@@ -6,15 +6,12 @@
 @time:2023/02/17
 """
 from math import sqrt
-from typing import Tuple
+from typing import Tuple, Union, List
 
 import numpy as np
 
-from src.common_utils.assert_utils import assert_eq
-from src.bridge.global_vars import Vector
 
-
-def multiple_shuffle(*args: Vector) -> Tuple[np.ndarray, ...]:
+def multiple_shuffle(*args: Union[List, np.ndarray]) -> Tuple[np.ndarray, ...]:
     """
     Shuffle multiple arrays in same order
 
@@ -26,7 +23,7 @@ def multiple_shuffle(*args: Vector) -> Tuple[np.ndarray, ...]:
     """
     # check if their lengths are same
     lengths = [len(arg) for arg in args]
-    assert_eq(len(set(lengths)), 1)
+    assert len(set(lengths)) == 1
     indices = np.random.permutation(lengths[0])
     ret = []
     for arg in args:
@@ -36,7 +33,7 @@ def multiple_shuffle(*args: Vector) -> Tuple[np.ndarray, ...]:
     return tuple(ret)
 
 
-def get_avg_and_sem(arr: Vector) -> Tuple[float, float]:
+def get_avg_and_sem(arr: Union[List, np.ndarray]) -> Tuple[float, float]:
     """
     Get the average and standard error of the mean of a list or array.
     Args:

@@ -12,7 +12,7 @@ import time
 import numpy as np
 
 from dds import calc_all_tables
-from src.bridge.bridge_vars import NUM_CARDS
+from bridge_vars import NUM_CARDS
 
 
 def parse_args():

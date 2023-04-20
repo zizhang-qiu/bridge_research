@@ -11,10 +11,10 @@ import torch
 from matplotlib import pyplot as plt
 
 import rl_cpp
-from src.bridge.agent_for_cpp import SingleEnvAgent
-from src.bridge.bridge_vars import NUM_PLAYERS
-from src.bridge.utils import sl_net, load_rl_dataset, Evaluator
-from src.common_utils.array_utils import multiple_shuffle
+from agent_for_cpp import SingleEnvAgent
+from bridge_vars import NUM_PLAYERS
+from utils import sl_net, load_rl_dataset, Evaluator
+from common_utils.array_utils import multiple_shuffle
 
 device = "cuda"
 

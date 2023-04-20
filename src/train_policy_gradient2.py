@@ -19,27 +19,28 @@ from matplotlib import pyplot as plt
 from tqdm import trange
 
 import rl_cpp
-from src.bridge.agent_for_cpp import SingleEnvAgent
-from src.bridge.bridge_vars import NUM_PLAYERS, PLUS_MINUS_SYMBOL
-from src.bridge.nets import PolicyNet
-from src.bridge.utils import load_rl_dataset, sl_net, Evaluator
-from src.common_utils.array_utils import multiple_shuffle
-from src.common_utils.logger import Logger
-from src.common_utils.mem_utils import get_mem_usage
-from src.common_utils.other_utils import set_random_seeds, mkdir_with_time
-from src.common_utils.saver import TopKSaver
-from src.common_utils.value_stats import MultiStats
+from agent_for_cpp import SingleEnvAgent
+from bridge_vars import NUM_PLAYERS, PLUS_MINUS_SYMBOL
+from nets import PolicyNet
+from utils import load_rl_dataset, sl_net, Evaluator
+from common_utils.array_utils import multiple_shuffle
+from common_utils.logger import Logger
+from common_utils.mem_utils import get_mem_usage
+from common_utils.other_utils import set_random_seeds, mkdir_with_time
+from common_utils.saver import TopKSaver
+from common_utils.value_stats import MultiStats
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint_path", type=str,
-                        default=r"D:\Projects\bridge_research\policy_gradient\20230329143031\checkpoint_0.pth")
-    parser.add_argument("--device", type=str, default="cuda")
+                        default=None)
+    parser.add_argument("--acting_device", type=str, default="cuda")
+    parser.add_argument("--train_device", type=str, default="cuda")
     parser.add_argument("--num_threads", type=int, default=8)
     parser.add_argument("--policy_lr", type=float, default=1e-6)
     parser.add_argument("--seed", type=int, default=77)
-    parser.add_argument("--burn_in_frames", type=int, default=400000)
+    parser.add_argument("--burn_in_frames", type=int, default=80000)
     parser.add_argument("--buffer_capacity", type=int, default=800000)
     parser.add_argument("--num_epochs", type=int, default=20000)
     parser.add_argument("--epoch_len", type=int, default=1000)
@@ -54,20 +55,20 @@ def parse_args():
     parser.add_argument("--num_eval_deals", type=int, default=50000)
     parser.add_argument("--num_eval_threads", type=int, default=8)
     parser.add_argument("--eval_device", type=str, default="cuda")
-    parser.add_argument("--save_dir", type=str, default="../../policy_gradient")
+    parser.add_argument("--save_dir", type=str, default="policy_gradient")
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     args = parse_args()
     set_random_seeds(args.seed)
-    device = args.device
+    acting_device = args.acting_device
+    train_device = args.train_device
     entropy_ratio = args.entropy_ratio
     clip_eps = args.clip_eps
     sample_batch_size = args.sample_batch_size
 
-    replay_buffer = rl_cpp.ReplayBuffer(519, 38, args.buffer_capacity)
-    supervised_net = sl_net(device=device)
+    supervised_net = sl_net(device=acting_device)
     stats = MultiStats()
     save_dir: Optional[str] = None
     logger: Optional[Logger] = None
@@ -82,23 +83,24 @@ if __name__ == '__main__':
     if args.checkpoint_path:
         train_net = PolicyNet()
         train_net.load_state_dict(torch.load(args.checkpoint_path)["model_state_dict"]["policy"])
-        train_net.to(device)
+        train_net.to(acting_device)
         print("Load trained net.")
         avg, sem, _ = evaluator.evaluate(train_net, supervised_net)
         msg = f"Start with the performance: {avg}{PLUS_MINUS_SYMBOL}{sem}."
         logger.write(msg)
     else:
-        train_net = sl_net(device=device)
+        train_net = sl_net(device=acting_device)
         print("No checkpoint, start from supervised learning net.")
 
     train_agent = SingleEnvAgent(train_net)
-    train_agent.to(device)
+    train_agent.to(train_device)
     train_agent_jit = torch.jit.script(train_agent)
-    oppo_agent = SingleEnvAgent(train_net)
-    oppo_agent_jit = torch.jit.script(oppo_agent)
-    train_locker = rl_cpp.ModelLocker([train_agent_jit], device)
-    oppo_locker = rl_cpp.ModelLocker([oppo_agent_jit], device)
-    # p_opt = torch.optim.Adam(train_agent.p_net.parameters(), lr=args.policy_lr, eps=1e-7, weight_decay=1e-4)
+    train_agent_jit = train_agent_jit.to(acting_device)
+    # oppo_agent = SingleEnvAgent(train_net)
+    # oppo_agent_jit = torch.jit.script(oppo_agent)
+    train_locker = rl_cpp.ModelLocker([train_agent_jit], acting_device)
+    # oppo_locker = rl_cpp.ModelLocker([oppo_agent_jit], acting_device)
+    # p_opt = torch.optim.Adam(train_agent.p_net.parameters(), lr=args.policy_lr, eps=1e-7)
     p_opt = Adan(train_agent.p_net.parameters(), lr=args.policy_lr, fused=True)
     if args.checkpoint_path:
         p_opt.load_state_dict(torch.load(args.checkpoint_path)["optimizer_state_dict"]["policy"])
@@ -106,24 +108,26 @@ if __name__ == '__main__':
 
     is_train_agent_greedy = False
     is_opponent_agent_greedy = False
-    greedy_0 = [is_train_agent_greedy, is_opponent_agent_greedy, is_train_agent_greedy, is_opponent_agent_greedy]
-    greedy_1 = [is_opponent_agent_greedy, is_train_agent_greedy, is_opponent_agent_greedy, is_train_agent_greedy]
+    greedy = [is_train_agent_greedy, is_opponent_agent_greedy, is_train_agent_greedy, is_opponent_agent_greedy]
+
     train_dataset = load_rl_dataset("train")
     cards = train_dataset["cards"]
     ddts = train_dataset["ddts"]
+    par_scores = train_dataset["par_scores"]
     envs = []
+    replay_buffer = rl_cpp.ReplayBuffer(519, 38, args.buffer_capacity)
     context = rl_cpp.Context()
     for i_thread in range(args.num_threads):
-        cards_, ddts_ = multiple_shuffle(cards, ddts)
-        env_0 = rl_cpp.ImpEnv(cards_, ddts_, greedy_0, False)
+        cards_, ddts_, par_scores_ = multiple_shuffle(cards, ddts, par_scores)
+        env_0 = rl_cpp.BridgeBiddingEnv2(cards_, ddts_, par_scores_, greedy)
         envs.append(env_0)
 
         actors = []
         for i in range(NUM_PLAYERS):
-            actor = rl_cpp.SingleEnvActor(train_locker if i % 2 == 0 else oppo_locker, i, 1.0,
-                                          False if i % 2 == 0 else True)
+            actor = rl_cpp.SingleEnvActor(train_locker, i, 1.0,
+                                          False)
             actors.append(actor)
-        t = rl_cpp.ImpEnvThreadLoop(actors,
+        t = rl_cpp.BridgeThreadLoop(actors,
                                     env_0,
                                     replay_buffer,
                                     False)
@@ -146,11 +150,12 @@ if __name__ == '__main__':
             num_update = batch_idx + epoch * args.epoch_len + 1
 
             p_opt.zero_grad()
-            batch_obs, batch_action, batch_reward, batch_log_probs = replay_buffer.sample(sample_batch_size, device)
-            # batch_obs, batch_action, batch_reward, batch_log_probs = \
-            #     to_device(batch_obs, batch_action, batch_reward, batch_log_probs, device=args.device)
+            batch_obs, batch_action, batch_reward, batch_log_probs = replay_buffer.sample(sample_batch_size,
+                                                                                          train_device)
+            # print(batch_reward)
             loss = train_agent.compute_policy_gradient_loss(batch_obs, batch_action, batch_reward,
                                                             batch_log_probs, clip_eps, entropy_ratio)
+            # print(loss)
             loss.backward()
 
             stats.feed("loss", loss.item())
@@ -161,11 +166,6 @@ if __name__ == '__main__':
             if num_update % args.actor_update_freq == 0:
                 train_agent_jit = torch.jit.script(train_agent)
                 train_locker.update_model(train_agent_jit)
-
-            # check opponent update
-            if num_update % args.opponent_update_freq == 0:
-                oppo_agent_jit = torch.jit.script(train_agent)
-                oppo_locker.update_model(oppo_agent_jit)
                 # time.sleep(0.1)
         # eval
         context.pause()

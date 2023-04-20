@@ -5,15 +5,12 @@
 @encoding:utf-8
 """
 import abc
-import torch
-from src.bridge.bridge_vars import NUM_PLAYERS, NUM_CARDS
-from src.common_utils.assert_utils import assert_in_range
 import re
-import socket
-import sys
-import time
-from typing import Callable, Union, Optional, List
+from typing import Callable, Optional, List
+
 import rl_cpp
+from bridge_vars import NUM_PLAYERS, NUM_CARDS
+from common_utils.assert_utils import assert_in_range
 
 # Copyright 2019 DeepMind Technologies Limited
 #

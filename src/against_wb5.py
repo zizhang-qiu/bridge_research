@@ -21,16 +21,16 @@ import yaml
 
 import rl_cpp
 
-from src.bridge.bluechip_bridge import Controller, BlueChipBridgeBot
-from src.bridge.agent_for_cpp import SingleEnvAgent
-from src.bridge.bridge_vars import NUM_PLAYERS, PLUS_MINUS_SYMBOL
-from src.bridge.nets import PolicyNet
-from src.bridge.utils import load_rl_dataset
-from src.common_utils.array_utils import get_avg_and_sem
-from src.common_utils.assert_utils import assert_eq
-from src.common_utils.logger import Logger
-from src.common_utils.other_utils import mkdir_with_time, allocate_tasks_uniformly
-from src.common_utils.torch_utils import create_shared_dict
+from bluechip_bridge import Controller, BlueChipBridgeBot
+from agent_for_cpp import SingleEnvAgent
+from bridge_vars import NUM_PLAYERS, PLUS_MINUS_SYMBOL
+from nets import PolicyNet
+from utils import load_rl_dataset
+from common_utils.array_utils import get_avg_and_sem
+from common_utils.assert_utils import assert_eq
+from common_utils.logger import Logger
+from common_utils.other_utils import mkdir_with_time, allocate_tasks_uniformly
+from common_utils.torch_utils import create_shared_dict
 
 
 class _WBridge5Client(Controller):
@@ -187,11 +187,11 @@ class AgainstWb5Worker(mp.Process):
 
 def main():
     # cards, ddts = load_rl_dataset("vs_wb5_fb", flatten=True)
-    with open("../../dataset/rl_data/vs_wb5_open_spiel.pkl", "rb") as fp:
+    with open("../dataset/rl_data/vs_wb5_open_spiel.pkl", "rb") as fp:
         dataset = pickle.load(fp)
     cards = dataset["cards"]
     ddts = dataset["ddts"].reshape(-1, 20)
-    with open("../../config/against_wb5.yaml", "r") as fp:
+    with open("../config/against_wb5.yaml", "r") as fp:
         config: Dict = yaml.safe_load(fp)
     # print(config)
     net = PolicyNet()

@@ -2,6 +2,7 @@
 *.pt
 *.p
 /cpp/cmake-build-release-visual-studio
+/cpp/cmake-build-release-remote-host
 /models
 policy_gradient
 /imitation_learning

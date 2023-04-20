@@ -24,4 +24,4 @@ class PlayerId(IntEnum):
 
 PlayerAction = namedtuple("PlayerAction", ["player", "action"])
 
-DEFAULT_RL_DATASET_DIR = r"..\..\dataset\rl_data"
+DEFAULT_RL_DATASET_DIR = r"../dataset/rl_data"

@@ -66,20 +66,57 @@ def set_omp_threads(num_threads: int = 1, verbose: bool = False) -> None:
         print(f"set omp_num_thread={num_threads}")
 
 
-def mkdir_with_time(_dir: str, _format: str = '%Y%m%d%H%M%S') -> str:
+def mkdir_with_time(dir_path: str, _format: str = '%Y%m%d%H%M%S') -> str:
     """
     Make directory using time strf, return the path to the directory.
     Args:
-        _dir(str):the directory to make a new directory
+        dir_path(str):the directory to make a new directory
         _format(str): the strf format of time
 
     Returns:
         str: the path to the made directory
     """
+    if not os.path.exists(dir_path):
+        os.mkdir(dir_path)
     time_str = datetime.datetime.now().strftime(_format)
-    path = os.path.join(_dir, time_str)
+    path = os.path.join(dir_path, time_str)
     os.mkdir(path)
     return path
+
+
+def mkdir_with_increment(dir_path: str, folder_name: str = "folder") -> str:
+    """
+    Creates a new folder with the largest number + 1 in the given directory.
+
+    Args:
+        folder_name (str): The name of created folder.
+        dir_path (str): Path to the directory where the new folder should be created.
+
+    Returns:
+        str: Path to the newly created folder.
+    """
+
+    if not os.path.exists(dir_path):
+        os.mkdir(dir_path)
+    # Get all folder names in the directory
+    folder_names = [name for name in os.listdir(dir_path) if os.path.isdir(os.path.join(dir_path, name))]
+
+    # Extract the numbers from the folder names and convert them to integers
+    numbers = [int(name.split('_')[-1]) for name in folder_names if name.startswith(f'{folder_name}_')]
+
+    # If no folders exist, start counting from 1
+    if not numbers:
+        new_number = 1
+    else:
+        # Get the largest number and increment it by 1
+        new_number = max(numbers) + 1
+
+    # Create a new folder with the incremented number in the name
+    new_folder_name = f"{folder_name}_{new_number}"
+    new_folder_path = os.path.join(dir_path, new_folder_name)
+    os.mkdir(new_folder_path)
+
+    return new_folder_path
 
 
 def allocate_tasks_uniformly(num_processes: int, num_tasks: int) -> List[int]:
