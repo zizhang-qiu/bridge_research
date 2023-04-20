@@ -23,6 +23,12 @@
 
 namespace rl::utils {
 
+inline bool CheckProbNotZero(const torch::Tensor &action,
+                      const torch::Tensor &log_probs) {
+  auto index = action.item<int>();
+  auto value = torch::exp(log_probs[index]).item<float>();
+  return value != 0.0;
+}
 
 inline std::tuple<double, double>
 ComputeMeanAndSem(const std::vector<int> &data) {
@@ -39,7 +45,7 @@ ComputeMeanAndSem(const std::vector<int> &data) {
   return std::make_tuple(mean, sem);
 }
 
-template <typename T, std::size_t ROW, std::size_t COL>
+template<typename T, std::size_t ROW, std::size_t COL>
 inline void Print2DArray(const T (&arr)[ROW][COL]) {
   for (std::size_t i = 0; i < ROW; ++i) {
     for (std::size_t j = 0; j < COL; ++j) {
@@ -49,10 +55,11 @@ inline void Print2DArray(const T (&arr)[ROW][COL]) {
   }
 }
 
-template <class... Args> inline std::string StrCat(const Args &...args) {
+template<class... Args>
+inline std::string StrCat(const Args &...args) {
   using Expander = int[];
   std::stringstream ss;
-  (void)Expander{0, (void(ss << args), 0)...};
+  (void) Expander{0, (void(ss << args), 0)...};
   return ss.str();
 }
 
@@ -72,7 +79,7 @@ inline std::vector<float> VectorDiv(const std::vector<int> &vec, int num) {
   return ret;
 }
 
-template <typename T>
+template<typename T>
 inline bool IsValueInVector(const std::vector<T> &v, T value) {
   auto it = std::find(v.begin(), v.end(), value);
   return (it != v.end());
@@ -93,7 +100,7 @@ inline std::vector<int> Permutation(int begin, int end, std::mt19937 &rng) {
   return input;
 }
 
-template <typename T, std::size_t N>
+template<typename T, std::size_t N>
 void PrintArray(const std::array<std::optional<T>, N> &arr) {
   std::cout << "[";
   for (std::size_t i = 0; i < N; ++i) {
@@ -117,7 +124,7 @@ inline int GetProduct(const std::vector<int64_t> &nums) {
   return prod;
 }
 
-template <typename T>
+template<typename T>
 inline std::vector<T> PushLeft(T left, const std::vector<T> &vals) {
   std::vector<T> vec;
   vec.reserve(1 + vals.size());
@@ -128,21 +135,24 @@ inline std::vector<T> PushLeft(T left, const std::vector<T> &vals) {
   return vec;
 }
 
-template <typename T> inline void PrintVector(const std::vector<T> &vec) {
+template<typename T>
+inline void PrintVector(const std::vector<T> &vec) {
   for (const auto &v : vec) {
     std::cout << v << ", ";
   }
   std::cout << std::endl;
 }
 
-template <typename T> inline void PrintMapKey(const T &map) {
+template<typename T>
+inline void PrintMapKey(const T &map) {
   for (const auto &name2sth : map) {
     std::cout << name2sth.first << ", ";
   }
   std::cout << std::endl;
 }
 
-template <typename T> inline void PrintMap(const T &map) {
+template<typename T>
+inline void PrintMap(const T &map) {
   for (const auto &name2sth : map) {
     std::cout << name2sth.first << ": " << name2sth.second << std::endl;
   }

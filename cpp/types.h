@@ -5,6 +5,7 @@
 #ifndef BRIDGE_RESEARCH_TYPES_H
 #define BRIDGE_RESEARCH_TYPES_H
 
+#include "torch/torch.h"
 #include <torch/extension.h>
 #include <unordered_map>
 

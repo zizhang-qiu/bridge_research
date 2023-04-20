@@ -102,7 +102,7 @@ PYBIND11_MODULE(rl_cpp, m) {
                     const std::vector<int>>())
       .def("size", &BridgeDealManager::Size);
 
-  py::class_<BridgeBiddingEnv, Env, std::shared_ptr<BridgeBiddingEnv>>(m, "BridgeBiddingEnv")
+  py::class_<BridgeBiddingEnv, std::shared_ptr<BridgeBiddingEnv>>(m, "BridgeBiddingEnv")
       .def(py::init<std::shared_ptr<BridgeDealManager>, std::vector<int>>())
       .def("reset", &BridgeBiddingEnv::Reset)
       .def("step", &BridgeBiddingEnv::Step)
@@ -210,6 +210,8 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def(py::init<std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
                     std::shared_ptr<bridge::ImpEnv>, const int>())
       .def("main_loop", &EvalImpThreadLoop::MainLoop);
+
+  m.def("check_prob_not_zero", &rl::utils::CheckProbNotZero);
 
   m.def("bid_str_to_action", &bluechip::BidStrToAction);
   m.def("bid_action_to_str", &bluechip::BidActionToStr);

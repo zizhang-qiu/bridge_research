@@ -437,7 +437,6 @@ class BridgeBiddingEnv2:
         """
         ...
 
-
     def get_state(self) -> BridgeBiddingState:
         """
         Get the state.
@@ -535,7 +534,7 @@ class BridgeVecEnv:
 
 
 class ImpEnv:
-    def __init__(self, deal_manager:BridgeDealManager, greedy: List[int]):
+    def __init__(self, deal_manager: BridgeDealManager, greedy: List[int]):
         """
         An imp env which a deal is played twice. The player sit at NS first time should play at EW for second time.
         Args:
@@ -890,4 +889,8 @@ def calc_all_tables(cards: np.ndarray) -> Tuple[List[List[int]], List[int]]:
 
 
 def generate_deals(num_deals: int, seed: int) -> Tuple[List[List[Action]], List[List[int]], List[int]]:
+    ...
+
+
+def check_prob_not_zero(action: torch.Tensor, log_probs: torch.Tensor):
     ...

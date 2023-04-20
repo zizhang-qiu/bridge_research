@@ -109,7 +109,7 @@ class ParResultsDealer(Structure):
                 ("contracts", c_char * 10 * 10)]
 
 
-dll = CDLL(r"dds.dll", winmode=0)
+dll = CDLL(r"D:\Projects\bridge_research\src\dds.dll", winmode=0)
 dll.CalcDDtable.argtypes = (DDTabelDeal, POINTER(DDTableResults))
 dll.CalcDDtable.restype = c_int
 dll.CalcAllTables.argtypes = (POINTER(DDTableDeals), c_int, c_int * DDS_STRAINS, POINTER(DDTableRes),

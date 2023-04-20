@@ -19,11 +19,8 @@ import numpy as np
 import torchviz
 from torchviz import make_dot
 import torchview
-
-import dds
 from agent_for_cpp import SingleEnvAgent
 from bridge_vars import NUM_SUITS, PLUS_MINUS_SYMBOL, NUM_CARDS, NUM_PLAYERS
-from dds import get_par_score_from_par_results
 from global_vars import RLDataset
 from nets import PolicyNet
 from common_utils.array_utils import get_avg_and_sem
@@ -134,8 +131,8 @@ if __name__ == '__main__':
     # with open(os.path.join(r"D:\Projects\bridge_research\dataset\rl_data", f"vs_wb5_open_spiel.pkl"), "wb") as f:
     #     pickle.dump(dataset, f)
 
-    with open("../dataset/rl_data/train.pkl", "rb") as fp:
-        dataset: RLDataset = pickle.load(fp)
+    # with open("dataset/rl_data/train.pkl", "rb") as fp:
+    #     dataset: RLDataset = pickle.load(fp)
 
     # print(dataset["par_scores"][:100])
     # env = rl_cpp.BridgeBiddingEnv2(dataset["cards"], dataset["ddts"], dataset["par_scores"], [1, 1, 1, 1])
@@ -158,4 +155,11 @@ if __name__ == '__main__':
     # for a in [3, 0, 0, 0]:
     #     state.apply_action(a)
     # print(state)
-    print(torch.cuda.device_count())
+    # print(torch.cuda.device_count())
+    # log_probs = torch.log(torch.tensor([0.0, 0.3, 0.1, 0.6]))
+    # print(log_probs)
+    # legal_actions = torch.ones(38)
+    # print(torch.multinomial(legal_actions, 1))
+    # print(torch.multinomial(legal_actions, 1).squeeze())
+    # print(rl_cpp.check_prob_not_zero(torch.tensor([1]), log_probs))
+    pass

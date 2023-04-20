@@ -11,7 +11,7 @@
 using namespace torch::indexing;
 namespace rl::bridge {
 class RandomActor : public Actor {
-public:
+ public:
   RandomActor() = default;
 
   torch::Tensor Act(const torch::Tensor &obs) override {
@@ -23,7 +23,7 @@ public:
 };
 
 class TransitionBuffer {
-public:
+ public:
   explicit TransitionBuffer(float gamma) { gamma_ = gamma; }
 
   void PushObsAndActionAndLogProbs(const torch::Tensor &obs,
@@ -61,7 +61,7 @@ public:
     log_probs_history_.clear();
   }
 
-private:
+ private:
   std::vector<torch::Tensor> obs_history_;
   std::vector<torch::Tensor> action_history_;
   std::vector<torch::Tensor> log_probs_history_;
@@ -86,7 +86,7 @@ private:
 
 class SingleEnvActor : public Actor {
 
-public:
+ public:
   SingleEnvActor(std::shared_ptr<ModelLocker> model_locker, int player,
                  float gamma, bool eval)
       : model_locker_(std::move(std::move(model_locker))), player_(player),
@@ -106,13 +106,10 @@ public:
     //        std::cout << action << std::endl;
     auto log_probs = out_tuple->elements()[1].toTensor();
     //        std::cout << log_probs << std::endl;
-    auto available = out_tuple->elements()[2].toBool();
 
     model_locker_->ReleaseModel(id);
     if (!eval_) {
-      if (available) {
-        transition_buffer_->PushObsAndActionAndLogProbs(obs, action, log_probs);
-      }
+      transition_buffer_->PushObsAndActionAndLogProbs(obs, action, log_probs);
     }
     return action;
   }
@@ -126,7 +123,7 @@ public:
     transition_buffer_->PostToReplayBuffer(buffer, final_reward, true);
   }
 
-private:
+ private:
   std::shared_ptr<ModelLocker> model_locker_;
   int player_;
   std::shared_ptr<TransitionBuffer> transition_buffer_;
@@ -134,9 +131,9 @@ private:
 };
 
 class VecEnvActor : public Actor {
-public:
+ public:
   VecEnvActor(std::shared_ptr<ModelLocker> model_locker)
-      : model_locker_(std::move(model_locker)){};
+      : model_locker_(std::move(model_locker)) {};
 
   torch::Tensor Act(const torch::Tensor &obs) override {
     torch::NoGradGuard ng;
@@ -150,7 +147,7 @@ public:
     return action;
   }
 
-private:
+ private:
   std::shared_ptr<ModelLocker> model_locker_;
 };
 } // namespace rl::bridge

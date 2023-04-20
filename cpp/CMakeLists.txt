@@ -112,9 +112,10 @@ add_library(bridge_double_dummy_solver OBJECT
 target_include_directories(bridge_double_dummy_solver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(bridge_double_dummy_solver PUBLIC DDS_NO_STATIC_INIT)
 
-add_library(_br encode_bridge.h bridge_actor.h model_locker.h logging.h bridge_scoring.h tests/test_bridge_scoring.h
-        bridge_state.h types.h bridge_env.h thread_loop.h context.h utils.h replay_buffer.h tests/cards_and_ddts.h base.h bluechip_utils.h generate_deals.h str_utils.h span.h)
-target_include_directories(_br PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+add_library(_br multi_agent_transition_buffer.h encode_bridge.h bridge_actor.h model_locker.h logging.h bridge_scoring.h tests/test_bridge_scoring.h
+        bridge_state.h types.h bridge_env.h thread_loop.h context.h utils.h replay_buffer.h tests/cards_and_ddts.h
+        )
+target_include_directories(_br PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(_br PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(_br PUBLIC ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(_br PUBLIC
@@ -123,7 +124,7 @@ target_link_libraries(_br PUBLIC
         ${TORCH_PYTHON_LIBRARIES})
 
 pybind11_add_module(rl_cpp SHARED pybind.cc)
-target_include_directories(rl_cpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_include_directories(rl_cpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(rl_cpp PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(rl_cpp PUBLIC ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(rl_cpp PUBLIC
@@ -136,7 +137,7 @@ set_target_properties(rl_cpp PROPERTIES OUTPUT_NAME "rl_cpp")
 add_executable(test test.cc tests/test_bluechip_utils.h)
 set_target_properties(test PROPERTIES LINKER_LANGUAGE CXX)
 
-target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(test PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(test PUBLIC ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(test PUBLIC

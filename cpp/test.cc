@@ -64,18 +64,23 @@ int main() {
 //    RL_CHECK_EQ(ddt_, ddt);
 //    std::cout << state->ObservationTensorSize() << std::endl;
 //    return 0;
-  auto deal_manager = std::make_shared<BridgeDealManager>(cards, ddts, par_scores);
-  std::vector<int> greedy = {1, 1, 1, 1};
-  auto env = std::make_shared<BridgeBiddingEnv>(deal_manager, greedy);
-  std::vector<rl::Action> actions = {3, 0, 0, 0};
-  torch::Tensor obs;
-  float r;
-  bool t;
-  obs = env->Reset();
-  for(auto a:actions){
-    std::tie(obs, r, t) = env->Step(torch::tensor(a));
-  }
-  std::cout << env->ToString() << std::endl;
-  env->Reset();
-  std::cout << env->ToString() << std::endl;
+//  auto deal_manager = std::make_shared<BridgeDealManager>(cards, ddts, par_scores);
+//  std::vector<int> greedy = {1, 1, 1, 1};
+//  auto env = std::make_shared<BridgeBiddingEnv>(deal_manager, greedy);
+//  std::vector<rl::Action> actions = {3, 0, 0, 0};
+//  torch::Tensor obs;
+//  float r;
+//  bool t;
+//  obs = env->Reset();
+//  for(auto a:actions){
+//    std::tie(obs, r, t) = env->Step(torch::tensor(a));
+//  }
+//  std::cout << env->ToString() << std::endl;
+//  env->Reset();
+//  std::cout << env->ToString() << std::endl;
+  std::vector<float> log_probs_vector = {0.0, 0.3, 0.6, 0.1};
+  auto log_probs = torch::tensor(torch::ArrayRef<float>(log_probs_vector));
+  auto action = torch::tensor(0);
+  auto zero_prob = log_probs[action];
+  std::cout << (zero_prob.item<int>() == 0) << std::endl;
 }
