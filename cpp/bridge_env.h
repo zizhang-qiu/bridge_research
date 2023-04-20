@@ -42,45 +42,54 @@ torch::Tensor MakeObsTensor(const std::shared_ptr<BridgeBiddingState> &state,
   return obs;
 }
 
-class BridgeDealManager{
+// A manager stores deals
+class BridgeDealManager {
+ public:
+  BridgeDealManager(const std::vector<Cards> &cards_vector,
+                    const std::vector<DDT> &ddts,
+                    const std::vector<int> &par_scores) : cards_vector_(cards_vector),
+                                                          ddts_(ddts), par_scores_(par_scores) {
+    RL_CHECK_EQ(cards_vector_.size(), ddts_.size());
+    RL_CHECK_EQ(cards_vector_.size(), par_scores_.size());
+    size_ = cards_vector_.size();
+  };
 
+  BridgeDeal Next() {
+    std::lock_guard<std::mutex> lk(m_);
+    BridgeDeal deal{cards_vector_[cursor_], kNorth, false, false, ddts_[cursor_], par_scores_[cursor_]};
+    cursor_ = (cursor_ + 1) % size_;
+    return deal;
+  }
+
+  void Reset() {
+    std::lock_guard<std::mutex> lk(m_);
+    cursor_ = 0;
+  }
+
+  int Size() const {
+    return size_;
+  }
+
+ private:
+  std::mutex m_;
+  int cursor_ = 0;
+  int size_;
+  std::vector<Cards> cards_vector_;
+  std::vector<DDT> ddts_;
+  std::vector<int> par_scores_;
 };
 
 class BridgeBiddingEnv : public Env {
-public:
-  BridgeBiddingEnv(const std::vector<std::vector<Action>> &card_trajectories,
-                   const std::vector<std::vector<int>> &ddts,
-                   const std::vector<int> &greedy)
-      : card_trajectories_(card_trajectories), ddts_(ddts), greedy_(greedy) {
-    RL_CHECK_GT(card_trajectories_.size(), 0);
-    RL_CHECK_EQ(card_trajectories_.size(), ddts_.size());
-    RL_CHECK_EQ(greedy.size(), kNumPlayers);
-    size_ = ddts.size();
-    current_cards_ = card_trajectories_[cursor_];
-    current_ddt_ = ddts_[cursor_];
-  }
-
-  BridgeBiddingEnv(const std::vector<Action> &cards,
-                   const std::vector<int> &ddt,
-                   const std::vector<int> &greedy) {
-    RL_CHECK_EQ(cards.size(), kNumCards);
-    RL_CHECK_EQ(ddt.size(), kDoubleDummyResultSize);
-    std::vector<std::vector<Action>> card_trajectories = {cards};
-    std::vector<std::vector<int>> ddts = {ddt};
-    card_trajectories_ = card_trajectories;
-    ddts_ = ddts;
-    greedy_ = greedy;
-    size_ = 1;
-    current_cards_ = card_trajectories_[cursor_];
-    current_ddt_ = ddts_[cursor_];
-  }
+ public:
+  BridgeBiddingEnv(std::shared_ptr<BridgeDealManager> deal_manager,
+                   std::vector<int> greedy)
+      : deal_manager_(std::move(deal_manager)),
+        greedy_(std::move(greedy)) {
+  };
 
   torch::Tensor Reset() override {
     num_states_ += 1;
-    current_cards_ = card_trajectories_[cursor_];
-    current_ddt_ = ddts_[cursor_];
-    cursor_ = (cursor_ + 1) % size_;
-    BridgeDeal deal{current_cards_, dealer_, false, false, current_ddt_};
+    auto deal = deal_manager_->Next();
 
     state_ = std::make_shared<BridgeBiddingState>(deal);
 
@@ -123,19 +132,6 @@ public:
     return state_->CurrentPlayer();
   }
 
-  std::tuple<std::vector<Action>, std::vector<int>>
-  GetCurrentCardsAndDDT() const {
-    return std::make_tuple(current_cards_, current_ddt_);
-  }
-
-  std::shared_ptr<BridgeBiddingEnv> MakeSubEnv() {
-    std::vector<std::vector<Action>> cards_trajectories = {current_cards_};
-
-    std::vector<std::vector<int>> ddts = {current_ddt_};
-    return std::make_shared<BridgeBiddingEnv>(cards_trajectories, ddts,
-                                              greedy_);
-  }
-
   std::shared_ptr<BridgeBiddingState> GetState() {
     RL_CHECK_TRUE(state_ != nullptr);
     return state_;
@@ -143,45 +139,27 @@ public:
 
   int NumStates() const { return num_states_; }
 
-private:
+ private:
+  std::shared_ptr<BridgeDealManager> deal_manager_;
   std::shared_ptr<BridgeBiddingState> state_ = nullptr;
-  std::vector<std::vector<Action>> card_trajectories_;
-  std::vector<std::vector<int>> ddts_;
-  std::vector<Action> current_cards_;
-  std::vector<int> current_ddt_;
-  int size_;
-  int cursor_ = 0;
-  int dealer_ = Seat::kNorth;
   std::vector<int> greedy_;
   int num_states_ = 0;
 };
 
 // This env use real score - par score as reward.
 class BridgeBiddingEnv2 : public Env {
-public:
-  BridgeBiddingEnv2(const std::vector<std::vector<Action>> &card_trajectories,
-                    const std::vector<std::vector<int>> &ddts,
-                    const std::vector<int>& par_scores,
-                    const std::vector<int> &greedy)
-      : card_trajectories_(card_trajectories), ddts_(ddts),
-        par_scores_(par_scores), greedy_(greedy) {
-    RL_CHECK_GT(card_trajectories_.size(), 0);
-    RL_CHECK_EQ(card_trajectories_.size(), ddts_.size());
-    RL_CHECK_EQ(greedy.size(), kNumPlayers);
-    size_ = ddts.size();
-    current_cards_ = card_trajectories_[cursor_];
-    current_ddt_ = ddts_[cursor_];
-    current_par_score_ = (double)par_scores_[cursor_];
+ public:
+  BridgeBiddingEnv2(std::shared_ptr<BridgeDealManager> deal_manager,
+                    std::vector<int> greedy)
+      : deal_manager_(std::move(deal_manager)),
+        greedy_(std::move(greedy)) {
   }
 
   torch::Tensor Reset() override {
     num_states_ += 1;
-    current_cards_ = card_trajectories_[cursor_];
-    current_ddt_ = ddts_[cursor_];
-    current_par_score_ = (double)(par_scores_[cursor_]);
-    cursor_ = (cursor_ + 1) % size_;
 
-    BridgeDeal deal{current_cards_, dealer_, false, false, current_ddt_};
+    auto deal = deal_manager_->Next();
+    current_par_score_ = static_cast<double>(deal.par_score.value());
 
     state_ = std::make_shared<BridgeBiddingState>(deal);
 
@@ -220,7 +198,7 @@ public:
     std::vector<double> ret(kNumPlayers);
     for (size_t i = 0; i < kNumPlayers; ++i) {
       ret[i] = raw_scores[i] -
-               (i % 2 == 0 ? current_par_score_ : -current_par_score_);
+          (i % 2 == 0 ? current_par_score_ : -current_par_score_);
     }
     return ret;
   }
@@ -230,12 +208,6 @@ public:
     return state_->CurrentPlayer();
   }
 
-  std::tuple<std::vector<Action>, std::vector<int>>
-  GetCurrentCardsAndDDT() const {
-    return std::make_tuple(current_cards_, current_ddt_);
-  }
-
-
   std::shared_ptr<BridgeBiddingState> GetState() {
     RL_CHECK_TRUE(state_ != nullptr);
     return state_;
@@ -243,24 +215,17 @@ public:
 
   int NumStates() const { return num_states_; }
 
-private:
+ private:
+  std::shared_ptr<BridgeDealManager> deal_manager_;
   std::shared_ptr<BridgeBiddingState> state_ = nullptr;
-  std::vector<std::vector<Action>> card_trajectories_;
-  std::vector<std::vector<int>> ddts_;
-  std::vector<int> par_scores_;
-  double current_par_score_;
-  std::vector<Action> current_cards_;
-  std::vector<int> current_ddt_;
-  int size_;
-  int cursor_ = 0;
-  int dealer_ = Seat::kNorth;
   std::vector<int> greedy_;
   int num_states_ = 0;
+  double current_par_score_ = 0;
 };
 
 // a vectorized env for faster evaluation
 class BridgeVecEnv {
-public:
+ public:
   BridgeVecEnv() = default;
 
   virtual ~BridgeVecEnv() = default;
@@ -327,30 +292,23 @@ public:
     return ret;
   }
 
-private:
+ private:
   std::vector<std::shared_ptr<BridgeBiddingEnv>> envs_;
 };
 
 class ImpEnv : public Env {
-public:
-  ImpEnv(const std::vector<std::vector<Action>> &cards,
-         const std::vector<std::vector<int>> &ddts, std::vector<int> greedy,
-         bool save_history_imps)
-      : cards_(cards), ddts_(ddts), greedy_(std::move(greedy)),
-        save_history_imps_(save_history_imps) {
-    RL_CHECK_GT(cards_.size(), 0);
-    RL_CHECK_EQ(cards_.size(), ddts.size());
-    RL_CHECK_EQ(greedy_.size(), kNumPlayers);
-    size_ = cards_.size();
+ public:
+  ImpEnv(std::shared_ptr<BridgeDealManager> deal_manager,
+         std::vector<int> greedy)
+      : deal_manager_(std::move(deal_manager)),
+        greedy_(std::move(greedy)) {
   }
 
   torch::Tensor Reset() override {
-    current_cards_ = cards_[cursor_];
-    current_ddt_ = ddts_[cursor_];
-    cursor_ = (cursor_ + 1) % size_;
+
     num_states_++;
-    BridgeDeal deal{current_cards_, kNorth, false, false, current_ddt_};
-    auto state = std::make_shared<BridgeBiddingState>(deal);
+    current_deal_ = deal_manager_->Next();
+    auto state = std::make_shared<BridgeBiddingState>(current_deal_);
     states_[0] = state;
     current_state_ = 0;
     auto obs_tensor = MakeObsTensor(states_[0], greedy_[ActingPlayer()]);
@@ -366,8 +324,7 @@ public:
     torch::Tensor obs_tensor;
     if (current_state_ == 0 && states_[0]->Terminated()) {
       current_state_ = 1;
-      BridgeDeal deal{current_cards_, kNorth, false, false, current_ddt_};
-      states_[1] = std::make_shared<BridgeBiddingState>(deal);
+      states_[1] = std::make_shared<BridgeBiddingState>(current_deal_);
       obs_tensor = MakeObsTensor(states_[1], greedy_[ActingPlayer()]);
     } else {
       obs_tensor =
@@ -375,16 +332,12 @@ public:
     }
     float r = 0.0f;
     bool t = Terminated();
-    if (t && save_history_imps_) {
-      auto imp = Returns()[0];
-      history_imps_.emplace_back(imp);
-    }
     return std::make_tuple(obs_tensor, r, t);
   }
 
   Player ActingPlayer() const {
     return (states_[current_state_]->CurrentPlayer() + current_state_) %
-           kNumPlayers;
+        kNumPlayers;
   }
 
   bool Terminated() const override {
@@ -409,8 +362,6 @@ public:
     return ret;
   }
 
-  std::vector<int> HistoryImps() const { return history_imps_; }
-
   std::string ToString() {
     if (states_[0] == nullptr) {
       return "";
@@ -424,19 +375,13 @@ public:
     return states_[0]->ToString() + "\n" + states_[1]->ToString();
   }
 
-private:
-  const std::vector<std::vector<Action>> cards_;
-  const std::vector<std::vector<int>> ddts_;
-  std::vector<int> current_cards_;
-  std::vector<int> current_ddt_;
+ private:
+  BridgeDeal current_deal_;
+  std::shared_ptr<BridgeDealManager> deal_manager_;
   std::vector<std::shared_ptr<BridgeBiddingState>> states_ = {nullptr, nullptr};
   int current_state_ = 0;
   const std::vector<int> greedy_;
-  int cursor_ = 0;
-  int size_;
   int num_states_ = 0;
-  bool save_history_imps_;
-  std::vector<int> history_imps_;
 };
 } // namespace rl::bridge
 

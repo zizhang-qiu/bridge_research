@@ -145,6 +145,14 @@ class BridgeDeal:
         self.par_score: Optional[int] = ...
 
 
+class BridgeDealManager:
+    def __init__(self, cards: CardsLike, ddts: DDTLike, par_scores: Union[List, np.ndarray]):
+        ...
+
+    def size(self) -> int:
+        ...
+
+
 class BridgeBiddingState:
     def __init__(self, deal: BridgeDeal):
         """
@@ -320,12 +328,11 @@ def make_obs_tensor(state: BridgeBiddingState, greedy: int) -> torch.Tensor:
 
 
 class BridgeBiddingEnv:
-    def __init__(self, cards: CardsLike, ddts: DDTLike, greedy: List[int]):
+    def __init__(self, deal_manager: BridgeDealManager, greedy: List[int]):
         """
         A Bridge Bidding Environment.
         Args:
-            cards: The cards list to play. Also, can be 1 deal(1 dimension) which contains 52 cards.
-            ddts: The ddt list associated with cards. Also, can be 1 deal with 20 elements.
+            deal_manager: The deal manager stores deals.
             greedy: Whether greedy for four players. e.g. [1,1,1,1] means all the players are greedy.
         """
         ...
@@ -365,14 +372,6 @@ class BridgeBiddingEnv:
         """
         ...
 
-    def get_current_cards_and_ddt(self) -> Tuple[List[Action], List[int]]:
-        """
-        Get the cards and ddt which is played now.
-        Returns:
-            The list of cards and ddt.
-        """
-        ...
-
     def get_state(self) -> BridgeBiddingState:
         """
         Get the state.
@@ -394,13 +393,11 @@ class BridgeBiddingEnv:
 
 
 class BridgeBiddingEnv2:
-    def __init__(self, cards: CardsLike, ddts: DDTLike, par_scores: Union[np.ndarray, List[int]], greedy: List[int]):
+    def __init__(self, deal_manager: BridgeDealManager, greedy: List[int]):
         """
         A Bridge Bidding Environment using real score - par score as reward.
         Args:
-            cards: The cards list to play.
-            ddts: The ddt list associated with cards.
-            par_scores: The par scores for N-S.
+            deal_manager: The deal manager stores deals.
             greedy: Whether greedy for four players. e.g. [1,1,1,1] means all the players are greedy.
         """
         ...
@@ -440,21 +437,6 @@ class BridgeBiddingEnv2:
         """
         ...
 
-    def get_current_cards_and_ddt(self) -> Tuple[List[Action], List[int]]:
-        """
-        Get the cards and ddt which is played now.
-        Returns:
-            The list of cards and ddt.
-        """
-        ...
-
-    def make_sub_env(self) -> BridgeBiddingEnv:
-        """
-        Make a sub env which only contains the deal playing now.
-        Returns:
-            The sub env.
-        """
-        ...
 
     def get_state(self) -> BridgeBiddingState:
         """
@@ -553,14 +535,12 @@ class BridgeVecEnv:
 
 
 class ImpEnv:
-    def __init__(self, cards: CardsLike, ddts: DDTLike, greedy: List[int], save_history_imps: bool):
+    def __init__(self, deal_manager:BridgeDealManager, greedy: List[int]):
         """
         An imp env which a deal is played twice. The player sit at NS first time should play at EW for second time.
         Args:
-            cards: The list of cards.
-            ddts: The list of ddts.
+            deal_manager: The deal manager stores deals.
             greedy: The greedy list.
-            save_history_imps: Whether to save history imps.
         """
         ...
 
@@ -613,14 +593,6 @@ class ImpEnv:
         Get the number of deals played in the env.
         Returns:
             The number of deals.
-        """
-        ...
-
-    def history_imps(self) -> List[int]:
-        """
-        Get history imps. Should be called when the attribute "save_history_imps" set to True
-        Returns:
-            The history imp list.
         """
         ...
 

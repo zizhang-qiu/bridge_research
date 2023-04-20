@@ -96,35 +96,29 @@ PYBIND11_MODULE(rl_cpp, m) {
 
   m.def("make_obs_tensor", &MakeObsTensor);
 
-  py::class_<BridgeBiddingEnv, std::shared_ptr<BridgeBiddingEnv>>(
-      m, "BridgeBiddingEnv")
-      .def(py::init<std::vector<std::vector<Action>>,
-                    std::vector<std::vector<int>>,
-                    std::vector<int> // greedy
-      >())
-      .def(py::init<std::vector<Action>, std::vector<int>, std::vector<int>>())
+  py::class_<BridgeDealManager, std::shared_ptr<BridgeDealManager>>(m, "BridgeDealManager")
+      .def(py::init<const std::vector<Cards>,
+                    const std::vector<DDT>,
+                    const std::vector<int>>())
+      .def("size", &BridgeDealManager::Size);
+
+  py::class_<BridgeBiddingEnv, Env, std::shared_ptr<BridgeBiddingEnv>>(m, "BridgeBiddingEnv")
+      .def(py::init<std::shared_ptr<BridgeDealManager>, std::vector<int>>())
       .def("reset", &BridgeBiddingEnv::Reset)
       .def("step", &BridgeBiddingEnv::Step)
       .def("returns", &BridgeBiddingEnv::Returns)
       .def("terminated", &BridgeBiddingEnv::Terminated)
-      .def("get_current_cards_and_ddt",
-           &BridgeBiddingEnv::GetCurrentCardsAndDDT)
-      .def("make_sub_env", &BridgeBiddingEnv::MakeSubEnv)
       .def("get_state", &BridgeBiddingEnv::GetState)
       .def("num_states", &BridgeBiddingEnv::NumStates)
       .def("__repr__", &BridgeBiddingEnv::ToString);
 
   py::class_<BridgeBiddingEnv2, std::shared_ptr<BridgeBiddingEnv2>>(
       m, "BridgeBiddingEnv2")
-      .def(py::init<std::vector<std::vector<Action>>,
-                    std::vector<std::vector<int>>, std::vector<int>,
-                    std::vector<int>>())
+      .def(py::init<std::shared_ptr<BridgeDealManager>, std::vector<int>>())
       .def("reset", &BridgeBiddingEnv2::Reset)
       .def("step", &BridgeBiddingEnv2::Step)
       .def("returns", &BridgeBiddingEnv2::Returns)
       .def("terminated", &BridgeBiddingEnv2::Terminated)
-      .def("get_current_cards_and_ddt",
-           &BridgeBiddingEnv2::GetCurrentCardsAndDDT)
       .def("get_state", &BridgeBiddingEnv2::GetState)
       .def("num_states", &BridgeBiddingEnv2::NumStates)
       .def("__repr__", &BridgeBiddingEnv2::ToString);
@@ -140,15 +134,13 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("display", &BridgeVecEnv::Display);
 
   py::class_<ImpEnv, std::shared_ptr<ImpEnv>>(m, "ImpEnv")
-      .def(py::init<std::vector<std::vector<int>>,
-                    std::vector<std::vector<int>>, std::vector<int>, bool>())
+      .def(py::init<std::shared_ptr<BridgeDealManager>, std::vector<int>>())
       .def("reset", &ImpEnv::Reset)
       .def("step", &ImpEnv::Step)
       .def("terminated", &ImpEnv::Terminated)
       .def("returns", &ImpEnv::Returns)
       .def("acting_player", &ImpEnv::ActingPlayer)
       .def("num_states", &ImpEnv::NumStates)
-      .def("history_imps", &ImpEnv::HistoryImps)
       .def("__repr__", &ImpEnv::ToString);
 
   py::class_<Context, std::shared_ptr<Context>>(m, "Context")

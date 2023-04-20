@@ -6,10 +6,10 @@
 #include "tests/test_bridge_scoring.h"
 #include "tests/cards_and_ddts.h"
 #include "tests/test_bluechip_utils.h"
-#include "tests/test_imp_env.h"
 #include "bridge_state.h"
 #include "generate_deals.h"
 #include "utils.h"
+#include "torch/torch.h"
 
 using namespace rl::utils;
 using namespace rl::bridge;
@@ -27,8 +27,6 @@ int main() {
 //    std::mt19937 rng;
 //    rng.seed(2);
 //    auto cards_ = rl::utils::Permutation(0, kNumCards, rng);
-  auto cards_ = cards[0];
-  auto ddt = ddts[0];
 //    auto holder = GetHolder(cards_);
 //    auto ddt = CalcDDTable(holder);
 //    std::vector<DDT> calc_ddts;
@@ -66,7 +64,18 @@ int main() {
 //    RL_CHECK_EQ(ddt_, ddt);
 //    std::cout << state->ObservationTensorSize() << std::endl;
 //    return 0;
-  BridgeDeal deal{cards_};
-  std::cout << deal.ddt.has_value() << std::endl;
-  std::cout << deal.par_score.has_value() << std::endl;
+  auto deal_manager = std::make_shared<BridgeDealManager>(cards, ddts, par_scores);
+  std::vector<int> greedy = {1, 1, 1, 1};
+  auto env = std::make_shared<BridgeBiddingEnv>(deal_manager, greedy);
+  std::vector<rl::Action> actions = {3, 0, 0, 0};
+  torch::Tensor obs;
+  float r;
+  bool t;
+  obs = env->Reset();
+  for(auto a:actions){
+    std::tie(obs, r, t) = env->Step(torch::tensor(a));
+  }
+  std::cout << env->ToString() << std::endl;
+  env->Reset();
+  std::cout << env->ToString() << std::endl;
 }

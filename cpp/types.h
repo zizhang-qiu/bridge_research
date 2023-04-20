@@ -4,9 +4,6 @@
 
 #ifndef BRIDGE_RESEARCH_TYPES_H
 #define BRIDGE_RESEARCH_TYPES_H
-// Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-
-#pragma once
 
 #include <torch/extension.h>
 #include <unordered_map>

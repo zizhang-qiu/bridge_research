@@ -11,8 +11,8 @@
 namespace rl {
 class ModelLocker {
 public:
-    ModelLocker(std::vector<py::object> pyModels, const std::string &device)
-            : device_(torch::Device(device)), py_models_(pyModels), model_call_counts_(pyModels.size(), 0),
+    ModelLocker(std::vector<py::object> py_models, const std::string &device)
+            : device_(torch::Device(device)), py_models_(py_models), model_call_counts_(py_models.size(), 0),
               latest_model_(0) {
         // assert(py_models_.Size() > 1);
         for (size_t i = 0; i < py_models_.size(); ++i) {
