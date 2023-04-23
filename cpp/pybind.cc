@@ -4,8 +4,9 @@
 #include "base.h"
 #include "bluechip_utils.h"
 #include "bridge_actor.h"
-#include "bridge_env.h"
+#include "bridge_envs.h"
 #include "bridge_scoring.h"
+#include "multi_agent_transition_buffer.h"
 #include "bridge_state.h"
 #include "context.h"
 #include "encode_bridge.h"
@@ -14,6 +15,7 @@
 #include "replay_buffer.h"
 #include "third_party/pybind11/include/pybind11/pybind11.h"
 #include "thread_loop.h"
+#include "imp_env.h"
 
 namespace py = pybind11;
 using namespace bridge_encode;
@@ -29,23 +31,16 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def(py::init<std::vector<py::object>, const std::string>())
       .def("update_model", &ModelLocker::UpdateModel);
 
-  py::class_<Actor, std::shared_ptr<Actor>>(m, "Actor");
-
-  py::class_<RandomActor, Actor, std::shared_ptr<RandomActor>>(m, "RandomActor")
+  py::class_<RandomActor, std::shared_ptr<RandomActor>>(m, "RandomActor")
       .def(py::init<>())
       .def("act", &RandomActor::Act);
 
-  py::class_<SingleEnvActor, Actor, std::shared_ptr<SingleEnvActor>>(
+  py::class_<SingleEnvActor, std::shared_ptr<SingleEnvActor>>(
       m, "SingleEnvActor")
-      .def(py::init<std::shared_ptr<ModelLocker>,
-                    int,   // player
-                    float, // gamma
-                    bool>())
-      .def("act", &SingleEnvActor::Act)
-      .def("set_reward_and_terminal", &SingleEnvActor::SetRewardAndTerminal)
-      .def("post_to_replay_buffer", &SingleEnvActor::PostToReplayBuffer);
+      .def(py::init<std::shared_ptr<ModelLocker>>())
+      .def("act", &SingleEnvActor::Act);
 
-  py::class_<VecEnvActor, Actor, std::shared_ptr<VecEnvActor>>(m, "VecEnvActor")
+  py::class_<VecEnvActor, std::shared_ptr<VecEnvActor>>(m, "VecEnvActor")
       .def(py::init<std::shared_ptr<ModelLocker>>())
       .def("act", &VecEnvActor::Act);
 
@@ -94,7 +89,15 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("get_double_dummy_table", &BridgeBiddingState::GetDoubleDummyTable)
       .def("__repr__", &BridgeBiddingState::ToString);
 
-  m.def("make_obs_tensor", &MakeObsTensor);
+  py::class_<BridgeTransitionBuffer, std::shared_ptr<BridgeTransitionBuffer>>(m, "BridgeTransitionBuffer")
+      .def(py::init<>())
+      .def("push_obs_action_log_probs", &BridgeTransitionBuffer::PushObsActionLogProbs)
+      .def("push_to_replay_buffer", &BridgeTransitionBuffer::PushToReplayBuffer);
+
+  py::class_<MultiAgentTransitionBuffer, std::shared_ptr<MultiAgentTransitionBuffer>>(m, "MultiAgentTransitionBuffer")
+      .def(py::init<int>())
+      .def("push_obs_action_log_probs", &MultiAgentTransitionBuffer::PushObsActionLogProbs)
+      .def("push_to_replay_buffer", &MultiAgentTransitionBuffer::PushToReplayBuffer);
 
   py::class_<BridgeDealManager, std::shared_ptr<BridgeDealManager>>(m, "BridgeDealManager")
       .def(py::init<const std::vector<Cards>,
@@ -103,44 +106,44 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("size", &BridgeDealManager::Size);
 
   py::class_<BridgeBiddingEnv, std::shared_ptr<BridgeBiddingEnv>>(m, "BridgeBiddingEnv")
-      .def(py::init<std::shared_ptr<BridgeDealManager>, std::vector<int>>())
+      .def(py::init<std::shared_ptr<BridgeDealManager>,
+                    std::vector<int>,
+                    std::shared_ptr<ReplayBuffer>,
+                    bool,
+                    bool
+      >())
       .def("reset", &BridgeBiddingEnv::Reset)
       .def("step", &BridgeBiddingEnv::Step)
       .def("returns", &BridgeBiddingEnv::Returns)
       .def("terminated", &BridgeBiddingEnv::Terminated)
+      .def("get_current_player", &BridgeBiddingEnv::GetCurrentPlayer)
       .def("get_state", &BridgeBiddingEnv::GetState)
-      .def("num_states", &BridgeBiddingEnv::NumStates)
+      .def("get_num_deals", &BridgeBiddingEnv::GetNumDeals)
+      .def("get_feature_size", &BridgeBiddingEnv::GetFeatureSize)
       .def("__repr__", &BridgeBiddingEnv::ToString);
-
-  py::class_<BridgeBiddingEnv2, std::shared_ptr<BridgeBiddingEnv2>>(
-      m, "BridgeBiddingEnv2")
-      .def(py::init<std::shared_ptr<BridgeDealManager>, std::vector<int>>())
-      .def("reset", &BridgeBiddingEnv2::Reset)
-      .def("step", &BridgeBiddingEnv2::Step)
-      .def("returns", &BridgeBiddingEnv2::Returns)
-      .def("terminated", &BridgeBiddingEnv2::Terminated)
-      .def("get_state", &BridgeBiddingEnv2::GetState)
-      .def("num_states", &BridgeBiddingEnv2::NumStates)
-      .def("__repr__", &BridgeBiddingEnv2::ToString);
 
   py::class_<BridgeVecEnv, std::shared_ptr<BridgeVecEnv>>(m, "BridgeVecEnv")
       .def(py::init<>())
-      .def("append", &BridgeVecEnv::Append, py::keep_alive<1, 2>())
+      .def("push", &BridgeVecEnv::Push, py::keep_alive<1, 2>())
       .def("size", &BridgeVecEnv::Size)
       .def("reset", &BridgeVecEnv::Reset)
       .def("step", &BridgeVecEnv::Step)
-      .def("all_terminated", &BridgeVecEnv::AllTerminated)
-      .def("returns", &BridgeVecEnv::Returns)
-      .def("display", &BridgeVecEnv::Display);
+      .def("get_envs", &BridgeVecEnv::GetEnvs)
+      .def("get_returns", &BridgeVecEnv::GetReturns)
+      .def("any_terminated", &BridgeVecEnv::AnyTerminated)
+      .def("all_terminated", &BridgeVecEnv::AllTerminated);
 
   py::class_<ImpEnv, std::shared_ptr<ImpEnv>>(m, "ImpEnv")
-      .def(py::init<std::shared_ptr<BridgeDealManager>, std::vector<int>>())
+      .def(py::init<std::shared_ptr<BridgeDealManager>,
+                    std::vector<int>,
+                    std::shared_ptr<ReplayBuffer>,
+                    bool>())
       .def("reset", &ImpEnv::Reset)
       .def("step", &ImpEnv::Step)
       .def("terminated", &ImpEnv::Terminated)
       .def("returns", &ImpEnv::Returns)
-      .def("acting_player", &ImpEnv::ActingPlayer)
-      .def("num_states", &ImpEnv::NumStates)
+      .def("get_acting_player", &ImpEnv::GetActingPlayer)
+      .def("get_num_deals", &ImpEnv::GetNumDeals)
       .def("__repr__", &ImpEnv::ToString);
 
   py::class_<Context, std::shared_ptr<Context>>(m, "Context")
@@ -164,52 +167,48 @@ PYBIND11_MODULE(rl_cpp, m) {
 
   py::class_<ThreadLoop, std::shared_ptr<ThreadLoop>>(m, "ThreadLoop");
 
-  py::class_<EvalThreadLoop, ThreadLoop, std::shared_ptr<EvalThreadLoop>>(
-      m, "EvalThreadLoop")
-      .def(py::init<std::shared_ptr<bridge::BridgeBiddingEnv>,
-                    std::shared_ptr<bridge::BridgeBiddingEnv>,
-                    std::shared_ptr<bridge::SingleEnvActor>,
-                    std::shared_ptr<bridge::SingleEnvActor>, int,
-                    std::shared_ptr<IntConVec>, bool>())
-      .def("main_loop", &EvalThreadLoop::MainLoop);
+//  py::class_<EvalThreadLoop, ThreadLoop, std::shared_ptr<EvalThreadLoop>>(
+//      m, "EvalThreadLoop")
+//      .def(py::init<std::shared_ptr<bridge::BridgeBiddingEnv>,
+//                    std::shared_ptr<bridge::BridgeBiddingEnv>,
+//                    std::shared_ptr<bridge::SingleEnvActor>,
+//                    std::shared_ptr<bridge::SingleEnvActor>, int,
+//                    std::shared_ptr<IntConVec>, bool>())
+//      .def("main_loop", &EvalThreadLoop::MainLoop);
 
-  py::class_<VecEvalThreadLoop, ThreadLoop, std::shared_ptr<VecEvalThreadLoop>>(
-      m, "VecEvalThreadLoop")
-      .def(py::init<std::shared_ptr<bridge::BridgeVecEnv>,
-                    std::shared_ptr<bridge::BridgeVecEnv>,
-                    std::shared_ptr<bridge::VecEnvActor>,
-                    std::shared_ptr<bridge::VecEnvActor>,
-                    std::shared_ptr<IntConVec>, bool, int>())
-      .def("main_loop", &VecEvalThreadLoop::MainLoop);
-
-  py::class_<BridgePGThreadLoop, ThreadLoop,
-             std::shared_ptr<BridgePGThreadLoop>>(m, "BridgePGThreadLoop")
-      .def(py::init<std::vector<bridge::SingleEnvActor>,
-                    std::shared_ptr<bridge::BridgeBiddingEnv>,
-                    std::shared_ptr<bridge::BridgeBiddingEnv>,
-                    std::shared_ptr<bridge::ReplayBuffer>, bool>())
-      .def("main_loop", &BridgePGThreadLoop::MainLoop);
-
-  py::class_<BridgeThreadLoop, ThreadLoop, std::shared_ptr<BridgeThreadLoop>>(m, "BridgeThreadLoop")
+  py::class_<VecEnvEvalThreadLoop, ThreadLoop, std::shared_ptr<VecEnvEvalThreadLoop>>(m, "VecEnvEvalThreadLoop")
       .def(py::init<
-          std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
-          std::shared_ptr<bridge::BridgeBiddingEnv2>,
-          std::shared_ptr<bridge::ReplayBuffer>,
-          bool>())
-      .def("main_loop", &BridgeThreadLoop::MainLoop);
+          std::shared_ptr<bridge::VecEnvActor>,
+          std::shared_ptr<bridge::VecEnvActor>,
+          std::shared_ptr<BridgeVecEnv>,
+          std::shared_ptr<BridgeVecEnv>
+      >())
+      .def("main_loop", &VecEnvEvalThreadLoop::MainLoop);
 
-  py::class_<ImpEnvThreadLoop, ThreadLoop, std::shared_ptr<ImpEnvThreadLoop>>(
-      m, "ImpEnvThreadLoop")
-      .def(py::init<std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
-                    std::shared_ptr<bridge::ImpEnv>,
-                    std::shared_ptr<bridge::ReplayBuffer>, bool>())
-      .def("main_loop", &ImpEnvThreadLoop::MainLoop);
+  py::class_<bridge::BridgeThreadLoop, ThreadLoop, std::shared_ptr<BridgeThreadLoop>>(m, "BridgeThreadLoop")
+      .def(py::init<std::shared_ptr<BridgeVecEnv>,
+                    std::shared_ptr<VecEnvActor>>());
 
-  py::class_<EvalImpThreadLoop, ThreadLoop, std::shared_ptr<EvalImpThreadLoop>>(
-      m, "EvalImpThreadLoop")
-      .def(py::init<std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
-                    std::shared_ptr<bridge::ImpEnv>, const int>())
-      .def("main_loop", &EvalImpThreadLoop::MainLoop);
+//  py::class_<BridgeThreadLoop, ThreadLoop, std::shared_ptr<BridgeThreadLoop>>(m, "BridgeThreadLoop")
+//      .def(py::init<
+//          std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
+//          std::shared_ptr<bridge::BridgeBiddingEnv2>,
+//          std::shared_ptr<bridge::ReplayBuffer>,
+//          bool>())
+//      .def("main_loop", &BridgeThreadLoop::MainLoop);
+
+//  py::class_<ImpEnvThreadLoop, ThreadLoop, std::shared_ptr<ImpEnvThreadLoop>>(
+//      m, "ImpEnvThreadLoop")
+//      .def(py::init<std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
+//                    std::shared_ptr<bridge::ImpEnv>,
+//                    std::shared_ptr<bridge::ReplayBuffer>, bool>())
+//      .def("main_loop", &ImpEnvThreadLoop::MainLoop);
+//
+//  py::class_<EvalImpThreadLoop, ThreadLoop, std::shared_ptr<EvalImpThreadLoop>>(
+//      m, "EvalImpThreadLoop")
+//      .def(py::init<std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
+//                    std::shared_ptr<bridge::ImpEnv>, const int>())
+//      .def("main_loop", &EvalImpThreadLoop::MainLoop);
 
   m.def("check_prob_not_zero", &rl::utils::CheckProbNotZero);
 

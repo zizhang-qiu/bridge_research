@@ -1,14 +1,15 @@
 //
 // Created by qzz on 2023/2/28.
 //
+
+#ifndef BRIDGE_RESEARCH_CONTEXT_H
+#define BRIDGE_RESEARCH_CONTEXT_H
 #include <atomic>
 #include <memory>
 #include <thread>
 #include <vector>
 #include <string>
 #include "thread_loop.h"
-#ifndef BRIDGE_RESEARCH_CONTEXT_H
-#define BRIDGE_RESEARCH_CONTEXT_H
 namespace rl{
 class Context {
 public:

@@ -1,44 +1,16 @@
 //
 // Created by qzz on 2023/2/23.
 //
+
+#ifndef BRIDGE_RESEARCH_BRIDGE_SCORING_H
+#define BRIDGE_RESEARCH_BRIDGE_SCORING_H
 #include <array>
 #include <string>
 #include "utils.h"
 #include "logging.h"
 #include "str_utils.h"
-#ifndef BRIDGE_RESEARCH_BRIDGE_SCORING_H
-#define BRIDGE_RESEARCH_BRIDGE_SCORING_H
+#include "bridge_constants.h"
 namespace rl::bridge{
-using Cards = std::vector<Action>;
-using DDT = std::vector<int>;
-
-enum Denomination {
-    kClubs = 0, kDiamonds, kHearts, kSpades, kNoTrump
-};
-inline constexpr int kNumDenominations = 5;
-constexpr char kDenominationChar[] = "CDHSN";
-
-enum DoubleStatus {
-    kUndoubled = 1, kDoubled = 2, kRedoubled = 4
-};
-inline constexpr int kNumDoubleStates = 3;
-
-inline constexpr int kNumPlayers = 4;
-constexpr char kPlayerChar[] = "NESW";
-
-inline constexpr int kNumSuits = 4; //C,D,H,S
-inline constexpr int kNumCardsPerSuit = 13; //2,3,4,5,6,7,8,9,T,K,A
-inline constexpr int kNumPartnerships = 2; //NS, EW
-inline constexpr int kNumBidLevels = 7;   // Bids can be from 7 to 13 tricks.
-inline constexpr int kNumOtherCalls = 3;  // Pass, Double, Redouble
-inline constexpr int kNumVulnerabilities = 2;  // Vulnerable or non-vulnerable.
-inline constexpr int kNumBids = kNumBidLevels * kNumDenominations; // 1C,1D,...7H,7S,7NT
-inline constexpr int kNumCalls = kNumBids + kNumOtherCalls; // 35+ 3
-inline constexpr int kNumCards = kNumSuits * kNumCardsPerSuit; // 52 cards
-inline constexpr int kNumCardsPerHand = kNumCards / kNumPlayers; // 13 cards for every player
-inline constexpr int kNumTricks = kNumCardsPerHand; // 13 tricks can be done
-inline constexpr int kMaxScore = 7600;  // See http://www.rpbridge.net/2y66.htm
-inline constexpr int kMaxImp = 24;
 
 struct Contract {
     int level = 0;

@@ -1,12 +1,13 @@
 //
 // Created by qzz on 2023/2/25.
 //
+
+#ifndef BRIDGE_RESEARCH_LOGGING_H
+#define BRIDGE_RESEARCH_LOGGING_H
 #include <cassert>
 #include <iostream>
 #include <string>
 #include "utils.h"
-#ifndef BRIDGE_RESEARCH_LOGGING_H
-#define BRIDGE_RESEARCH_LOGGING_H
 namespace rl::logging{
 template <class... Args>
 void AssertWithMessage(bool condition, Args&&... args) {

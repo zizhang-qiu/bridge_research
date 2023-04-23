@@ -5,18 +5,20 @@
 @file:utils.py
 @time:2023/02/16
 """
+import copy
 import os
 import pickle
 import time
 from typing import Tuple
 
+import numpy as np
 import torch
 
 import rl_cpp
-from src.bridge.agent_for_cpp import VecEnvAgent, SingleEnvAgent
-from src.bridge.global_vars import DEFAULT_RL_DATASET_DIR, RLDataset
-from src.bridge.nets import PolicyNet
-from src.common_utils.array_utils import get_avg_and_sem
+from agent_for_cpp import VecEnvAgent, SingleEnvAgent
+from global_vars import DEFAULT_RL_DATASET_DIR, RLDataset
+from nets import PolicyNet
+import common_utils
 
 
 def load_rl_dataset(usage: str, dataset_dir: str = DEFAULT_RL_DATASET_DIR) \
@@ -41,7 +43,7 @@ def load_rl_dataset(usage: str, dataset_dir: str = DEFAULT_RL_DATASET_DIR) \
     return dataset
 
 
-def sl_net(checkpoint_path: str = r"..\..\models\il_net_checkpoint.pth", device: str = "cuda"):
+def sl_net(checkpoint_path: str = r"models\il_net_checkpoint.pth", device: str = "cuda"):
     """
     Get a supervised learning policy net.
     Args:
@@ -57,6 +59,64 @@ def sl_net(checkpoint_path: str = r"..\..\models\il_net_checkpoint.pth", device:
     return net
 
 
+def sl_single_env_agent(checkpoint_path: str = r"models\il_net_checkpoint.pth", device: str = "cuda",
+                        jit=False):
+    """
+    Get a supervised learning single env agent.
+    Args:
+        checkpoint_path: The path to sl net.
+        device: The device of the agent.
+        jit: Whether convert to script module.
+
+    Returns:
+
+    """
+    net = sl_net(checkpoint_path, device)
+    agent = SingleEnvAgent(net).to(device)
+    if jit:
+        agent = torch.jit.script(agent).to(device)
+    return agent
+
+
+def sl_vec_env_agent(checkpoint_path: str = r"models\il_net_checkpoint.pth", device: str = "cuda",
+                     jit=False):
+    """
+    Get a supervised learning single env agent.
+    Args:
+        checkpoint_path: The path to sl net.
+        device: The device of the agent.
+        jit: Whether convert to script module.
+
+    Returns:
+
+    """
+    net = sl_net(checkpoint_path, device)
+    agent = VecEnvAgent(net).to(device)
+    if jit:
+        agent = torch.jit.script(agent).to(device)
+    return agent
+
+
+def simple_env():
+    dataset = load_rl_dataset("valid")
+    deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
+    env = rl_cpp.BridgeBiddingEnv(deal_manager, [1, 1, 1, 1], None, False, True)
+    return env
+
+
+def simple_vec_env(num_envs: int = 10, use_par_score: bool = False, replay_buffer: rl_cpp.ReplayBuffer = None):
+    dataset = load_rl_dataset("valid")
+    deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
+    eval_ = True
+    if replay_buffer is not None:
+        eval_ = False
+    vec_env = rl_cpp.BridgeVecEnv()
+    for i in range(num_envs):
+        env = rl_cpp.BridgeBiddingEnv(deal_manager, [1, 1, 1, 1], replay_buffer, use_par_score, eval_)
+        vec_env.push(env)
+    return vec_env
+
+
 class Evaluator:
     def __init__(self, num_deals: int, num_threads: int, eval_device: str):
         """
@@ -68,33 +128,40 @@ class Evaluator:
         """
         assert num_deals % num_threads == 0
         dataset = load_rl_dataset("valid")
-        _cards, _ddts = dataset["cards"], dataset["ddts"]
+        _cards, _ddts, _par_scores = dataset["cards"], dataset["ddts"], dataset["par_scores"]
         self.cards = _cards[:num_deals]
         self.ddts = _ddts[:num_deals]
+        self.par_scores = _par_scores[:num_deals]
         self.device = eval_device
         self.num_deals = num_deals
         self.num_threads = num_threads
-        self.num_deals_per_threads = self.num_deals // self.num_threads
+        self.num_deals_per_thread = self.num_deals // self.num_threads
         # when evaluating, all actors choose greedy action
         self.greedy = [1, 1, 1, 1]
-
-        self.imp_vec = rl_cpp.IntConVec()
 
         self.vec_env0_list = []
         self.vec_env1_list = []
         for i_t in range(self.num_threads):
             vec_env_0 = rl_cpp.BridgeVecEnv()
             vec_env_1 = rl_cpp.BridgeVecEnv()
-            for i_env in range(self.num_deals_per_threads):
-                left = i_env + i_t * self.num_deals_per_threads
-                right = left + 1
-                env_0 = rl_cpp.BridgeBiddingEnv(self.cards[left:right],
-                                                self.ddts[left:right], self.greedy)
+            left = i_t * self.num_deals_per_thread
+            right = (i_t + 1) * self.num_deals_per_thread
+            deal_manager_0 = rl_cpp.BridgeDealManager(
+                self.cards[left: right],
+                self.ddts[left:right],
+                self.par_scores[left:right])
+            deal_manager_1 = rl_cpp.BridgeDealManager(
+                self.cards[left: right],
+                self.ddts[left:right],
+                self.par_scores[left:right])
+            for i_env in range(self.num_deals_per_thread):
+                env_0 = rl_cpp.BridgeBiddingEnv(deal_manager_0, self.greedy,
+                                                None, False, True)
 
-                env_1 = rl_cpp.BridgeBiddingEnv(self.cards[left:right],
-                                                self.ddts[left:right], self.greedy)
-                vec_env_0.append(env_0)
-                vec_env_1.append(env_1)
+                env_1 = rl_cpp.BridgeBiddingEnv(deal_manager_1, self.greedy,
+                                                None, False, True)
+                vec_env_0.push(env_0)
+                vec_env_1.push(env_1)
             self.vec_env0_list.append(vec_env_0)
             self.vec_env1_list.append(vec_env_1)
 
@@ -109,9 +176,9 @@ class Evaluator:
             The average imp, the standard error of the mean and elapsed time.
         """
         st = time.perf_counter()
-        train_agent = VecEnvAgent(train_net)
+        train_agent = VecEnvAgent(copy.deepcopy(train_net))
         train_agent.to(self.device)
-        oppo_agent = VecEnvAgent(oppo_net)
+        oppo_agent = VecEnvAgent(copy.deepcopy(oppo_net))
         oppo_agent.to(self.device)
         train_locker = rl_cpp.ModelLocker([torch.jit.script(train_agent)], self.device)
         train_actor = rl_cpp.VecEnvActor(train_locker)
@@ -120,20 +187,17 @@ class Evaluator:
         ctx = rl_cpp.Context()
 
         for i_t in range(self.num_threads):
-            eval_thread = rl_cpp.VecEvalThreadLoop(self.vec_env0_list[i_t],
-                                                   self.vec_env1_list[i_t],
-                                                   train_actor,
-                                                   oppo_actor,
-                                                   self.imp_vec,
-                                                   False, 1)
+            eval_thread = rl_cpp.VecEnvEvalThreadLoop(train_actor,
+                                                      oppo_actor,
+                                                      self.vec_env0_list[i_t],
+                                                      self.vec_env1_list[i_t])
             ctx.push_thread_loop(eval_thread)
         ctx.start()
         while not ctx.terminated():
             time.sleep(0.5)
-        imps = self.imp_vec.get_vector()
-        assert len(imps) == self.num_deals
-        self.imp_vec.clear()
+        scores_ns = np.concatenate([vec_env_ns.get_returns(0) for vec_env_ns in self.vec_env0_list])
+        scores_ew = np.concatenate([vec_env_ew.get_returns(0) for vec_env_ew in self.vec_env1_list])
+        imps = [rl_cpp.get_imp(score_ns, score_ew) for score_ns, score_ew in zip(scores_ns, scores_ew)]
         ed = time.perf_counter()
-        avg, sem = get_avg_and_sem(imps)
+        avg, sem = common_utils.get_avg_and_sem(imps)
         return avg, sem, ed - st
-

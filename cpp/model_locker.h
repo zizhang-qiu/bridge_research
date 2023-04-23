@@ -1,13 +1,14 @@
 //
 // Created by qzz on 2023/2/23.
 //
+
+#ifndef BRIDGE_RESEARCH_MODEL_LOCKER_H
+#define BRIDGE_RESEARCH_MODEL_LOCKER_H
 #include <vector>
 #include <string>
 #include <torch/torch.h>
 #include "types.h"
 #include "utils.h"
-#ifndef BRIDGE_RESEARCH_MODEL_LOCKER_H
-#define BRIDGE_RESEARCH_MODEL_LOCKER_H
 namespace rl {
 class ModelLocker {
 public:

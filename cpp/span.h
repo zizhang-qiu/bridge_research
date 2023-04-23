@@ -1,9 +1,10 @@
 //
 // Created by qzz on 2023/4/17.
 //
-#include <cstdio>
+
 #ifndef BRIDGE_RESEARCH_SPAN_H
 #define BRIDGE_RESEARCH_SPAN_H
+#include <cstdio>
 namespace rl::utils {
 template <typename T>
 class Span {

@@ -1,6 +1,10 @@
 //
 // Created by qzz on 2023/2/25.
 //
+
+#ifndef BRIDGE_RESEARCH_BRIDGE_STATE_H
+#define BRIDGE_RESEARCH_BRIDGE_STATE_H
+#include "bridge_deal.h"
 #include "bridge_scoring.h"
 #include "logging.h"
 #include "span.h"
@@ -12,63 +16,9 @@
 #include <sstream>
 #include <string>
 #include <utility>
-
-#ifndef BRIDGE_RESEARCH_BRIDGE_STATE_H
-#define BRIDGE_RESEARCH_BRIDGE_STATE_H
 namespace rl::bridge {
-inline constexpr int kNumObservationTypes = 4; // Bid, lead, declare, defend
-// Because bids always increase, any individual bid can be made at most once.
-// Thus for each bid, we only need to track (a) who bid it (if anyone), (b) who
-// doubled it (if anyone), and (c) who redoubled it (if anyone).
-// We also report the number of passes before the first bid; we could
-// equivalently report which player made the first call.
-// This is much more compact than storing the auction call-by-call, which
-// requires 318 turns * 38 possible calls per turn = 12084 bits (although
-// in practice almost all auctions have fewer than 80 calls).
-// eventually, kAuctionTensorSize=(4 * 106) + 52 + 4 = 480
-inline constexpr int kAuctionTensorSize =
-    kNumPlayers * (1          // Did this player pass before the opening bid?
-        + kNumBids // Did this player make each bid?
-        + kNumBids // Did this player double each bid?
-        + kNumBids // Did this player redouble each bid?
-    ) +
-        kNumCards // Our hand
-        + kNumVulnerabilities * kNumPartnerships;
-// eventually, kPublicInfoTensorSize= 480 - 52+ 4 = 432
-inline constexpr int kPublicInfoTensorSize =
-    kAuctionTensorSize // The auction
-        - kNumCards        // But not any player's cards
-        + kNumPlayers;     // Plus trailing passes
-// eventually, kPlayTensorSize = 7 + 5 + 3 + 4 + 2 + 52 + 52 + 4 * 52 + 4 * 52 +
-// 13 + 13 = 567
-inline constexpr int kPlayTensorSize =
-    kNumBidLevels             // What the contract is
-        + kNumDenominations       // What trumps are
-        + kNumOtherCalls          // Undoubled / doubled / redoubled
-        + kNumPlayers             // Who declarer is
-        + kNumVulnerabilities     // Vulnerability of the declaring side
-        + kNumCards               // Our remaining cards
-        + kNumCards               // Dummy's remaining cards
-        + kNumPlayers * kNumCards // Cards played to the previous trick
-        + kNumPlayers * kNumCards // Cards played to the current trick
-        + kNumTricks              // Number of tricks we have won
-        + kNumTricks;             // Number of tricks they have won
-// eventually, kObservationTensorSize = 480
-inline constexpr int kObservationTensorSize = kAuctionTensorSize;
-// every bid can lead a sequence as 1C-P-P-D-P-P-R-P-P
-// eventually, kMaxAuctionLength = 35 * (1 + 8) + 4 = 319
-inline constexpr int kMaxAuctionLength =
-    kNumBids * (1 + kNumPlayers * 2) + kNumPlayers;
-inline constexpr int kFullyObservationTensorSize =
-    kAuctionTensorSize +
-        (kNumPlayers - 1) * kNumCards      // other three players' cards
-        + kNumPlayers * kNumDenominations; // ddt
-inline constexpr Player kFirstPlayer = 0;
-inline constexpr int kDoubleDummyResultSize = kNumDenominations * kNumPlayers;
-enum class Suit { kClubs = 0, kDiamonds = 1, kHearts = 2, kSpades = 3 };
 
-enum Calls { kPass = 0, kDouble = 1, kRedouble = 2 };
-enum Seat { kNorth, kEast, kSouth, kWest };
+
 inline constexpr int kFirstBid = kRedouble + 1;
 
 int Bid(int level, Denomination denomination) {
@@ -91,15 +41,12 @@ int Card(Suit suit, int rank) {
   return rank * kNumSuits + static_cast<int>(suit);
 }
 
-constexpr char kRankChar[] = "23456789TJQKA";
-constexpr char kSuitChar[] = "CDHS";
+
 
 std::string CardString(int card) {
   return {kSuitChar[static_cast<int>(CardSuit(card))],
           kRankChar[CardRank(card)]};
 }
-
-constexpr char kLevelChar[] = "-1234567";
 
 std::string BidString(int bid) {
   if (bid == kPass)
@@ -125,14 +72,7 @@ int DenominationToDDSStrain(Denomination denomination) {
   return denomination == kNoTrump ? denomination : 3 - denomination;
 }
 
-struct BridgeDeal {
-  Cards cards;
-  Player dealer = kNorth;
-  bool is_dealer_vulnerable = false;
-  bool is_non_dealer_vulnerable = false;
-  std::optional<DDT> ddt;
-  std::optional<int> par_score;
-};
+
 
 class BridgeBiddingState {
  public:

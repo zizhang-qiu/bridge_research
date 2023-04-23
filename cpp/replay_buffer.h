@@ -1,12 +1,11 @@
 //
 // Created by qzz on 2023/2/28.
 //
-#include <atomic>
-#include "torch/torch.h"
-#include "bridge_env.h"
 
 #ifndef BRIDGE_RESEARCH_REPLAY_BUFFER_H
 #define BRIDGE_RESEARCH_REPLAY_BUFFER_H
+#include <atomic>
+#include "torch/torch.h"
 namespace rl::bridge {
 class ReplayBuffer {
 public:

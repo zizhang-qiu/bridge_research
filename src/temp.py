@@ -23,9 +23,8 @@ from agent_for_cpp import SingleEnvAgent
 from bridge_vars import NUM_SUITS, PLUS_MINUS_SYMBOL, NUM_CARDS, NUM_PLAYERS
 from global_vars import RLDataset
 from nets import PolicyNet
-from common_utils.array_utils import get_avg_and_sem
-from common_utils.other_utils import set_random_seeds
-
+import common_utils
+from utils import simple_env, sl_net, sl_single_env_agent, sl_vec_env_agent, simple_vec_env, Evaluator
 
 def json_2_np(path):
     with open(path) as fp:
@@ -162,4 +161,33 @@ if __name__ == '__main__':
     # print(torch.multinomial(legal_actions, 1))
     # print(torch.multinomial(legal_actions, 1).squeeze())
     # print(rl_cpp.check_prob_not_zero(torch.tensor([1]), log_probs))
-    pass
+    # jit_agent = sl_single_env_agent(device="cuda", jit=True)
+    # model_locker = rl_cpp.ModelLocker([jit_agent], "cuda")
+    # actor = rl_cpp.SingleEnvActor(model_locker)
+    # env = simple_env()
+    # obs = env.reset()
+    # print(obs)
+    # reply = actor.act(obs)
+    # print(reply)
+    common_utils.set_random_seeds(1)
+    st = time.perf_counter()
+    jit_agent = sl_vec_env_agent(jit=True)
+    model_locker = rl_cpp.ModelLocker([jit_agent], "cuda")
+    vec_actor = rl_cpp.VecEnvActor(model_locker)
+    # vec_env_ns = simple_vec_env(50000)
+    # vec_env_ew = simple_vec_env(50000)
+    # t = rl_cpp.VecEnvEvalThreadLoop(vec_actor, vec_actor, vec_env_ns, vec_env_ew)
+    # t.main_loop()
+    # scores_ns = vec_env_ns.get_returns(0)
+    # scores_ew = vec_env_ew.get_returns(0)
+    # # print(scores_ns, scores_ew)
+    # imps = [rl_cpp.get_imp(score_ns, score_ew) for score_ns, score_ew in zip(scores_ns, scores_ew)]
+    #
+    # ed = time.perf_counter()
+    # print(ed - st)
+    # print(imps)
+    evaluator = Evaluator(50000, 8, "cuda")
+    random_net = PolicyNet()
+    for i in range(10):
+        avg, sem, elapsed_time = evaluator.evaluate(sl_net(), random_net)
+        print(avg, sem, elapsed_time)

@@ -1,24 +1,26 @@
 //
 // Created by qzz on 2023/2/23.
 //
-#include "base.h"
-#include "model_locker.h"
-#include "replay_buffer.h"
-#include <utility>
+
 
 #ifndef BRIDGE_RESEARCH_BRIDGE_ACTOR_H
 #define BRIDGE_RESEARCH_BRIDGE_ACTOR_H
+#include "base.h"
+#include "model_locker.h"
+#include "replay_buffer.h"
+#include "tensor_dict.h"
+#include <utility>
 using namespace torch::indexing;
 namespace rl::bridge {
-class RandomActor : public Actor {
+class RandomActor {
  public:
   RandomActor() = default;
 
-  torch::Tensor Act(const torch::Tensor &obs) override {
+  TensorDict Act(const torch::Tensor &obs) {
     auto legal_actions = obs.index({Slice(480, 518)});
     std::cout << legal_actions << std::endl;
-    auto random_action = torch::multinomial(legal_actions, 1);
-    return random_action;
+    auto random_action = torch::multinomial(legal_actions, 1).squeeze();
+    return {{"a", random_action}};
   }
 };
 
@@ -84,67 +86,61 @@ class TransitionBuffer {
   }
 };
 
-class SingleEnvActor : public Actor {
+class SingleEnvActor {
 
  public:
-  SingleEnvActor(std::shared_ptr<ModelLocker> model_locker, int player,
-                 float gamma, bool eval)
-      : model_locker_(std::move(std::move(model_locker))), player_(player),
-        eval_(eval) {
-    transition_buffer_ = std::make_shared<TransitionBuffer>(gamma);
+  explicit SingleEnvActor(std::shared_ptr<ModelLocker> model_locker)
+      : model_locker_(std::move(std::move(model_locker))) {
   };
 
-  torch::Tensor Act(const torch::Tensor &obs) override {
+  TensorDict Act(const TensorDict &obs) {
     torch::NoGradGuard ng;
     TorchJitInput input;
     int id = -1;
     auto model = model_locker_->GetModel(&id);
-    input.emplace_back(obs.to(model_locker_->device_));
+    input.emplace_back(tensor_dict::ToTorchDict(obs, model_locker_->device_));
     auto output = model.get_method("act")(input);
-    auto out_tuple = output.toTuple();
-    auto action = out_tuple->elements()[0].toTensor();
-    //        std::cout << action << std::endl;
-    auto log_probs = out_tuple->elements()[1].toTensor();
+    auto reply = tensor_dict::FromIValue(output, torch::kCPU, true);
     //        std::cout << log_probs << std::endl;
 
     model_locker_->ReleaseModel(id);
-    if (!eval_) {
-      transition_buffer_->PushObsAndActionAndLogProbs(obs, action, log_probs);
-    }
-    return action;
+//    if (!eval_) {
+//      transition_buffer_->PushObsAndActionAndLogProbs(obs, action, log_probs);
+//    }
+    return reply;
   }
 
-  void SetRewardAndTerminal(float reward, bool terminal) {
-    transition_buffer_->PushRewardAndTerminal(reward, terminal);
-  }
-
-  void PostToReplayBuffer(const std::shared_ptr<ReplayBuffer> &buffer,
-                          float final_reward) {
-    transition_buffer_->PostToReplayBuffer(buffer, final_reward, true);
-  }
+//  void SetRewardAndTerminal(float reward, bool terminal) {
+//    transition_buffer_->PushRewardAndTerminal(reward, terminal);
+//  }
+//
+//  void PostToReplayBuffer(const std::shared_ptr<ReplayBuffer> &buffer,
+//                          float final_reward) {
+//    transition_buffer_->PostToReplayBuffer(buffer, final_reward, true);
+//  }
 
  private:
   std::shared_ptr<ModelLocker> model_locker_;
-  int player_;
-  std::shared_ptr<TransitionBuffer> transition_buffer_;
-  bool eval_;
+//  int player_;
+//  std::shared_ptr<TransitionBuffer> transition_buffer_;
+//  bool eval_;
 };
 
-class VecEnvActor : public Actor {
+class VecEnvActor {
  public:
-  VecEnvActor(std::shared_ptr<ModelLocker> model_locker)
+  explicit VecEnvActor(std::shared_ptr<ModelLocker> model_locker)
       : model_locker_(std::move(model_locker)) {};
 
-  torch::Tensor Act(const torch::Tensor &obs) override {
+  TensorDict Act(const TensorDict &obs) {
     torch::NoGradGuard ng;
     TorchJitInput input;
     int id = -1;
     auto model = model_locker_->GetModel(&id);
-    input.emplace_back(obs.to(model_locker_->device_));
+    input.emplace_back(tensor_dict::ToTorchDict(obs, model_locker_->device_));
     auto output = model.get_method("act")(input);
-    auto action = output.toTensor();
+    auto reply = tensor_dict::FromIValue(output, torch::kCPU, true);
     model_locker_->ReleaseModel(id);
-    return action;
+    return reply;
   }
 
  private:

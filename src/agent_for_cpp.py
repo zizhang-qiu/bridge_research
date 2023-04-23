@@ -4,7 +4,7 @@
 @date:2023/2/23
 @encoding:utf-8
 """
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict
 
 import torch
 from torch import nn
@@ -21,24 +21,20 @@ class SingleEnvAgent(nn.Module):
         self.v_net = v_net if v_net is not None else ValueNet()
 
     @torch.jit.export
-    def get_probs(self, obs: torch.Tensor) -> torch.Tensor:
+    def get_probs(self, s: torch.Tensor) -> torch.Tensor:
         """
         Get probabilities for given obs
         Args:
-            obs (torch.Tensor): The obs tensor, should be 2-dimensional
+            s (torch.Tensor): The obs tensor, should be 2-dimensional
 
         Returns:
             torch.Tensor: The probabilities.
         """
-        state_tensor = obs[:, :480]
-        legal_actions = obs[:, 480:518]
-        # print("legal_actions", legal_actions)
-        probs = torch.exp(self.p_net(state_tensor))
-        # print("probs", probs)
-        return probs * legal_actions
+        probs = torch.exp(self.p_net(s))
+        return probs
 
     @torch.jit.export
-    def act(self, obs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def act(self, obs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
         Get an action for given obs
         Args:
@@ -49,10 +45,10 @@ class SingleEnvAgent(nn.Module):
 
         """
         # single env obs is always 1d
-        greedy = obs[-1].item()
-        legal_actions = obs[480:518]
-        obs_ = obs.unsqueeze(0)
-        log_probs = self.get_log_probs(obs_).squeeze()
+        greedy = obs["greedy"].item()
+        legal_actions = obs["legal_actions"]
+        s = obs["s"]
+        log_probs = self.get_log_probs(s.unsqueeze(0)).squeeze()
         probs = torch.exp(log_probs) * legal_actions
         # print(probs)
         if greedy:
@@ -61,26 +57,21 @@ class SingleEnvAgent(nn.Module):
             if torch.equal(probs, torch.zeros_like(probs)):
                 # print("Warning: all the probs are zero")
                 action = torch.multinomial(legal_actions, 1).squeeze()
-                available = False
             else:
                 action = torch.multinomial(probs, 1).squeeze()
-        return action.detach().cpu(), log_probs.detach().cpu()
+        return {"a": action, "log_probs": log_probs}
 
     @torch.jit.export
-    def get_log_probs(self, obs: torch.Tensor) -> torch.Tensor:
+    def get_log_probs(self, s: torch.Tensor) -> torch.Tensor:
         """
         Get log probabilities for given obs
         Args:
-            obs (torch.Tensor): The obs tensor, should be 2-dimensional
+            s (torch.Tensor): The obs tensor, should be 2-dimensional
 
         Returns:
             torch.Tensor: The log probabilities
         """
-        state_tensor = obs[:, :480]
-        # legal_actions = obs[:, 480:518]
-        # print("legal_actions", legal_actions)
-        probs = self.p_net(state_tensor)
-        # print("probs", probs)
+        probs = self.p_net(s)
         return probs
 
     def compute_policy_gradient_loss(self, batch_obs: torch.Tensor, batch_action: torch.Tensor,
@@ -192,27 +183,30 @@ class VecEnvAgent(nn.Module):
             p_net: The policy net.
         """
         super().__init__()
-        self.net = p_net
+        self.p_net = p_net
 
     @torch.jit.export
-    def get_probs(self, obs: torch.Tensor) -> torch.Tensor:
+    def get_probs(self, s: torch.Tensor) -> torch.Tensor:
         """
         Get probabilities for given obs
         Args:
-            obs (torch.Tensor): The obs tensor, should be 2-dimensional
+            s (torch.Tensor): The obs tensor, should be 2-dimensional
 
         Returns:
             torch.Tensor: The probabilities.
         """
-        state_tensor = obs[:, :480]
-        legal_actions = obs[:, 480:518]
         # print("legal_actions", legal_actions)
-        probs = torch.exp(self.net(state_tensor))
+        probs = torch.exp(self.p_net(s))
         # print("probs", probs)
-        return probs * legal_actions
+        return probs
 
     @torch.jit.export
-    def act(self, obs: torch.Tensor) -> torch.Tensor:
+    def get_log_probs(self, s: torch.Tensor) -> torch.Tensor:
+        probs = self.p_net(s)
+        return probs
+
+    @torch.jit.export
+    def act(self, obs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
         Get actions for given obs
         Args:
@@ -223,10 +217,36 @@ class VecEnvAgent(nn.Module):
 
         """
         # vec env obs is always 2d
-        probs = self.get_probs(obs)
-        # print(probs)
-        action = torch.argmax(probs, 1)
-        return action
+        s = obs["s"]
+        legal_actions = obs["legal_actions"]
+        log_probs = self.get_log_probs(s)
+        probs = torch.exp(log_probs) * legal_actions
+        greedy = obs["greedy"]
+
+        greedy_action = torch.argmax(probs, 1)
+        # print("greedy actions",  greedy_action)
+        random_actions = torch.multinomial(probs, 1).squeeze()
+        # print("random actions", random_actions)
+        action = greedy * greedy_action + (1 - greedy) * random_actions
+        return {"a": action, "log_probs": log_probs}
+
+    def loss(self, batch_state: torch.Tensor, batch_action: torch.Tensor,
+             batch_reward: torch.Tensor, batch_log_probs: torch.Tensor,
+             clip_eps: float, entropy_ratio: float):
+        current_log_probs = self.get_log_probs(batch_state)
+        current_action_log_probs = current_log_probs.gather(1, batch_action.long().unsqueeze(1)).squeeze(1)
+        old_action_log_probs = batch_log_probs.gather(1, batch_action.long().unsqueeze(1)).squeeze(1)
+
+        ratio = torch.exp(current_action_log_probs - old_action_log_probs)
+        advantage = (batch_reward - batch_reward.mean()) / (batch_reward.std() + 1e-5)
+
+        surr1 = ratio * (advantage.detach())
+        surr2 = torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * (advantage.detach())
+        current_probs = torch.exp(current_log_probs)
+        entropy = -torch.sum(current_probs * current_log_probs, dim=-1)
+
+        policy_loss = -torch.min(surr1, surr2) - entropy * entropy_ratio
+        return policy_loss.mean()
 
 
 def random_vec_agent(device: str = "cuda") -> VecEnvAgent:

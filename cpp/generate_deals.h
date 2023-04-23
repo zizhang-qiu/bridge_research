@@ -1,15 +1,16 @@
 //
 // Created by qzz on 2023/4/2.
 //
+
+
+#ifndef BRIDGE_RESEARCH_GENERATE_DEALS_H
+#define BRIDGE_RESEARCH_GENERATE_DEALS_H
 #include <vector>
 #include <regex>
 #include <string>
 #include "utils.h"
 #include "bridge_state.h"
 #include "third_party/dds/include/dll.h"
-
-#ifndef BRIDGE_RESEARCH_GENERATE_DEALS_H
-#define BRIDGE_RESEARCH_GENERATE_DEALS_H
 namespace rl::bridge {
 using Holder = std::vector<Player>;
 

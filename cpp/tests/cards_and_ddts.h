@@ -1,12 +1,6 @@
 //
 // Created by qzz on 2023/3/2.
 //
-#include <vector>
-#include "../bridge_env.h"
-#include "../utils.h"
-
-#include "pybind11/pybind11.h"
-#include "pybind11/numpy.h"
 
 #ifndef BRIDGE_RESEARCH_CARDS_AND_DDTS_H
 #define BRIDGE_RESEARCH_CARDS_AND_DDTS_H

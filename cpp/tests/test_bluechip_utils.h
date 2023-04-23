@@ -1,11 +1,11 @@
 //
 // Created by qzz on 2023/3/6.
 //
-#include "../bluechip_utils.h"
+
 
 #ifndef BRIDGE_RESEARCH_TEST_BLUECHIP_UTILS_H
 #define BRIDGE_RESEARCH_TEST_BLUECHIP_UTILS_H
-
+#include "../bluechip_utils.h"
 #endif //BRIDGE_RESEARCH_TEST_BLUECHIP_UTILS_H
 namespace rl::bridge {
 const std::vector<std::string> AllBidStr = {

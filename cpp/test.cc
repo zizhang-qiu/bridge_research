@@ -6,6 +6,7 @@
 #include "tests/test_bridge_scoring.h"
 #include "tests/cards_and_ddts.h"
 #include "tests/test_bluechip_utils.h"
+#include "tests/test_bridge_state.h"
 #include "bridge_state.h"
 #include "generate_deals.h"
 #include "utils.h"
@@ -78,9 +79,12 @@ int main() {
 //  std::cout << env->ToString() << std::endl;
 //  env->Reset();
 //  std::cout << env->ToString() << std::endl;
-  std::vector<float> log_probs_vector = {0.0, 0.3, 0.6, 0.1};
-  auto log_probs = torch::tensor(torch::ArrayRef<float>(log_probs_vector));
-  auto action = torch::tensor(0);
-  auto zero_prob = log_probs[action];
-  std::cout << (zero_prob.item<int>() == 0) << std::endl;
+//  std::vector<float> log_probs_vector = {0.0, 0.3, 0.6, 0.1};
+//  auto log_probs = torch::tensor(torch::ArrayRef<float>(log_probs_vector));
+//  auto action = torch::tensor(0);
+//  auto zero_prob = log_probs[action];
+//  std::cout << (zero_prob.item<int>() == 0) << std::endl;
+    BridgeDealManager deal_manager(cards, ddts, par_scores);
+    auto deal = deal_manager.Next();
+    std::cout << deal.ddt.has_value() << " " << deal.par_score.has_value() << std::endl;
 }

@@ -44,7 +44,7 @@ def get_avg_and_sem(arr: Union[List, np.ndarray]) -> Tuple[float, float]:
     """
     if not isinstance(arr, np.ndarray):
         arr = np.array(arr)
-    assert_eq(arr.ndim, 1)
+    assert arr.ndim == 1
     avg = np.mean(arr)
     sem = np.std(arr, ddof=1) / sqrt(arr.size)
     return avg.item(), sem

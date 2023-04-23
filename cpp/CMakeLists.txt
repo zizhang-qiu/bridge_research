@@ -48,7 +48,7 @@ else ()
     set(TORCH_PYTHON_LIBRARIES "${TorchPath}/lib/libtorch_python.so")
 endif ()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
-
+include_directories(${TORCH_INCLUDE_DIRS})
 
 add_library(bridge_double_dummy_solver OBJECT
         third_party/dds/include/dll.h
@@ -113,8 +113,8 @@ target_include_directories(bridge_double_dummy_solver PUBLIC ${CMAKE_CURRENT_SOU
 target_compile_definitions(bridge_double_dummy_solver PUBLIC DDS_NO_STATIC_INIT)
 
 add_library(_br multi_agent_transition_buffer.h encode_bridge.h bridge_actor.h model_locker.h logging.h bridge_scoring.h tests/test_bridge_scoring.h
-        bridge_state.h types.h bridge_env.h thread_loop.h context.h utils.h replay_buffer.h tests/cards_and_ddts.h
-        )
+        bridge_state.h types.h thread_loop.h context.h utils.h replay_buffer.h tests/cards_and_ddts.h
+        tensor_dict.h  base.h bridge_deal.h bridge_envs.h tests/test_bridge_state.h)
 target_include_directories(_br PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(_br PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(_br PUBLIC ${PYTHON_INCLUDE_DIRS})
@@ -134,7 +134,7 @@ target_link_libraries(rl_cpp PUBLIC
 set_target_properties(rl_cpp PROPERTIES OUTPUT_NAME "rl_cpp")
 
 
-add_executable(test test.cc tests/test_bluechip_utils.h)
+add_executable(test test.cc tests/test_bluechip_utils.h imp_env.h bridge_constants.h)
 set_target_properties(test PROPERTIES LINKER_LANGUAGE CXX)
 
 target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

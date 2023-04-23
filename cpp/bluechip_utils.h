@@ -1,6 +1,10 @@
 //
 // Created by qzz on 2023/3/6.
 //
+
+
+#ifndef BRIDGE_RESEARCH_BLUECHIP_UTILS_H
+#define BRIDGE_RESEARCH_BLUECHIP_UTILS_H
 #include "logging.h"
 #include "bridge_state.h"
 #include "str_utils.h"
@@ -8,10 +12,6 @@
 #include <vector>
 #include <array>
 
-#ifndef BRIDGE_RESEARCH_BLUECHIP_UTILS_H
-#define BRIDGE_RESEARCH_BLUECHIP_UTILS_H
-
-#endif //BRIDGE_RESEARCH_BLUECHIP_UTILS_H
 namespace rl::bridge::bluechip {
 //BlueChip bridge protocol message constants
 inline constexpr int kPass = 0;
@@ -72,3 +72,4 @@ std::string GetHandString(std::vector<int> cards) {
 }
 
 }
+#endif //BRIDGE_RESEARCH_BLUECHIP_UTILS_H

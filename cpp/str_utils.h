@@ -1,11 +1,12 @@
 //
 // Created by qzz on 2023/4/17.
 //
+
+#ifndef BRIDGE_RESEARCH_STR_UTILS_H
+#define BRIDGE_RESEARCH_STR_UTILS_H
 #include <memory>
 #include <stdexcept>
 #include <string>
-#ifndef BRIDGE_RESEARCH_STR_UTILS_H
-#define BRIDGE_RESEARCH_STR_UTILS_H
 namespace rl::utils {
 template <typename... Args>
 std::string StrFormat(const std::string &format, Args... args) {
