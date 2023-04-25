@@ -49,7 +49,8 @@ class ValueNet(nn.Module):
             nn.GELU(),
             nn.Linear(1024, 1024),
             nn.GELU(),
-            nn.Linear(1024, 1)
+            nn.Linear(1024, 1),
+            nn.Tanh()
         )
 
     def forward(self, state: torch.Tensor):

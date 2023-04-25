@@ -84,7 +84,17 @@ int main() {
 //  auto action = torch::tensor(0);
 //  auto zero_prob = log_probs[action];
 //  std::cout << (zero_prob.item<int>() == 0) << std::endl;
-    BridgeDealManager deal_manager(cards, ddts, par_scores);
-    auto deal = deal_manager.Next();
-    std::cout << deal.ddt.has_value() << " " << deal.par_score.has_value() << std::endl;
+//  BridgeDealManager deal_manager(cards, ddts, par_scores);
+//  for (int i = 0; i < 10; ++i) {
+//
+//    auto deal = deal_manager.Next();
+//    auto state = std::make_shared<BridgeBiddingState>(deal);
+//    std::cout << state << std::endl;
+//    std::cout << deal_manager.Cursor() << std::endl;
+//  }
+
+//    std::cout << deal.ddt.has_value() << " " << deal.par_score.has_value() << std::endl;
+//    std::cout << deal_manager.Size() << std::endl;
+  auto a = torch::rand({2, 3});
+  std::cout << a.size(0) << std::endl;
 }

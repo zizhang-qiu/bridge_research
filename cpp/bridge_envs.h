@@ -74,7 +74,7 @@ class BridgeBiddingEnv : public Env {
   }
 
   Player GetCurrentPlayer() const {
-    RL_CHECK_NE(state_, nullptr);
+    assert(state_!= nullptr);
     return state_->CurrentPlayer();
   }
 
@@ -88,7 +88,7 @@ class BridgeBiddingEnv : public Env {
   }
 
   std::vector<double> Returns() const {
-    RL_CHECK_NE(state_, nullptr);
+    assert(state_!= nullptr);
     return state_->Returns();
   }
 
@@ -137,7 +137,7 @@ class BridgeBiddingEnv : public Env {
   }
 
   std::shared_ptr<BridgeBiddingState> GetState() const {
-    RL_CHECK_NE(state_, nullptr);
+    assert(state_!= nullptr);
     return state_;
   }
 

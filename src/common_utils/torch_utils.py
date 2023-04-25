@@ -11,8 +11,6 @@ import torch
 import torch.multiprocessing as mp
 from torch import nn
 
-from src.common_utils.assert_utils import assert_eq
-
 
 def print_parameters(model: nn.Module):
     """
@@ -107,7 +105,7 @@ def check_updated(parameters_before_update: List[torch.Tensor], parameters_after
     Returns:
         A boolean value.
     """
-    assert_eq(len(parameters_before_update), len(parameters_after_update))
+    assert len(parameters_before_update) == len(parameters_after_update)
     for p_b, p_a in zip(parameters_before_update, parameters_after_update):
         if not torch.equal(p_b, p_a):
             return True

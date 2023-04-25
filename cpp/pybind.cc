@@ -46,16 +46,19 @@ PYBIND11_MODULE(rl_cpp, m) {
 
   py::class_<ReplayBuffer, std::shared_ptr<ReplayBuffer>>(m, "ReplayBuffer")
       .def(py::init<int, int, int>())
+      .def("push", &ReplayBuffer::Push)
       .def("sample", &ReplayBuffer::Sample)
       .def("size", &ReplayBuffer::Size)
       .def("get_all", &ReplayBuffer::GetAll)
-      .def("num_add", &ReplayBuffer::NumAdd);
+      .def("num_add", &ReplayBuffer::NumAdd)
+      .def("dump", &ReplayBuffer::Dump)
+      .def("load", &ReplayBuffer::Load);
 
   py::class_<BridgeDeal, std::shared_ptr<BridgeDeal>>(m, "BridgeDeal")
       .def(py::init<>())
       .def_readwrite("cards", &BridgeDeal::cards)
       .def_readwrite("ddt", &BridgeDeal::ddt)
-      .def_readwrite("par_scores", &BridgeDeal::par_score)
+      .def_readwrite("par_score", &BridgeDeal::par_score)
       .def_readwrite("dealer", &BridgeDeal::dealer)
       .def_readwrite("is_dealer_vulnerable", &BridgeDeal::is_dealer_vulnerable)
       .def_readwrite("is_non_dealer_vulnerable", &BridgeDeal::is_non_dealer_vulnerable);
@@ -146,6 +149,14 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("get_num_deals", &ImpEnv::GetNumDeals)
       .def("__repr__", &ImpEnv::ToString);
 
+  py::class_<ImpVecEnv, std::shared_ptr<ImpVecEnv>>(m, "ImpVecEnv")
+      .def(py::init<>())
+      .def("push", &ImpVecEnv::Push, py::keep_alive<1, 2>())
+      .def("size", &ImpVecEnv::Size)
+      .def("reset", &ImpVecEnv::Reset)
+      .def("step", &ImpVecEnv::Step)
+      .def("any_terminated", &ImpVecEnv::AnyTerminated);
+
   py::class_<Context, std::shared_ptr<Context>>(m, "Context")
       .def(py::init<>())
       .def("push_thread_loop", &Context::PushThreadLoop, py::keep_alive<1, 2>())
@@ -189,6 +200,10 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def(py::init<std::shared_ptr<BridgeVecEnv>,
                     std::shared_ptr<VecEnvActor>>());
 
+  py::class_<bridge::ImpThreadLoop, ThreadLoop, std::shared_ptr<ImpThreadLoop>>(m, "ImpThreadLoop")
+      .def(py::init<std::shared_ptr<ImpVecEnv>,
+                    std::shared_ptr<VecEnvActor>>());
+
 //  py::class_<BridgeThreadLoop, ThreadLoop, std::shared_ptr<BridgeThreadLoop>>(m, "BridgeThreadLoop")
 //      .def(py::init<
 //          std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
@@ -209,7 +224,7 @@ PYBIND11_MODULE(rl_cpp, m) {
 //      .def(py::init<std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
 //                    std::shared_ptr<bridge::ImpEnv>, const int>())
 //      .def("main_loop", &EvalImpThreadLoop::MainLoop);
-
+  m.def("make_obs_tensor_dict", &bridge::MakeObsTensorDict);
   m.def("check_prob_not_zero", &rl::utils::CheckProbNotZero);
 
   m.def("bid_str_to_action", &bluechip::BidStrToAction);

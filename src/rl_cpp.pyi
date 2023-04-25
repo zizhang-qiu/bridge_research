@@ -92,6 +92,9 @@ class ReplayBuffer:
         """
         ...
 
+    def push(self, state: torch.Tensor, action: torch.Tensor, reward: torch.Tensor, log_probs: torch.Tensor):
+        ...
+
     def sample(self, batch_size: int, device: str) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample a batch of obs, actions, rewards and log_probs
@@ -126,6 +129,12 @@ class ReplayBuffer:
         Returns:
             The number of add
         """
+        ...
+
+    def dump(self) -> TensorDict:
+        ...
+
+    def load(self, storage: TensorDict):
         ...
 
 
@@ -468,7 +477,8 @@ class BridgeVecEnv:
 
 
 class ImpEnv:
-    def __init__(self, deal_manager: BridgeDealManager, greedy: List[int]):
+    def __init__(self, deal_manager: BridgeDealManager, greedy: List[int],
+                 replay_buffer: Optional[ReplayBuffer], eval_: bool):
         """
         An imp env which a deal is played twice. The player sit at NS first time should play at EW for second time.
         Args:
@@ -530,6 +540,23 @@ class ImpEnv:
         ...
 
     def __repr__(self) -> str:
+        ...
+
+
+class ImpVecEnv:
+    def __init__(self):
+        ...
+
+    def push(self, env: ImpEnv):
+        ...
+
+    def reset(self, obs: TensorDict) -> TensorDict:
+        ...
+
+    def step(self, reply: TensorDict) -> Tuple[TensorDict, torch.Tensor, torch.Tensor]:
+        ...
+
+    def any_terminated(self) -> bool:
         ...
 
 
@@ -639,6 +666,10 @@ class VecEnvEvalThreadLoop(ThreadLoop):
     def main_loop(self):
         ...
 
+
+class ImpThreadLoop(ThreadLoop):
+    def __init__(self, env: ImpVecEnv, actor: VecEnvActor):
+        ...
 
 
 class Context:
@@ -766,4 +797,8 @@ def generate_deals(num_deals: int, seed: int) -> Tuple[List[List[Action]], List[
 
 
 def check_prob_not_zero(action: torch.Tensor, log_probs: torch.Tensor):
+    ...
+
+
+def make_obs_tensor_dict(state: BridgeBiddingState, greedy: int) -> TensorDict:
     ...

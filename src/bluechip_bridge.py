@@ -236,8 +236,10 @@ class BlueChipBridgeBot:
             _connect(self._controller, self._seat)
         full_history = state.history()
         if len(full_history) == NUM_CARDS + self._player_id:
-            self._internal_state = rl_cpp.BridgeBiddingState(0, full_history[:NUM_CARDS], False, False,
-                                                             state.get_double_dummy_table())
+            deal = rl_cpp.BridgeDeal()
+            deal.cards = full_history[:NUM_CARDS]
+            deal.ddt = state.get_double_dummy_table()
+            self._internal_state = rl_cpp.BridgeBiddingState(deal)
             self._update_for_state()
 
         known_history = self._internal_state.history()

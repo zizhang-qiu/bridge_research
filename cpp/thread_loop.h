@@ -12,6 +12,7 @@
 #include "bridge_scoring.h"
 #include "bridge_envs.h"
 #include "replay_buffer.h"
+#include "imp_env.h"
 namespace rl {
 
 template<typename T>
@@ -186,6 +187,38 @@ class BridgeThreadLoop : public ThreadLoop {
 
  private:
   std::shared_ptr<BridgeVecEnv> env_;
+  std::shared_ptr<VecEnvActor> actor_;
+};
+
+class ImpThreadLoop : public ThreadLoop {
+ public:
+  ImpThreadLoop(std::shared_ptr<ImpVecEnv> env,
+                std::shared_ptr<VecEnvActor> actor) :
+      env_(std::move(env)), actor_(std::move(actor)) {}
+
+  void MainLoop() override {
+    TensorDict obs = {};
+    TensorDict reply;
+    torch::Tensor reward, terminal;
+
+    while (!Terminated()) {
+      obs = env_->Reset(obs);
+      while (!env_->AnyTerminated()) {
+        if (Terminated()) {
+          break;
+        }
+        if (pause_signal) {
+          paused_ = true;
+          WaitUntilResume();
+        }
+        reply = actor_->Act(obs);
+        std::tie(obs, reward, terminal) = env_->Step(reply);
+      }
+    }
+    terminated_ = true;
+  }
+ private:
+  std::shared_ptr<ImpVecEnv> env_;
   std::shared_ptr<VecEnvActor> actor_;
 };
 

@@ -9,7 +9,7 @@ import copy
 import os
 import pickle
 import time
-from typing import Tuple
+from typing import Tuple, Dict
 
 import numpy as np
 import torch
@@ -43,7 +43,7 @@ def load_rl_dataset(usage: str, dataset_dir: str = DEFAULT_RL_DATASET_DIR) \
     return dataset
 
 
-def sl_net(checkpoint_path: str = r"models\il_net_checkpoint.pth", device: str = "cuda"):
+def sl_net(checkpoint_path: str = r"models/il_net_checkpoint.pth", device: str = "cuda"):
     """
     Get a supervised learning policy net.
     Args:
@@ -59,7 +59,7 @@ def sl_net(checkpoint_path: str = r"models\il_net_checkpoint.pth", device: str =
     return net
 
 
-def sl_single_env_agent(checkpoint_path: str = r"models\il_net_checkpoint.pth", device: str = "cuda",
+def sl_single_env_agent(checkpoint_path: str = r"models/il_net_checkpoint.pth", device: str = "cuda",
                         jit=False):
     """
     Get a supervised learning single env agent.
@@ -78,7 +78,7 @@ def sl_single_env_agent(checkpoint_path: str = r"models\il_net_checkpoint.pth", 
     return agent
 
 
-def sl_vec_env_agent(checkpoint_path: str = r"models\il_net_checkpoint.pth", device: str = "cuda",
+def sl_vec_env_agent(checkpoint_path: str = r"models/il_net_checkpoint.pth", device: str = "cuda",
                      jit=False):
     """
     Get a supervised learning single env agent.
@@ -115,6 +115,13 @@ def simple_vec_env(num_envs: int = 10, use_par_score: bool = False, replay_buffe
         env = rl_cpp.BridgeBiddingEnv(deal_manager, [1, 1, 1, 1], replay_buffer, use_par_score, eval_)
         vec_env.push(env)
     return vec_env
+
+
+def tensor_dict_to_device(tensor_dict: Dict[str, torch.Tensor], device: str):
+    ret = {}
+    for key, value in tensor_dict.items():
+        ret[key] = value.to(device)
+    return ret
 
 
 class Evaluator:

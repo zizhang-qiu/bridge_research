@@ -184,6 +184,7 @@ class VecEnvAgent(nn.Module):
         """
         super().__init__()
         self.p_net = p_net
+        self.v_net = ValueNet()
 
     @torch.jit.export
     def get_probs(self, s: torch.Tensor) -> torch.Tensor:
@@ -199,6 +200,10 @@ class VecEnvAgent(nn.Module):
         probs = torch.exp(self.p_net(s))
         # print("probs", probs)
         return probs
+
+    def get_values(self, s: torch.Tensor):
+        values = self.v_net(s)
+        return values
 
     @torch.jit.export
     def get_log_probs(self, s: torch.Tensor) -> torch.Tensor:
@@ -228,17 +233,19 @@ class VecEnvAgent(nn.Module):
         random_actions = torch.multinomial(probs, 1).squeeze()
         # print("random actions", random_actions)
         action = greedy * greedy_action + (1 - greedy) * random_actions
-        return {"a": action, "log_probs": log_probs}
+        return {"a": action.detach().cpu(), "log_probs": log_probs.detach().cpu()}
 
     def loss(self, batch_state: torch.Tensor, batch_action: torch.Tensor,
              batch_reward: torch.Tensor, batch_log_probs: torch.Tensor,
-             clip_eps: float, entropy_ratio: float):
+             clip_eps: float, entropy_ratio: float) -> Tuple[torch.Tensor, torch.Tensor]:
         current_log_probs = self.get_log_probs(batch_state)
         current_action_log_probs = current_log_probs.gather(1, batch_action.long().unsqueeze(1)).squeeze(1)
         old_action_log_probs = batch_log_probs.gather(1, batch_action.long().unsqueeze(1)).squeeze(1)
 
         ratio = torch.exp(current_action_log_probs - old_action_log_probs)
-        advantage = (batch_reward - batch_reward.mean()) / (batch_reward.std() + 1e-5)
+        # advantage = (batch_reward - batch_reward.mean()) / (batch_reward.std() + 1e-5)
+        # advantage = batch_reward
+        advantage = batch_reward - self.get_values(batch_state).squeeze()
 
         surr1 = ratio * (advantage.detach())
         surr2 = torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * (advantage.detach())
@@ -246,7 +253,8 @@ class VecEnvAgent(nn.Module):
         entropy = -torch.sum(current_probs * current_log_probs, dim=-1)
 
         policy_loss = -torch.min(surr1, surr2) - entropy * entropy_ratio
-        return policy_loss.mean()
+        value_loss = torch.pow(advantage, 2)
+        return policy_loss.mean(), value_loss.mean()
 
 
 def random_vec_agent(device: str = "cuda") -> VecEnvAgent:

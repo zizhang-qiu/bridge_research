@@ -1,5 +1,5 @@
 num_deals : 1000
 num_processes : 8
-checkpoint_path : "../../policy_gradient/20230329143031/checkpoint_0.pth"
-save_dir : "../../vs_wbridge5"
+checkpoint_path : "policy_gradient/20230329143031/checkpoint_0.pth"
+save_dir : "vs_wbridge5"
 start : 0

@@ -13,6 +13,8 @@ import pprint
 import time
 from typing import Dict, Protocol, List
 import torch
+import yaml
+
 import rl_cpp
 import numpy as np
 
@@ -24,7 +26,8 @@ from bridge_vars import NUM_SUITS, PLUS_MINUS_SYMBOL, NUM_CARDS, NUM_PLAYERS
 from global_vars import RLDataset
 from nets import PolicyNet
 import common_utils
-from utils import simple_env, sl_net, sl_single_env_agent, sl_vec_env_agent, simple_vec_env, Evaluator
+from utils import simple_env, sl_net, sl_single_env_agent, sl_vec_env_agent, simple_vec_env, Evaluator, load_rl_dataset
+
 
 def json_2_np(path):
     with open(path) as fp:
@@ -186,8 +189,37 @@ if __name__ == '__main__':
     # ed = time.perf_counter()
     # print(ed - st)
     # print(imps)
-    evaluator = Evaluator(50000, 8, "cuda")
-    random_net = PolicyNet()
-    for i in range(10):
-        avg, sem, elapsed_time = evaluator.evaluate(sl_net(), random_net)
-        print(avg, sem, elapsed_time)
+    # evaluator = Evaluator(50000, 8, "cuda")
+    # random_net = PolicyNet()
+    # for i in range(10):
+    #     avg, sem, elapsed_time = evaluator.evaluate(sl_net(), random_net)
+    #     print(avg, sem, elapsed_time)
+    # dataset = load_rl_dataset("train")
+    # deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
+    # vec_env = rl_cpp.ImpVecEnv()
+    # replay_buffer = rl_cpp.ReplayBuffer(480, 38, 10000)
+    # for i in range(10):
+    #     env = rl_cpp.ImpEnv(deal_manager, [0, 0, 0, 0], replay_buffer, False)
+    #     vec_env.push(env)
+    # obs = {}
+    # obs = vec_env.reset(obs)
+    # print(obs)
+    # with open("config/a2c.yaml") as f:
+    #     cfg = yaml.safe_load(f)
+    # print(cfg)
+    # replay_buffer = rl_cpp.ReplayBuffer(10, 5, 100)
+    # for i in range(5):
+    #     replay_buffer.push(i * torch.ones(10), torch.tensor(i), torch.tensor(i), i * torch.ones(5))
+    #
+    # s = replay_buffer.dump()
+    # print(s)
+    # replay_buffer2 = rl_cpp.ReplayBuffer(10, 5, 100)
+    # replay_buffer2.load(s)
+    # print(replay_buffer2.dump())
+    dataset = load_rl_dataset("vs_wb5_open_spiel")
+    cards, ddts = dataset["cards"], dataset["ddts"]
+    deal = rl_cpp.BridgeDeal()
+    deal.cards = cards[0]
+    deal.ddt = ddts[0]
+    state = rl_cpp.BridgeBiddingState(deal)
+    print(state)

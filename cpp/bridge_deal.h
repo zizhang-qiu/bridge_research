@@ -46,9 +46,13 @@ public:
     return size_;
   }
 
+  int Cursor() const{
+    return cursor_.load();
+  }
+
 private:
   std::mutex m_;
-  int cursor_ = 0;
+  std::atomic<int> cursor_ = 0;
   int size_;
   std::vector<Cards> cards_vector_;
   std::vector<DDT> ddts_;

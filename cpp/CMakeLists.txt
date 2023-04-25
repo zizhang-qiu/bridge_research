@@ -133,17 +133,19 @@ target_link_libraries(rl_cpp PUBLIC
         ${TORCH_PYTHON_LIBRARIES})
 set_target_properties(rl_cpp PROPERTIES OUTPUT_NAME "rl_cpp")
 
+if (WIN32)
+    add_executable(test test.cc tests/test_bluechip_utils.h imp_env.h bridge_constants.h)
+    set_target_properties(test PROPERTIES LINKER_LANGUAGE CXX)
 
-add_executable(test test.cc tests/test_bluechip_utils.h imp_env.h bridge_constants.h)
-set_target_properties(test PROPERTIES LINKER_LANGUAGE CXX)
+    target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_include_directories(test PUBLIC ${TORCH_INCLUDE_DIRS})
+    target_include_directories(test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    target_link_libraries(test PUBLIC
+            ${TORCH_LIBRARIES}
+            ${PYTHON_LIBRATIES}
+            bridge_double_dummy_solver)
+endif ()
 
-target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(test PUBLIC ${TORCH_INCLUDE_DIRS})
-target_include_directories(test PUBLIC ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(test PUBLIC
-        ${TORCH_LIBRARIES}
-        ${PYTHON_LIBRATIES}
-        bridge_double_dummy_solver)
 
 
 
