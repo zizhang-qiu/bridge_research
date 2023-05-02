@@ -59,6 +59,12 @@ class SingleEnvActor:
         """
         ...
 
+    def get_top_k_actions_with_min_prob(self, obs: TensorDict, k: int, min_prob: float) -> TensorDict:
+        ...
+
+    def get_prob_for_action(self, obs: TensorDict, action: Action) -> float:
+        ...
+
 
 class VecEnvActor:
     def __init__(self, model_locker: ModelLocker):
@@ -176,6 +182,20 @@ class BridgeDealManager:
         ...
 
     def size(self) -> int:
+        ...
+
+    def next(self) -> BridgeDeal:
+        ...
+
+
+class Contract:
+    level: int = ...
+    declarer: Player = ...
+
+    def trumps(self) -> int:
+        ...
+
+    def double_status(self) -> int:
         ...
 
 
@@ -298,6 +318,12 @@ class BridgeBiddingState:
         Returns:
             The double dummy table.
         """
+
+    def get_actual_trick_and_dd_trick(self) -> List[int, int]:
+        ...
+
+    def get_contract(self) -> Contract:
+        ...
 
     @overload
     def observation_tensor(self) -> List[float]:
@@ -441,7 +467,7 @@ class BridgeVecEnv:
         """
         ...
 
-    def reset(self) -> torch.Tensor:
+    def reset(self, obs: TensorDict) -> TensorDict:
         """
         Reset the vectorized env and get initial obs.
         Returns:
@@ -449,10 +475,10 @@ class BridgeVecEnv:
         """
         ...
 
-    def step(self, action: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def step(self, action: TensorDict) -> Tuple[TensorDict, torch.Tensor, torch.Tensor]:
         """
         Step a batch of actions to envs, and get a batch of next obs, reward and terminal.
-        If a env is terminated, the next obs tensor is fake.
+        If an env is terminated, the next obs tensor is fake.
         Args:
             action: The action tensor.
 
@@ -504,7 +530,7 @@ class ImpEnv:
         """
         ...
 
-    def step(self, action: torch.Tensor) -> Tuple[torch.Tensor, float, bool]:
+    def step(self, action: TensorDict) -> Tuple[TensorDict, float, bool]:
         """
         Make a step in env.
         Args:
@@ -515,7 +541,7 @@ class ImpEnv:
         """
         ...
 
-    def reset(self) -> torch.Tensor:
+    def reset(self) -> TensorDict:
         """
         Reset the env and get initial obs.
         Returns:
@@ -672,6 +698,11 @@ class ImpThreadLoop(ThreadLoop):
         ...
 
 
+class ImpSingleEnvThreadLoop(ThreadLoop):
+    def __init__(self, actor_train: SingleEnvActor, actor_oppo: SingleEnvActor):
+        ...
+
+
 class Context:
     def __init__(self):
         """
@@ -801,4 +832,19 @@ def check_prob_not_zero(action: torch.Tensor, log_probs: torch.Tensor):
 
 
 def make_obs_tensor_dict(state: BridgeBiddingState, greedy: int) -> TensorDict:
+    ...
+
+
+class SearchParams:
+    def __init__(self):
+        self.min_rollouts = ...
+        self.max_rollouts = ...
+        self.max_particles = ...
+        self.temperature = ...
+        self.top_k = ...
+        self.min_prob = ...
+        self.verbose_level = ...
+
+
+def search(state: BridgeBiddingState, actor: SingleEnvActor, params: SearchParams):
     ...

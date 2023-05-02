@@ -12,7 +12,7 @@ import sqlite3
 import numpy as np
 from tqdm import trange
 
-from dds import calc_all_tables, get_par_score_from_par_results
+from dds import calc_all_tables, get_par_score_and_contract_from_par_results
 from bridge_vars import NUM_CARDS, RANK_STR, NUM_CARDS_PER_HAND, NUM_PLAYERS
 from pbn import get_card
 
@@ -67,7 +67,7 @@ def main():
 
     _, par_scores = calc_all_tables(cards)
     for i, par in enumerate(par_scores):
-        par_score = get_par_score_from_par_results(par, view=0)
+        par_score = get_par_score_and_contract_from_par_results(par, view=0)
         pars[i] = par_score
 
     dataset = {

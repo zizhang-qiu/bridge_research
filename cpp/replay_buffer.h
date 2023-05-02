@@ -61,7 +61,8 @@ class ReplayBuffer {
 //        std::cout << "full: " << full_ << std::endl;
     int size = full_ ? capacity_ : cursor_.load();
 //        std::cout << "size: " << size << std::endl;
-    torch::Tensor indices = torch::multinomial(torch::ones(size), batch_size, false);
+    torch::Tensor indices = torch::multinomial(torch::abs(reward_storage_.slice(0, 0, size)) + 0.05, batch_size, false);
+//    torch::Tensor indices = torch::multinomial(torch::ones(size), batch_size, false);
     auto sample_states = state_storage_.index_select(0, indices);
     auto sample_actions = action_storage_.index_select(0, indices);
     auto sample_rewards = reward_storage_.index_select(0, indices);
@@ -101,7 +102,7 @@ class ReplayBuffer {
     auto state = replay_buffer_storage.at("state");
     int size = static_cast<int>(state.size(0));
     cursor_ = size == capacity_ ? 0 : size;
-    if(size == capacity_){
+    if (size == capacity_) {
       full_ = true;
     }
     state_storage_.slice(0, 0, size).copy_(state);
@@ -110,7 +111,7 @@ class ReplayBuffer {
     log_probs_storage_.slice(0, 0, size).copy_(replay_buffer_storage.at("log_probs"));
   }
 
-  TensorDict Dump() const{
+  TensorDict Dump() const {
     std::unique_lock<std::mutex> lk(m_);
     int size = full_ ? capacity_ : int(cursor_);
     TensorDict ret = {

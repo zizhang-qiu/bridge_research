@@ -222,6 +222,53 @@ class ImpThreadLoop : public ThreadLoop {
   std::shared_ptr<VecEnvActor> actor_;
 };
 
+class ImpSingleEnvThreadLoop : public ThreadLoop {
+ public:
+  ImpSingleEnvThreadLoop(std::shared_ptr<SingleEnvActor> actor_train,
+                         std::shared_ptr<SingleEnvActor> actor_oppo,
+                         std::shared_ptr<ImpEnv> env,
+                         bool verbose) : actor_train_(std::move(actor_train)),
+                                         actor_oppo_(std::move(actor_oppo)),
+                                         env_(std::move(env)),
+                                         verbose_(verbose) {
+  }
+
+  void MainLoop() override {
+    TensorDict obs, reply;
+    float r;
+    bool t;
+    while (!Terminated()) {
+      obs = env_->Reset();
+      while (!env_->Terminated()) {
+        if (pause_signal) {
+          paused_ = true;
+          WaitUntilResume();
+        }
+        if (Terminated()) {
+          break;
+        }
+        auto acting_player = env_->GetActingPlayer();
+        if (verbose_) {
+          std::cout << "Acting player: " << acting_player << std::endl;
+        }
+        if (acting_player % 2 == 0) {
+          reply = actor_train_->Act(obs);
+        } else {
+          reply = actor_oppo_->Act(obs);
+        }
+        std::tie(obs, r, t) = env_->Step(reply);
+      }
+
+    }
+    terminated_ = true;
+  }
+ private:
+  std::shared_ptr<SingleEnvActor> actor_train_;
+  std::shared_ptr<SingleEnvActor> actor_oppo_;
+  std::shared_ptr<ImpEnv> env_;
+  bool verbose_;
+};
+
 } // namespace bridge
 
 //

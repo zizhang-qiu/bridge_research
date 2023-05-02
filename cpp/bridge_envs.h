@@ -74,7 +74,7 @@ class BridgeBiddingEnv : public Env {
   }
 
   Player GetCurrentPlayer() const {
-    assert(state_!= nullptr);
+    assert(state_ != nullptr);
     return state_->CurrentPlayer();
   }
 
@@ -88,7 +88,7 @@ class BridgeBiddingEnv : public Env {
   }
 
   std::vector<double> Returns() const {
-    assert(state_!= nullptr);
+    assert(state_ != nullptr);
     return state_->Returns();
   }
 
@@ -122,6 +122,10 @@ class BridgeBiddingEnv : public Env {
           for (size_t pl = 0; pl < bridge::kNumPlayers; pl++) {
             rewards[pl] = rewards[pl] - (pl % 2 == 0 ? par_score : -par_score);
           }
+        } else {
+          for (size_t pl = 0; pl < bridge::kNumPlayers; pl++) {
+            rewards[pl] = rewards[pl] / kMaxScore;
+          }
         }
         transition_buffer_.PushToReplayBuffer(replay_buffer_, rewards);
         transition_buffer_.Clear();
@@ -137,7 +141,7 @@ class BridgeBiddingEnv : public Env {
   }
 
   std::shared_ptr<BridgeBiddingState> GetState() const {
-    assert(state_!= nullptr);
+    assert(state_ != nullptr);
     return state_;
   }
 

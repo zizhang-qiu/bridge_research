@@ -101,12 +101,42 @@ class SingleEnvActor {
     input.emplace_back(tensor_dict::ToTorchDict(obs, model_locker_->device_));
     auto output = model.get_method("act")(input);
     auto reply = tensor_dict::FromIValue(output, torch::kCPU, true);
-    //        std::cout << log_probs << std::endl;
 
     model_locker_->ReleaseModel(id);
 //    if (!eval_) {
 //      transition_buffer_->PushObsAndActionAndLogProbs(obs, action, log_probs);
 //    }
+    return reply;
+  }
+
+  TensorDict GetTopKActionsWithMinProb(const TensorDict &obs, int k, float min_prob) {
+    torch::NoGradGuard ng;
+    TorchJitInput input;
+    int id = -1;
+    auto model = model_locker_->GetModel(&id);
+    input.emplace_back(tensor_dict::ToTorchDict(obs, model_locker_->device_));
+    torch::jit::IValue k_ = k;
+    torch::jit::IValue min_prob_ = min_prob;
+    input.emplace_back(k_);
+    input.emplace_back(min_prob_);
+    auto output = model.get_method("get_top_k_actions_with_min_prob")(input);
+    auto reply = tensor_dict::FromIValue(output, torch::kCPU, true);
+    model_locker_->ReleaseModel(id);
+    return reply;
+  }
+
+  double GetProbForAction(const TensorDict &obs, Action action) {
+    torch::NoGradGuard ng;
+    TorchJitInput input;
+    int id = -1;
+    auto model = model_locker_->GetModel(&id);
+    input.emplace_back(tensor_dict::ToTorchDict(obs, model_locker_->device_));
+    torch::jit::IValue action_ = action;
+    input.emplace_back(action_);
+    auto output = model.get_method("get_prob_for_action")(input);
+    auto reply = output.toDouble();
+
+    model_locker_->ReleaseModel(id);
     return reply;
   }
 

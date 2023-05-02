@@ -16,6 +16,7 @@
 #include "third_party/pybind11/include/pybind11/pybind11.h"
 #include "thread_loop.h"
 #include "imp_env.h"
+#include "search.h"
 
 namespace py = pybind11;
 using namespace bridge_encode;
@@ -38,7 +39,9 @@ PYBIND11_MODULE(rl_cpp, m) {
   py::class_<SingleEnvActor, std::shared_ptr<SingleEnvActor>>(
       m, "SingleEnvActor")
       .def(py::init<std::shared_ptr<ModelLocker>>())
-      .def("act", &SingleEnvActor::Act);
+      .def("act", &SingleEnvActor::Act)
+      .def("get_top_k_actions_with_min_prob", &SingleEnvActor::GetTopKActionsWithMinProb)
+      .def("get_prob_for_action", &SingleEnvActor::GetProbForAction);
 
   py::class_<VecEnvActor, std::shared_ptr<VecEnvActor>>(m, "VecEnvActor")
       .def(py::init<std::shared_ptr<ModelLocker>>())
@@ -63,6 +66,12 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def_readwrite("is_dealer_vulnerable", &BridgeDeal::is_dealer_vulnerable)
       .def_readwrite("is_non_dealer_vulnerable", &BridgeDeal::is_non_dealer_vulnerable);
 
+  py::class_<Contract>(m, "Contract")
+      .def_readonly("level", &Contract::level)
+      .def("trumps", [](const Contract& c){return static_cast<int>(c.trumps);})
+      .def("double_status", [](const Contract& c){return static_cast<int>(c.double_status);})
+      .def_readonly("declarer", &Contract::declarer);
+
   py::class_<BridgeBiddingState, std::shared_ptr<BridgeBiddingState>>(
       m, "BridgeBiddingState")
       .def(py::init<BridgeDeal>())
@@ -82,6 +91,8 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("observation_str", &BridgeBiddingState::ObservationString)
       .def("current_player", &BridgeBiddingState::CurrentPlayer)
       .def("current_phase", &BridgeBiddingState::CurrentPhase)
+      .def("get_actual_trick_and_dd_trick", &BridgeBiddingState::GetActualTrickAndDDTrick)
+      .def("get_contract", &BridgeBiddingState::GetContract)
       .def("observation_tensor",
            py::overload_cast<Player>(&BridgeBiddingState::ObservationTensor))
       .def("observation_tensor",
@@ -106,7 +117,8 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def(py::init<const std::vector<Cards>,
                     const std::vector<DDT>,
                     const std::vector<int>>())
-      .def("size", &BridgeDealManager::Size);
+      .def("size", &BridgeDealManager::Size)
+      .def("next", &BridgeDealManager::Next);
 
   py::class_<BridgeBiddingEnv, std::shared_ptr<BridgeBiddingEnv>>(m, "BridgeBiddingEnv")
       .def(py::init<std::shared_ptr<BridgeDealManager>,
@@ -204,6 +216,10 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def(py::init<std::shared_ptr<ImpVecEnv>,
                     std::shared_ptr<VecEnvActor>>());
 
+  py::class_<ImpSingleEnvThreadLoop, ThreadLoop, std::shared_ptr<ImpSingleEnvThreadLoop>>(m, "ImpSingleEnvThreadLoop")
+      .def(py::init<std::shared_ptr<SingleEnvActor>, std::shared_ptr<SingleEnvActor>, std::shared_ptr<ImpEnv>, bool>())
+      .def("main_loop", &ImpSingleEnvThreadLoop::MainLoop);
+
 //  py::class_<BridgeThreadLoop, ThreadLoop, std::shared_ptr<BridgeThreadLoop>>(m, "BridgeThreadLoop")
 //      .def(py::init<
 //          std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
@@ -233,4 +249,15 @@ PYBIND11_MODULE(rl_cpp, m) {
 
   m.def("calc_all_tables", &rl::bridge::CalcAllTables);
   m.def("generate_deals", &rl::bridge::GenerateDeals);
+
+  py::class_<SearchParams>(m, "SearchParams")
+      .def(py::init<>())
+      .def_readwrite("min_rollouts", &SearchParams::min_rollouts)
+      .def_readwrite("max_rollouts", &SearchParams::max_rollouts)
+      .def_readwrite("max_particles", &SearchParams::max_particles)
+      .def_readwrite("temperature", &SearchParams::temperature)
+      .def_readwrite("top_k", &SearchParams::top_k)
+      .def_readwrite("min_prob", &SearchParams::min_prob)
+      .def_readwrite("verbose_level", &SearchParams::verbose_level);
+  m.def("search", &rl::bridge::Search);
 }

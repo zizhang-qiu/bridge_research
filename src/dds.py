@@ -109,7 +109,7 @@ class ParResultsDealer(Structure):
                 ("contracts", c_char * 10 * 10)]
 
 
-dll = CDLL(r"D:\Projects\bridge_research\src\dds.dll", winmode=0)
+dll = CDLL("D:/Projects/bridge_research/src/dds.dll", winmode=0)
 dll.CalcDDtable.argtypes = (DDTabelDeal, POINTER(DDTableResults))
 dll.CalcDDtable.restype = c_int
 dll.CalcAllTables.argtypes = (POINTER(DDTableDeals), c_int, c_int * DDS_STRAINS, POINTER(DDTableRes),
@@ -257,7 +257,7 @@ def calc_all_tables(trajectories: np.ndarray, show_progress_bar=True) -> Tuple[n
     return np.vstack(ddts), par_scores
 
 
-def get_par_score_from_par_results(par_score: ParResults, view: int) -> int:
+def get_par_score_and_contract_from_par_results(par_score: ParResults, view: int) -> int:
     """
     Get the par score from par results
     Args:
@@ -269,6 +269,7 @@ def get_par_score_from_par_results(par_score: ParResults, view: int) -> int:
     """
     assert view in [0, 1]
     par_score_str = par_score.parScore[view].value.decode("utf-8")
+    par_contract_str = par_score.parContractsString[view].value.decode("utf-8")
     par_score = int(re.search(r"[-]?\d+", par_score_str).group())
     return par_score
 

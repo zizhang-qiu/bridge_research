@@ -164,7 +164,7 @@ class AgainstWb5Worker(mp.Process):
                 imp = rl_cpp.get_imp(int(state_0.returns()[0]), int(state_1.returns()[0]))
                 _imps.append(imp)
                 msg = f"open:\n{state_0}\n\nclose:\n{state_1}\n\nimp: {imp}\n\n"
-                with open(os.path.join(self.save_dir, f"log_{self._process_id}.txt"), "w") as f:
+                with open(os.path.join(self.save_dir, f"log_{self._process_id}.txt"), "a") as f:
                     f.write(msg)
                 _imps_np = np.array(_imps)
                 np.save(os.path.join(self.save_dir, f"imps_{self._process_id}.npy"), _imps_np)
@@ -197,7 +197,7 @@ def main():
     # w.run()
 
     workers = []
-    for i in range(config["num_processes"]):
+    for i in range(num_processes):
         num_deals = num_deals_per_process[i]
         w = AgainstWb5Worker(i, num_deals,
                              base_port + 10 * i,

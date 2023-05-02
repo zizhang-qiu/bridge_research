@@ -18,7 +18,6 @@
 #include <utility>
 namespace rl::bridge {
 
-
 inline constexpr int kFirstBid = kRedouble + 1;
 
 int Bid(int level, Denomination denomination) {
@@ -40,8 +39,6 @@ int CardRank(int card) { return card / kNumSuits; }
 int Card(Suit suit, int rank) {
   return rank * kNumSuits + static_cast<int>(suit);
 }
-
-
 
 std::string CardString(int card) {
   return {kSuitChar[static_cast<int>(CardSuit(card))],
@@ -71,8 +68,6 @@ int SuitToDDSStrain(Suit suit) {
 int DenominationToDDSStrain(Denomination denomination) {
   return denomination == kNoTrump ? denomination : 3 - denomination;
 }
-
-
 
 class BridgeBiddingState {
  public:
@@ -244,6 +239,31 @@ class BridgeBiddingState {
     return ret;
   }
 
+  std::vector<int> GetActualTrickAndDDTrick(){
+    if(!double_dummy_results_.has_value()){
+      ComputeDoubleDummyResult();
+    }
+    auto trump = contract_.trumps;
+    auto level = contract_.level;
+    int actual_trick = level + 6;
+    std::vector<int> ret = {actual_trick, num_declarer_tricks_};
+    return ret;
+  }
+
+  std::vector<Action> GetPlayerCards(Player player) const {
+    std::vector<Action> cards;
+    for (int i = 0; i < kNumCards; i++) {
+      if (holder_[i] == player) {
+        cards.emplace_back(i);
+      }
+    }
+    return cards;
+  }
+
+  Contract GetContract() const{
+    return contract_;
+  }
+
   static std::vector<int> ObservationTensorShape() {
     return {kAuctionTensorSize};
   }
@@ -270,7 +290,7 @@ class BridgeBiddingState {
   bool is_vulnerable_[kNumPartnerships]{};
   Phase phase_ = Phase::kAuction;
   Contract contract_{0};
-  // dealer is the first player to and bid
+  // dealer is the first player to bid
   Player dealer_;
   mutable std::optional<ddTableResults> double_dummy_results_{};
   Player current_player_;
@@ -312,21 +332,16 @@ class BridgeBiddingState {
     for (auto trump : {kClubs, kDiamonds, kHearts, kSpades, kNoTrump}) {
       for (auto player : {kNorth, kEast, kSouth, kWest}) {
         auto index = trump * kNumPlayers + player;
-        //                std::cout << "index: " << index << std::endl;
-        //                std::cout << "value: " << ptr[index] << std::endl;
         double_dummy_results.resTable[trump][player] =
             double_dummy_table[index];
       }
     }
     double_dummy_results_ = double_dummy_results;
-    //        std::cout << "double_dummy_results_.has_value()=" <<
-    //        double_dummy_results_.has_value() << std::endl;
+
   }
 
   // use dds to compute double dummy result
   void ComputeDoubleDummyResult() {
-    //        RL_CHECK_TRUE(!double_dummy_results_.has_value());
-    //    absl::MutexLock lock(&dds_mutex);
     double_dummy_results_ = ddTableResults{};
     ddTableDeal dd_table_deal{};
     for (int suit = 0; suit < kNumSuits; ++suit) {
@@ -373,7 +388,7 @@ class BridgeBiddingState {
         phase_ = kGameOver;
       } else if (num_passes_ == 3 && contract_.level > 0) {
         phase_ = kGameOver;
-        if(!double_dummy_results_.has_value()){
+        if (!double_dummy_results_.has_value()) {
           ComputeDoubleDummyResult();
         }
         num_declarer_tricks_ =

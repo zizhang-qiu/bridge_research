@@ -5,6 +5,7 @@ from typing import Dict, Optional
 
 import torch
 from tqdm import trange
+from adan import Adan
 
 import rl_cpp
 import common_utils
@@ -46,8 +47,10 @@ def main():
 
     train_locker = rl_cpp.ModelLocker([torch.jit.script(copy.deepcopy(agent)).to(act_device)], act_device)
     train_actor = rl_cpp.VecEnvActor(train_locker)
-    p_opt = torch.optim.AdamW(params=agent.p_net.parameters(), lr=p_lr)
-    v_opt = torch.optim.AdamW(params=agent.v_net.parameters(), lr=v_lr)
+    # p_opt = torch.optim.AdamW(params=agent.p_net.parameters(), lr=p_lr)
+    # v_opt = torch.optim.AdamW(params=agent.v_net.parameters(), lr=v_lr)
+    p_opt = Adan(params=agent.p_net.parameters(), lr=p_lr)
+    v_opt = Adan(params=agent.v_net.parameters(), lr=v_lr)
     if checkpoint_path:
         p_opt.load_state_dict(checkpoint["opt_state_dict"]["policy"])
         v_opt.load_state_dict(checkpoint["opt_state_dict"]["value"])
@@ -135,7 +138,7 @@ def main():
         while not context.all_paused():
             time.sleep(0.5)
 
-        avg, sem, elapsed_time = evaluator.evaluate(agent.p_net, supervised_net)
+        avg, sem, elapsed_time, _, _ = evaluator.evaluate(agent.p_net, supervised_net)
         stats.feed("avg_imp", avg)
         stats.feed("sem_imp", sem)
         msg = f"Epoch {i_ep}, result: {avg}{PLUS_MINUS_SYMBOL}{sem:.4f}, elapsed time: {elapsed_time:.2f}."

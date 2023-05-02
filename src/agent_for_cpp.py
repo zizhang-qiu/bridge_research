@@ -4,7 +4,7 @@
 @date:2023/2/23
 @encoding:utf-8
 """
-from typing import Optional, Tuple, Dict
+from typing import Optional, Tuple, Dict, List
 
 import torch
 from torch import nn
@@ -71,8 +71,40 @@ class SingleEnvAgent(nn.Module):
         Returns:
             torch.Tensor: The log probabilities
         """
-        probs = self.p_net(s)
-        return probs
+        log_probs = self.p_net(s)
+        return log_probs
+
+    @torch.jit.export
+    def get_top_k_actions_with_min_prob(self, obs: Dict[str, torch.Tensor], top_k: int, min_prob: float) \
+            -> Dict[str, torch.Tensor]:
+        """
+        Get top k actions with at least min prob
+        Args:
+            obs: The obs tensordict
+            top_k: How many actions to get
+            min_prob: The minimum prob
+
+        Returns:
+            The top k actions
+        """
+        legal_actions = obs["legal_actions"]
+        s = obs["s"]
+        log_probs = self.get_log_probs(s.unsqueeze(0)).squeeze()
+        probs = torch.exp(log_probs) * legal_actions
+        probs, indices = torch.topk(probs, top_k)
+        available_indices = probs > min_prob
+        top_k_with_min_prob = indices[available_indices].int()
+        top_k_probs = probs[available_indices]
+        return {"top_k_actions": top_k_with_min_prob, "top_k_probs": top_k_probs}
+
+    @torch.jit.export
+    def get_prob_for_action(self, obs: Dict[str, torch.Tensor], action: int) -> float:
+        legal_actions = obs["legal_actions"]
+        s = obs["s"]
+        log_probs = self.get_log_probs(s.unsqueeze(0)).squeeze()
+        probs = torch.exp(log_probs) * legal_actions
+        action_prob = probs[action].item()
+        return action_prob
 
     def compute_policy_gradient_loss(self, batch_obs: torch.Tensor, batch_action: torch.Tensor,
                                      batch_reward: torch.Tensor, batch_log_probs: torch.Tensor,
@@ -95,7 +127,7 @@ class SingleEnvAgent(nn.Module):
         old_action_log_probs = batch_log_probs.gather(1, batch_action.long().unsqueeze(1)).squeeze(1)
 
         ratio = torch.exp(current_action_log_probs - old_action_log_probs)
-        advantage = batch_reward - self.get_values(batch_obs).squeeze()
+        advantage = batch_reward
         advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-5)
 
         surr1 = ratio * (advantage.detach())
@@ -226,11 +258,16 @@ class VecEnvAgent(nn.Module):
         legal_actions = obs["legal_actions"]
         log_probs = self.get_log_probs(s)
         probs = torch.exp(log_probs) * legal_actions
+        all_zeros = torch.all(probs == 0, dim=1)
+        zero_indices = torch.nonzero(all_zeros).squeeze()
+        if zero_indices.numel() > 0:
+            probs[zero_indices] = legal_actions[zero_indices]
         greedy = obs["greedy"]
 
         greedy_action = torch.argmax(probs, 1)
         # print("greedy actions",  greedy_action)
         random_actions = torch.multinomial(probs, 1).squeeze()
+
         # print("random actions", random_actions)
         action = greedy * greedy_action + (1 - greedy) * random_actions
         return {"a": action.detach().cpu(), "log_probs": log_probs.detach().cpu()}
@@ -255,6 +292,25 @@ class VecEnvAgent(nn.Module):
         policy_loss = -torch.min(surr1, surr2) - entropy * entropy_ratio
         value_loss = torch.pow(advantage, 2)
         return policy_loss.mean(), value_loss.mean()
+
+    def pg_loss(self, batch_state: torch.Tensor, batch_action: torch.Tensor,
+                batch_reward: torch.Tensor, batch_log_probs: torch.Tensor,
+                clip_eps: float, entropy_ratio: float):
+        current_log_probs = self.get_log_probs(batch_state)
+        current_action_log_probs = current_log_probs.gather(1, batch_action.long().unsqueeze(1)).squeeze(1)
+        old_action_log_probs = batch_log_probs.gather(1, batch_action.long().unsqueeze(1)).squeeze(1)
+
+        ratio = torch.exp(current_action_log_probs - old_action_log_probs)
+        # advantage = (batch_reward - batch_reward.mean()) / (batch_reward.std() + 1e-5)
+        # advantage = batch_reward
+
+        surr1 = ratio * (batch_reward.detach())
+        surr2 = torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * (batch_reward.detach())
+        current_probs = torch.exp(current_log_probs)
+        entropy = -torch.sum(current_probs * current_log_probs, dim=-1)
+
+        policy_loss = -torch.min(surr1, surr2) - entropy * entropy_ratio
+        return policy_loss.mean()
 
 
 def random_vec_agent(device: str = "cuda") -> VecEnvAgent:

@@ -81,7 +81,7 @@ def eval_benchmark():
     net2 = sl_net(device="cuda")
     for num_threads in [1, 2, 4, 5, 8]:
         evaluator = Evaluator(num_deals, num_threads, "cuda")
-        avg, sem, elapsed_time = evaluator.evaluate(net1, net2)
+        avg, sem, elapsed_time, _, _ = evaluator.evaluate(net1, net2)
         print(f"{num_threads} threads, eval time is {elapsed_time:.2f}")
 
 

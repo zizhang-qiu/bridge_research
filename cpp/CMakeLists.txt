@@ -114,7 +114,7 @@ target_compile_definitions(bridge_double_dummy_solver PUBLIC DDS_NO_STATIC_INIT)
 
 add_library(_br multi_agent_transition_buffer.h encode_bridge.h bridge_actor.h model_locker.h logging.h bridge_scoring.h tests/test_bridge_scoring.h
         bridge_state.h types.h thread_loop.h context.h utils.h replay_buffer.h tests/cards_and_ddts.h
-        tensor_dict.h  base.h bridge_deal.h bridge_envs.h tests/test_bridge_state.h)
+        tensor_dict.h  base.h bridge_deal.h bridge_envs.h tests/test_bridge_state.h search.h generate_deals.h bluechip_utils.h)
 target_include_directories(_br PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(_br PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(_br PUBLIC ${PYTHON_INCLUDE_DIRS})

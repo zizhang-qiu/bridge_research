@@ -49,7 +49,7 @@ NUM_CONTRACTS = 421  # 1 + (35 * 3 * 4)
 # level and denomination are for bid string
 LEVEL_STR = "-1234567"
 DENOMINATION_STR = "CDHSN"
-DENOMINATIONS = ["C","D","H","S"]
+DENOMINATIONS = ["C", "D", "H", "S", "N"]
 
 # suit and rank are for card string
 SUIT_STR = "CDHS"
@@ -124,4 +124,3 @@ PBN_TEMPLATE = """[Event ""]
 PLUS_MINUS_SYMBOL = "\u00B1"
 SECONDS_PER_MINUTE = 60
 OBS_TENSOR_SIZE = 519
-

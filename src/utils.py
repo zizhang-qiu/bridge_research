@@ -9,7 +9,7 @@ import copy
 import os
 import pickle
 import time
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 
 import numpy as np
 import torch
@@ -124,6 +124,34 @@ def tensor_dict_to_device(tensor_dict: Dict[str, torch.Tensor], device: str):
     return ret
 
 
+def analyze(net: PolicyNet, device: str = "cuda"):
+    agent = VecEnvAgent(copy.deepcopy(net)).to(device)
+    model_locker = rl_cpp.ModelLocker([torch.jit.script(agent).to(device)], device)
+    actor = rl_cpp.VecEnvActor(model_locker)
+    dataset = load_rl_dataset("valid")
+    vec_env = rl_cpp.BridgeVecEnv()
+    manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
+    for i in range(50000):
+        env = rl_cpp.BridgeBiddingEnv(manager, [1, 1, 1, 1], None, False, True)
+        vec_env.push(env)
+    obs = {}
+    obs = vec_env.reset(obs)
+    while not vec_env.all_terminated():
+        reply = actor.act(obs)
+        obs, r, t = vec_env.step(reply)
+    envs = vec_env.get_envs()
+    deal_info = []
+    for env in envs:
+        state = env.get_state()
+        contract = state.get_contract()
+        trump = contract.trumps()
+        actual_trick, dd_trick = state.get_actual_trick_and_dd_trick()
+        deal_info.append((trump, actual_trick, dd_trick))
+    with open("analyze.pkl", "wb") as fp:
+        pickle.dump(deal_info, fp)
+    print("Dump ok.")
+
+
 class Evaluator:
     def __init__(self, num_deals: int, num_threads: int, eval_device: str):
         """
@@ -172,7 +200,8 @@ class Evaluator:
             self.vec_env0_list.append(vec_env_0)
             self.vec_env1_list.append(vec_env_1)
 
-    def evaluate(self, train_net: PolicyNet, oppo_net: PolicyNet) -> Tuple[float, float, float]:
+    def evaluate(self, train_net: PolicyNet, oppo_net: PolicyNet) -> Tuple[float, float, float,
+    List[rl_cpp.BridgeVecEnv], List[rl_cpp.BridgeVecEnv]]:
         """
         Evaluate between trained net and opponent net
         Args:
@@ -207,4 +236,4 @@ class Evaluator:
         imps = [rl_cpp.get_imp(score_ns, score_ew) for score_ns, score_ew in zip(scores_ns, scores_ew)]
         ed = time.perf_counter()
         avg, sem = common_utils.get_avg_and_sem(imps)
-        return avg, sem, ed - st
+        return avg, sem, ed - st, self.vec_env0_list, self.vec_env1_list
