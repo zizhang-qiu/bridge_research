@@ -258,6 +258,7 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def_readwrite("temperature", &SearchParams::temperature)
       .def_readwrite("top_k", &SearchParams::top_k)
       .def_readwrite("min_prob", &SearchParams::min_prob)
-      .def_readwrite("verbose_level", &SearchParams::verbose_level);
+      .def_readwrite("verbose_level", &SearchParams::verbose_level)
+      .def_readwrite("seed", &SearchParams::seed);
   m.def("search", &rl::bridge::Search);
 }

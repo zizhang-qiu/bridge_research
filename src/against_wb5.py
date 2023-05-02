@@ -8,6 +8,7 @@ import os
 import re
 import socket
 import subprocess
+import time
 from typing import Dict, Optional
 
 import numpy as np
@@ -124,6 +125,15 @@ class AgainstWb5Worker(mp.Process):
         p_net.load_state_dict(self.shared_dict)
         agent = SingleEnvAgent(p_net)
         agent.to(self._device)
+        model_locker = rl_cpp.ModelLocker([torch.jit.script(agent).to(self._device)], self._device)
+        actor = rl_cpp.SingleEnvActor(model_locker)
+        params = rl_cpp.SearchParams()
+        params.min_prob = 0.05
+        params.max_particles = 1000
+        params.max_rollouts = 100
+        params.min_rollouts = 10
+        params.verbose_level = 0
+        params.seed = 42
         i_deal = 0
         _imps = []
         bots = [BlueChipBridgeBot(i, controller_factory, self._port + i) for i in range(NUM_PLAYERS)]
@@ -143,23 +153,31 @@ class AgainstWb5Worker(mp.Process):
                         obs = rl_cpp.make_obs_tensor_dict(state_0, 1)
                         obs = tensor_dict_to_device(obs, self._device)
                         reply = agent.act(obs)
-                        action = reply["a"].item()
+                        # action = reply["a"].item()
+                        probs = torch.exp(reply["log_probs"]) * (obs["legal_actions"].cpu())
+                        # print("probs: ", probs)
+                        action = rl_cpp.search(probs, state_0, actor, params)
                     else:
                         action = bots[current_player].step(state_0)
                     # print(action)
                     state_0.apply_action(action)
 
-                # print(env_0)
+                print(state_0)
                 while not state_1.terminated():
                     current_player = state_1.current_player()
                     if current_player % 2 == 1:
                         obs = rl_cpp.make_obs_tensor_dict(state_1, 1)
                         obs = tensor_dict_to_device(obs, self._device)
                         reply = agent.act(obs)
-                        action = reply["a"].item()
+                        # action = reply["a"].item()
+                        probs = torch.exp(reply["log_probs"]) * (obs["legal_actions"].cpu())
+                        # print("probs: ", probs)
+                        action = rl_cpp.search(probs, state_1, actor, params)
                     else:
                         action = bots[current_player].step(state_1)
                     state_1.apply_action(action)
+
+                print(state_1)
 
                 imp = rl_cpp.get_imp(int(state_0.returns()[0]), int(state_1.returns()[0]))
                 _imps.append(imp)
@@ -193,30 +211,32 @@ def main():
     save_dir = common_utils.mkdir_with_increment(config["save_dir"])
     base_port = 5050
     start = config["start"]
-    # w = AgainstWb5Worker(0, 100, base_port, cards[:100], ddts[:100], shared_dict, "cuda", save_dir)
-    # w.run()
+    st = time.perf_counter()
+    w = AgainstWb5Worker(0, 100, base_port, cards[:100], ddts[:100], shared_dict, "cuda", save_dir)
+    w.run()
+    print(time.perf_counter() - st)
 
-    workers = []
-    for i in range(num_processes):
-        num_deals = num_deals_per_process[i]
-        w = AgainstWb5Worker(i, num_deals,
-                             base_port + 10 * i,
-                             cards[start + num_deals * i:start + num_deals * (i + 1)],
-                             ddts[start + num_deals * i:start + num_deals * (i + 1)],
-                             shared_dict, "cuda", save_dir)
-        workers.append(w)
-    for w in workers:
-        w.start()
-
-    for w in workers:
-        w.join()
+    # workers = []
+    # for i in range(num_processes):
+    #     num_deals = num_deals_per_process[i]
+    #     w = AgainstWb5Worker(i, num_deals,
+    #                          base_port + 10 * i,
+    #                          cards[start + num_deals * i:start + num_deals * (i + 1)],
+    #                          ddts[start + num_deals * i:start + num_deals * (i + 1)],
+    #                          shared_dict, "cuda", save_dir)
+    #     workers.append(w)
+    # for w in workers:
+    #     w.start()
+    #
+    # for w in workers:
+    #     w.join()
 
     # get average and standard error of mean
-    imps_list = [np.load(os.path.join(save_dir, f"imps_{i}.npy")) for i in range(num_processes)]
-    imps = np.concatenate(imps_list)
-    avg, sem = common_utils.get_avg_and_sem(imps)
-    print(f"result is {avg}{PLUS_MINUS_SYMBOL}{sem}")
-    np.save(os.path.join(save_dir, "imps.npy"), imps)
+    # imps_list = [np.load(os.path.join(save_dir, f"imps_{i}.npy")) for i in range(num_processes)]
+    # imps = np.concatenate(imps_list)
+    # avg, sem = common_utils.get_avg_and_sem(imps)
+    # print(f"result is {avg}{PLUS_MINUS_SYMBOL}{sem}")
+    # np.save(os.path.join(save_dir, "imps.npy"), imps)
 
 
 if __name__ == '__main__':

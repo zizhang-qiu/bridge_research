@@ -239,8 +239,32 @@ class BridgeBiddingState {
     return ret;
   }
 
-  std::vector<int> GetActualTrickAndDDTrick(){
-    if(!double_dummy_results_.has_value()){
+  // use dds to compute double dummy result
+  void ComputeDoubleDummyResult() {
+    if (double_dummy_results_.has_value()) {
+      return;
+    }
+    double_dummy_results_ = ddTableResults{};
+    ddTableDeal dd_table_deal{};
+    for (int suit = 0; suit < kNumSuits; ++suit) {
+      for (int rank = 0; rank < kNumCardsPerSuit; ++rank) {
+        const int player = holder_[Card(Suit(suit), rank)].value();
+        dd_table_deal.cards[player][suit] += 1 << (2 + rank);
+      }
+    }
+    SetMaxThreads(0);
+    const int return_code =
+        CalcDDtable(dd_table_deal, &double_dummy_results_.value());
+    if (return_code != RETURN_NO_FAULT) {
+      char error_message[80];
+      ErrorMessage(return_code, error_message);
+      std::cerr << utils::StrCat("double_dummy_solver:", error_message)
+                << std::endl;
+    }
+  }
+
+  std::vector<int> GetActualTrickAndDDTrick() {
+    if (!double_dummy_results_.has_value()) {
       ComputeDoubleDummyResult();
     }
     auto trump = contract_.trumps;
@@ -260,7 +284,7 @@ class BridgeBiddingState {
     return cards;
   }
 
-  Contract GetContract() const{
+  Contract GetContract() const {
     return contract_;
   }
 
@@ -338,27 +362,6 @@ class BridgeBiddingState {
     }
     double_dummy_results_ = double_dummy_results;
 
-  }
-
-  // use dds to compute double dummy result
-  void ComputeDoubleDummyResult() {
-    double_dummy_results_ = ddTableResults{};
-    ddTableDeal dd_table_deal{};
-    for (int suit = 0; suit < kNumSuits; ++suit) {
-      for (int rank = 0; rank < kNumCardsPerSuit; ++rank) {
-        const int player = holder_[Card(Suit(suit), rank)].value();
-        dd_table_deal.cards[player][suit] += 1 << (2 + rank);
-      }
-    }
-    SetMaxThreads(0);
-    const int return_code =
-        CalcDDtable(dd_table_deal, &double_dummy_results_.value());
-    if (return_code != RETURN_NO_FAULT) {
-      char error_message[80];
-      ErrorMessage(return_code, error_message);
-      std::cerr << utils::StrCat("double_dummy_solver:", error_message)
-                << std::endl;
-    }
   }
 
   void ApplyBiddingAction(int call) {

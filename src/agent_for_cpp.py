@@ -59,7 +59,7 @@ class SingleEnvAgent(nn.Module):
                 action = torch.multinomial(legal_actions, 1).squeeze()
             else:
                 action = torch.multinomial(probs, 1).squeeze()
-        return {"a": action, "log_probs": log_probs}
+        return {"a": action.detach().cpu(), "log_probs": log_probs.detach().cpu()}
 
     @torch.jit.export
     def get_log_probs(self, s: torch.Tensor) -> torch.Tensor:

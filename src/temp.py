@@ -110,4 +110,7 @@ if __name__ == '__main__':
     # with open("analyze.pkl", "rb") as fp:
     #     deal_info = pickle.load(fp)
     # print(deal_info)
-    rl_cpp.generate_deals(1000, 42)
+    # rl_cpp.generate_deals(1000, 42)
+    imp = np.load(r"D:\Projects\bridge_research\vs_wbridge5\folder_9\imps_0.npy")
+    print(imp.shape)
+    print(common_utils.get_avg_and_sem(imp))
