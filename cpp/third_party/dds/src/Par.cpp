@@ -526,7 +526,7 @@ int STDCALL SidesParBin(
 
         sc2 = (best_par_score[i] >= 0 ?
           best_par_score[i] : -best_par_score[i]);
-        /* Score for making the tentative lower par contract. */
+        /* ComputeScore for making the tentative lower par contract. */
         while (max_lower > 0)
         {
           if (denom_max < j)
@@ -537,7 +537,7 @@ int STDCALL SidesParBin(
             sc1 = -rawscore(-1, 
               best_par[m][i].par_tricks - max_lower - tu_max + 1,
               VulnerDefSide(best_par_score[0] > 0, vulnerable));
-          /* Score for undertricks needed to beat the tentative 
+          /* ComputeScore for undertricks needed to beat the tentative
           lower par contract.*/
 
           if (sc2 < sc1)

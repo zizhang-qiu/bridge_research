@@ -3,8 +3,8 @@
 //
 
 
-#ifndef BRIDGE_RESEARCH_BASE_H
-#define BRIDGE_RESEARCH_BASE_H
+#ifndef BRIDGE_RESEARCH_RL_BASE_H
+#define BRIDGE_RESEARCH_RL_BASE_H
 #include "torch/torch.h"
 #include "tensor_dict.h"
 namespace rl {
@@ -21,5 +21,14 @@ class Env {
 
   virtual bool Terminated() const = 0;
 };
+
+class Actor {
+ public:
+  Actor() = default;
+
+  ~Actor() = default;
+
+  virtual TensorDict Act(const TensorDict &obs) = 0;
+};
 }
-#endif //BRIDGE_RESEARCH_BASE_H
+#endif //BRIDGE_RESEARCH_RL_BASE_H

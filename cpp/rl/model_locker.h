@@ -2,8 +2,8 @@
 // Created by qzz on 2023/2/23.
 //
 
-#ifndef BRIDGE_RESEARCH_MODEL_LOCKER_H
-#define BRIDGE_RESEARCH_MODEL_LOCKER_H
+#ifndef BRIDGE_RESEARCH_RL_MODEL_LOCKER_H
+#define BRIDGE_RESEARCH_RL_MODEL_LOCKER_H
 #include <vector>
 #include <string>
 #include <torch/torch.h>
@@ -30,15 +30,13 @@ public:
         }
     }
 
-    void UpdateModel(py::object pyModel) {
+    void UpdateModel(py::object py_model) {
         std::unique_lock<std::mutex> lk(m_);
         int id = (latest_model_ + 1) % model_call_counts_.size();
-//    std::cout << id << std::endl;
-//    std::cout << model_call_counts_ << std::endl;
         cv_.wait(lk, [this, id] { return model_call_counts_[id] == 0; });
         lk.unlock();
 
-        py_models_[id].attr("load_state_dict")(pyModel.attr("state_dict")());
+        py_models_[id].attr("load_state_dict")(py_model.attr("state_dict")());
 
         lk.lock();
         latest_model_ = id;
@@ -78,4 +76,4 @@ private:
     std::condition_variable cv_;
 };
 }
-#endif //BRIDGE_RESEARCH_MODEL_LOCKER_H
+#endif //BRIDGE_RESEARCH_RL_MODEL_LOCKER_H

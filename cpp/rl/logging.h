@@ -2,8 +2,8 @@
 // Created by qzz on 2023/2/25.
 //
 
-#ifndef BRIDGE_RESEARCH_LOGGING_H
-#define BRIDGE_RESEARCH_LOGGING_H
+#ifndef BRIDGE_RESEARCH_RL_LOGGING_H
+#define BRIDGE_RESEARCH_RL_LOGGING_H
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -59,4 +59,4 @@ void AssertWithMessage(bool condition, Args&&... args) {
       (x) >= (y), #x " >= " #y, " check failed at ", __FILE__, ":", __LINE__, \
       ": ", (x), " vs ", (y), ". ", ##__VA_ARGS__)
 }
-#endif //BRIDGE_RESEARCH_LOGGING_H
+#endif //BRIDGE_RESEARCH_RL_LOGGING_H

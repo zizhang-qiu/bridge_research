@@ -1,20 +1,18 @@
 //
 // Created by qzz on 2023/2/20.
 //
-#include "base.h"
 #include "bluechip_utils.h"
 #include "bridge_actor.h"
 #include "bridge_envs.h"
 #include "bridge_scoring.h"
 #include "multi_agent_transition_buffer.h"
 #include "bridge_state.h"
-#include "context.h"
+#include "rl/context.h"
 #include "encode_bridge.h"
-#include "generate_deals.h"
-#include "model_locker.h"
+#include "rl/model_locker.h"
 #include "replay_buffer.h"
 #include "third_party/pybind11/include/pybind11/pybind11.h"
-#include "thread_loop.h"
+#include "rl/thread_loop.h"
 #include "imp_env.h"
 #include "search.h"
 
@@ -32,16 +30,10 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def(py::init<std::vector<py::object>, const std::string>())
       .def("update_model", &ModelLocker::UpdateModel);
 
-  py::class_<RandomActor, std::shared_ptr<RandomActor>>(m, "RandomActor")
-      .def(py::init<>())
-      .def("act", &RandomActor::Act);
-
   py::class_<SingleEnvActor, std::shared_ptr<SingleEnvActor>>(
       m, "SingleEnvActor")
       .def(py::init<std::shared_ptr<ModelLocker>>())
-      .def("act", &SingleEnvActor::Act)
-      .def("get_top_k_actions_with_min_prob", &SingleEnvActor::GetTopKActionsWithMinProb)
-      .def("get_prob_for_action", &SingleEnvActor::GetProbForAction);
+      .def("act", &SingleEnvActor::Act);
 
   py::class_<VecEnvActor, std::shared_ptr<VecEnvActor>>(m, "VecEnvActor")
       .def(py::init<std::shared_ptr<ModelLocker>>())
@@ -53,9 +45,9 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("sample", &ReplayBuffer::Sample)
       .def("size", &ReplayBuffer::Size)
       .def("get_all", &ReplayBuffer::GetAll)
-      .def("num_add", &ReplayBuffer::NumAdd)
-      .def("dump", &ReplayBuffer::Dump)
-      .def("load", &ReplayBuffer::Load);
+      .def("num_add", &ReplayBuffer::NumAdd);
+//      .def("dump", &ReplayBuffer::Dump)
+//      .def("load", &ReplayBuffer::Load);
 
   py::class_<BridgeDeal, std::shared_ptr<BridgeDeal>>(m, "BridgeDeal")
       .def(py::init<>())
@@ -68,8 +60,8 @@ PYBIND11_MODULE(rl_cpp, m) {
 
   py::class_<Contract>(m, "Contract")
       .def_readonly("level", &Contract::level)
-      .def("trumps", [](const Contract& c){return static_cast<int>(c.trumps);})
-      .def("double_status", [](const Contract& c){return static_cast<int>(c.double_status);})
+      .def("trumps", [](const Contract &c) { return static_cast<int>(c.trumps); })
+      .def("double_status", [](const Contract &c) { return static_cast<int>(c.double_status); })
       .def_readonly("declarer", &Contract::declarer);
 
   py::class_<BridgeBiddingState, std::shared_ptr<BridgeBiddingState>>(
@@ -93,10 +85,9 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("current_phase", &BridgeBiddingState::CurrentPhase)
       .def("get_actual_trick_and_dd_trick", &BridgeBiddingState::GetActualTrickAndDDTrick)
       .def("get_contract", &BridgeBiddingState::GetContract)
-      .def("observation_tensor",
-           py::overload_cast<Player>(&BridgeBiddingState::ObservationTensor))
-      .def("observation_tensor",
-           py::overload_cast<>(&BridgeBiddingState::ObservationTensor))
+      .def("observation_tensor", py::overload_cast<>(&BridgeBiddingState::ObservationTensor, py::const_))
+      .def("observation_tensor", py::overload_cast<Player>(&BridgeBiddingState::ObservationTensor, py::const_))
+      .def("observation_tensor2", &BridgeBiddingState::ObservationTensor2)
       .def("terminate", &BridgeBiddingState::Terminate)
       .def("legal_actions", &BridgeBiddingState::LegalActions)
       .def("clone", &BridgeBiddingState::Clone)
@@ -190,15 +181,6 @@ PYBIND11_MODULE(rl_cpp, m) {
 
   py::class_<ThreadLoop, std::shared_ptr<ThreadLoop>>(m, "ThreadLoop");
 
-//  py::class_<EvalThreadLoop, ThreadLoop, std::shared_ptr<EvalThreadLoop>>(
-//      m, "EvalThreadLoop")
-//      .def(py::init<std::shared_ptr<bridge::BridgeBiddingEnv>,
-//                    std::shared_ptr<bridge::BridgeBiddingEnv>,
-//                    std::shared_ptr<bridge::SingleEnvActor>,
-//                    std::shared_ptr<bridge::SingleEnvActor>, int,
-//                    std::shared_ptr<IntConVec>, bool>())
-//      .def("main_loop", &EvalThreadLoop::MainLoop);
-
   py::class_<VecEnvEvalThreadLoop, ThreadLoop, std::shared_ptr<VecEnvEvalThreadLoop>>(m, "VecEnvEvalThreadLoop")
       .def(py::init<
           std::shared_ptr<bridge::VecEnvActor>,
@@ -220,35 +202,12 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def(py::init<std::shared_ptr<SingleEnvActor>, std::shared_ptr<SingleEnvActor>, std::shared_ptr<ImpEnv>, bool>())
       .def("main_loop", &ImpSingleEnvThreadLoop::MainLoop);
 
-//  py::class_<BridgeThreadLoop, ThreadLoop, std::shared_ptr<BridgeThreadLoop>>(m, "BridgeThreadLoop")
-//      .def(py::init<
-//          std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
-//          std::shared_ptr<bridge::BridgeBiddingEnv2>,
-//          std::shared_ptr<bridge::ReplayBuffer>,
-//          bool>())
-//      .def("main_loop", &BridgeThreadLoop::MainLoop);
-
-//  py::class_<ImpEnvThreadLoop, ThreadLoop, std::shared_ptr<ImpEnvThreadLoop>>(
-//      m, "ImpEnvThreadLoop")
-//      .def(py::init<std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
-//                    std::shared_ptr<bridge::ImpEnv>,
-//                    std::shared_ptr<bridge::ReplayBuffer>, bool>())
-//      .def("main_loop", &ImpEnvThreadLoop::MainLoop);
-//
-//  py::class_<EvalImpThreadLoop, ThreadLoop, std::shared_ptr<EvalImpThreadLoop>>(
-//      m, "EvalImpThreadLoop")
-//      .def(py::init<std::vector<std::shared_ptr<bridge::SingleEnvActor>>,
-//                    std::shared_ptr<bridge::ImpEnv>, const int>())
-//      .def("main_loop", &EvalImpThreadLoop::MainLoop);
   m.def("make_obs_tensor_dict", &bridge::MakeObsTensorDict);
   m.def("check_prob_not_zero", &rl::utils::CheckProbNotZero);
 
   m.def("bid_str_to_action", &bluechip::BidStrToAction);
   m.def("bid_action_to_str", &bluechip::BidActionToStr);
   m.def("get_hand_string", &bluechip::GetHandString);
-
-  m.def("calc_all_tables", &rl::bridge::CalcAllTables);
-  m.def("generate_deals", &rl::bridge::GenerateDeals);
 
   py::class_<SearchParams>(m, "SearchParams")
       .def(py::init<>())
@@ -260,5 +219,6 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def_readwrite("min_prob", &SearchParams::min_prob)
       .def_readwrite("verbose_level", &SearchParams::verbose_level)
       .def_readwrite("seed", &SearchParams::seed);
+
   m.def("search", &rl::bridge::Search);
 }

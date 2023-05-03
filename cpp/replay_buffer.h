@@ -9,42 +9,10 @@
 namespace rl::bridge {
 class ReplayBuffer {
  public:
-  ReplayBuffer(int state_size,
-               int num_actions,
-               int capacity) :
-      state_size_(state_size),
-      num_actions_(num_actions),
-      capacity_(capacity),
-      cursor_(0),
-      full_(false),
-      size_(0),
-      num_add_(0) {
-    state_storage_ = torch::zeros({capacity_, state_size_}, {torch::kFloat});
-    action_storage_ = torch::zeros(capacity_, {torch::kFloat});
-    reward_storage_ = torch::zeros(capacity_, {torch::kFloat});
-    log_probs_storage_ = torch::zeros({capacity_, num_actions_}, {torch::kFloat});
-//        std::cout << state_storage_.sizes() << std::endl;
-  };
+  ReplayBuffer(int state_size, int num_actions, int capacity);
 
   void Push(const torch::Tensor &state, const torch::Tensor &action, const torch::Tensor &reward,
-            const torch::Tensor &log_probs) {
-    std::unique_lock<std::mutex> lk(m_);
-//        std::cout << "push state" << std::endl;
-    int cursor = cursor_.load();
-    state_storage_[cursor] = state;
-//        std::cout << "push action" << std::endl;
-    action_storage_[cursor] = action;
-//        std::cout << "push reward" << std::endl;
-    reward_storage_[cursor] = reward;
-    log_probs_storage_[cursor] = log_probs;
-    cursor_ = (cursor_ + 1) % capacity_;
-    num_add_ += 1;
-    if (!full_) {
-      if (cursor_ == 0) {
-        full_ = true;
-      }
-    }
-  }
+            const torch::Tensor &log_probs);
 
   int Size() {
     std::unique_lock<std::mutex> lk(m_);
@@ -56,11 +24,8 @@ class ReplayBuffer {
 
   std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
   Sample(int batch_size, const std::string &device) {
-//        std::cout << "enter sample" << std::endl;
     std::unique_lock<std::mutex> lk(m_);
-//        std::cout << "full: " << full_ << std::endl;
     int size = full_ ? capacity_ : cursor_.load();
-//        std::cout << "size: " << size << std::endl;
     torch::Tensor indices = torch::multinomial(torch::abs(reward_storage_.slice(0, 0, size)) + 0.05, batch_size, false);
 //    torch::Tensor indices = torch::multinomial(torch::ones(size), batch_size, false);
     auto sample_states = state_storage_.index_select(0, indices);
@@ -79,9 +44,7 @@ class ReplayBuffer {
 
   std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> GetAll() {
     std::unique_lock<std::mutex> lk(m_);
-//        std::cout << "full: " << full_ << std::endl;
     int size = full_ ? capacity_ : int(cursor_);
-//        std::cout << "size: " << size << std::endl;
     auto states = state_storage_.slice(0, 0, size);
     auto actions = action_storage_.slice(0, 0, size);
     auto rewards = reward_storage_.slice(0, 0, size);
@@ -93,41 +56,10 @@ class ReplayBuffer {
     return num_add_.load();
   }
 
-  // only use this before start threads
-  void Load(const TensorDict &replay_buffer_storage) {
-    RL_CHECK_TRUE(replay_buffer_storage.find("state") != replay_buffer_storage.end())
-    RL_CHECK_TRUE(replay_buffer_storage.find("action") != replay_buffer_storage.end())
-    RL_CHECK_TRUE(replay_buffer_storage.find("reward") != replay_buffer_storage.end())
-    RL_CHECK_TRUE(replay_buffer_storage.find("log_probs") != replay_buffer_storage.end())
-    auto state = replay_buffer_storage.at("state");
-    int size = static_cast<int>(state.size(0));
-    cursor_ = size == capacity_ ? 0 : size;
-    if (size == capacity_) {
-      full_ = true;
-    }
-    state_storage_.slice(0, 0, size).copy_(state);
-    action_storage_.slice(0, 0, size).copy_(replay_buffer_storage.at("action"));
-    reward_storage_.slice(0, 0, size).copy_(replay_buffer_storage.at("reward"));
-    log_probs_storage_.slice(0, 0, size).copy_(replay_buffer_storage.at("log_probs"));
-  }
-
-  TensorDict Dump() const {
-    std::unique_lock<std::mutex> lk(m_);
-    int size = full_ ? capacity_ : int(cursor_);
-    TensorDict ret = {
-        {"state", state_storage_.slice(0, 0, size)},
-        {"action", action_storage_.slice(0, 0, size)},
-        {"reward", reward_storage_.slice(0, 0, size)},
-        {"log_probs", log_probs_storage_.slice(0, 0, size)}
-    };
-    return ret;
-  }
-
  private:
   int state_size_;
   int num_actions_;
   int capacity_;
-  int size_;
   std::atomic<int> cursor_;
   std::atomic<bool> full_;
   std::atomic<int> num_add_;
@@ -136,7 +68,6 @@ class ReplayBuffer {
   torch::Tensor reward_storage_;
   torch::Tensor log_probs_storage_;
   mutable std::mutex m_;
-  std::mutex m_sampler_;
 };
 }
 #endif //BRIDGE_RESEARCH_REPLAY_BUFFER_H

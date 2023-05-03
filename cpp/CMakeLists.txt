@@ -112,38 +112,83 @@ add_library(bridge_double_dummy_solver OBJECT
 target_include_directories(bridge_double_dummy_solver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(bridge_double_dummy_solver PUBLIC DDS_NO_STATIC_INIT)
 
-add_library(_br multi_agent_transition_buffer.h encode_bridge.h bridge_actor.h model_locker.h logging.h bridge_scoring.h tests/test_bridge_scoring.h
-        bridge_state.h types.h thread_loop.h context.h utils.h replay_buffer.h tests/cards_and_ddts.h
-        tensor_dict.h  base.h bridge_deal.h bridge_envs.h tests/test_bridge_state.h search.h generate_deals.h bluechip_utils.h)
-target_include_directories(_br PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(_br PUBLIC ${TORCH_INCLUDE_DIRS})
-target_include_directories(_br PUBLIC ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(_br PUBLIC
-        bridge_double_dummy_solver
+add_library(_rl rl/model_locker.h rl/logging.h
+        rl/types.h rl/thread_loop.h rl/context.h rl/utils.h
+        rl/tensor_dict.h rl/base.h rl/context.cc rl/span.h rl/str_utils.h)
+target_include_directories(_rl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rl)
+target_include_directories(_rl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(_rl PUBLIC ${TORCH_INCLUDE_DIRS})
+target_include_directories(_rl PUBLIC ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(_rl PUBLIC
         ${TORCH_LIBRARIES}
         ${TORCH_PYTHON_LIBRARIES})
+set_target_properties(_rl PROPERTIES CXX_STANDARD 17)
+
+add_library(bridge_lib bridge_state.cc bridge_scoring.cc bluechip_utils.cc bridge_scoring.h bridge_actor.h bridge_envs.h bridge_envs.cc bridge_constants.h replay_buffer.h bridge_actor.cc search.h cards_and_ddts.h imp_env.h imp_env.cc multi_agent_transition_buffer.h multi_agent_transition_buffer.cc replay_buffer.cc search.cc bridge_deal.cc bridge_deal.h)
+target_include_directories(bridge_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(bridge_lib PUBLIC ${TORCH_INCLUDE_DIRS})
+target_include_directories(bridge_lib PUBLIC ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(bridge_lib PUBLIC
+        _rl
+        bridge_double_dummy_solver)
 
 pybind11_add_module(rl_cpp SHARED pybind.cc)
 target_include_directories(rl_cpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(rl_cpp PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(rl_cpp PUBLIC ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(rl_cpp PUBLIC
-        bridge_double_dummy_solver
-        ${TORCH_LIBRARIES}
-        ${TORCH_PYTHON_LIBRARIES})
+        bridge_lib)
 set_target_properties(rl_cpp PROPERTIES OUTPUT_NAME "rl_cpp")
 
 if (WIN32)
-    add_executable(test test.cc tests/test_bluechip_utils.h imp_env.h bridge_constants.h)
+
+    add_executable(test test.cc)
     set_target_properties(test PROPERTIES LINKER_LANGUAGE CXX)
 
     target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
     target_include_directories(test PUBLIC ${TORCH_INCLUDE_DIRS})
     target_include_directories(test PUBLIC ${PYTHON_INCLUDE_DIRS})
     target_link_libraries(test PUBLIC
+            bridge_lib
             ${TORCH_LIBRARIES}
             ${PYTHON_LIBRATIES}
             bridge_double_dummy_solver)
+
+    add_subdirectory(third_party/googletest)
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    include_directories(
+            ${gtest_SOURCE_DIR}/include
+            ${gtest_SOURCE_DIR}
+    )
+    add_executable(bluechip_test tests/bluechip_utils_test.cc)
+    target_include_directories(bluechip_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    target_include_directories(bluechip_test PUBLIC ${TORCH_INCLUDE_DIRS})
+    target_include_directories(bluechip_test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    target_link_libraries(bluechip_test PUBLIC
+            bridge_lib
+            gtest gtest_main)
+    include(GoogleTest)
+    gtest_discover_tests(bluechip_test)
+
+    add_executable(bridge_scoring_test tests/bridge_scoring_test.cc)
+    target_include_directories(bridge_scoring_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    target_include_directories(bridge_scoring_test PUBLIC ${TORCH_INCLUDE_DIRS})
+    target_include_directories(bridge_scoring_test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    target_link_libraries(bridge_scoring_test PUBLIC
+            bridge_lib
+            gtest gtest_main)
+    include(GoogleTest)
+    gtest_discover_tests(bridge_scoring_test)
+
+    add_executable(bridge_state_test tests/bridge_state_test.cc)
+    target_include_directories(bridge_state_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    target_include_directories(bridge_state_test PUBLIC ${TORCH_INCLUDE_DIRS})
+    target_include_directories(bridge_state_test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    target_link_libraries(bridge_state_test PUBLIC
+            bridge_lib
+            gtest gtest_main)
+    include(GoogleTest)
+    gtest_discover_tests(bridge_state_test)
 endif ()
 
 

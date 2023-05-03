@@ -2,8 +2,8 @@
 // Created by qzz on 2022/9/20.
 //
 
-#ifndef BRIDGE_RESEARCH_TYPES_H
-#define BRIDGE_RESEARCH_TYPES_H
+#ifndef BRIDGE_RESEARCH_RL_TYPES_H
+#define BRIDGE_RESEARCH_RL_TYPES_H
 
 #include "torch/torch.h"
 #include <torch/extension.h>
@@ -41,4 +41,4 @@ struct PlayerAction {
 
 }  // namespace rl
 
-#endif //BRIDGE_RESEARCH_TYPES_H
+#endif //BRIDGE_RESEARCH_RL_TYPES_H

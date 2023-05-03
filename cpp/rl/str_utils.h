@@ -2,11 +2,12 @@
 // Created by qzz on 2023/4/17.
 //
 
-#ifndef BRIDGE_RESEARCH_STR_UTILS_H
-#define BRIDGE_RESEARCH_STR_UTILS_H
+#ifndef BRIDGE_RESEARCH_RL_STR_UTILS_H
+#define BRIDGE_RESEARCH_RL_STR_UTILS_H
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <sstream>
 namespace rl::utils {
 template <typename... Args>
 std::string StrFormat(const std::string &format, Args... args) {
@@ -55,4 +56,4 @@ std::string StrJoin(const T& values, const std::string& delimiter) {
 }
 } // namespace rl::utils
 
-#endif // BRIDGE_RESEARCH_STR_UTILS_H
+#endif // BRIDGE_RESEARCH_RL_STR_UTILS_H

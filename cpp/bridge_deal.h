@@ -4,10 +4,10 @@
 
 #ifndef BRIDGE_RESEARCH_CPP_BRIDGE_DEAL_H_
 #define BRIDGE_RESEARCH_CPP_BRIDGE_DEAL_H_
-#include "bridge_scoring.h"
-#include "types.h"
+#include "bridge_constants.h"
+#include "rl/logging.h"
 
-namespace rl::bridge{
+namespace rl::bridge {
 enum Seat { kNorth, kEast, kSouth, kWest };
 struct BridgeDeal {
   Cards cards;
@@ -20,37 +20,17 @@ struct BridgeDeal {
 
 // A manager stores deals
 class BridgeDealManager {
-public:
+ public:
   BridgeDealManager(const std::vector<Cards> &cards_vector,
                     const std::vector<DDT> &ddts,
-                    const std::vector<int> &par_scores) : cards_vector_(cards_vector),
-                                                          ddts_(ddts), par_scores_(par_scores) {
-    RL_CHECK_EQ(cards_vector_.size(), ddts_.size());
-    RL_CHECK_EQ(cards_vector_.size(), par_scores_.size());
-    size_ = static_cast<int>(cards_vector_.size());
-  };
+                    const std::vector<int> &par_scores);
 
-  BridgeDeal Next() {
-    std::lock_guard<std::mutex> lk(m_);
-    BridgeDeal deal{cards_vector_[cursor_], kNorth, false, false, ddts_[cursor_], par_scores_[cursor_]};
-    cursor_ = (cursor_ + 1) % size_;
-    return deal;
-  }
+  BridgeDeal Next();
+  void Reset();
+  int Size() const { return size_;};
+  int Cursor() const { return cursor_.load(); }
 
-  void Reset() {
-    std::lock_guard<std::mutex> lk(m_);
-    cursor_ = 0;
-  }
-
-  int Size() const {
-    return size_;
-  }
-
-  int Cursor() const{
-    return cursor_.load();
-  }
-
-private:
+ private:
   std::mutex m_;
   std::atomic<int> cursor_ = 0;
   int size_;

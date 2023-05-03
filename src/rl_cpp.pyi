@@ -137,12 +137,6 @@ class ReplayBuffer:
         """
         ...
 
-    def dump(self) -> TensorDict:
-        ...
-
-    def load(self, storage: TensorDict):
-        ...
-
 
 class BridgeTransitionBuffer:
     def __init__(self):
@@ -325,17 +319,10 @@ class BridgeBiddingState:
     def get_contract(self) -> Contract:
         ...
 
-    @overload
-    def observation_tensor(self) -> List[float]:
-        """
-        Get the observation tensor
-        Returns:
-            The obs tensor.
-        """
+    def observation_tensor(self, player: Optional[Player]) -> List[float]:
         ...
 
-    @overload
-    def observation_tensor(self, player: Player) -> List[float]:
+    def observation_tensor2(self) -> List[float]:
         ...
 
     def terminate(self) -> NoReturn:
@@ -817,14 +804,6 @@ def get_hand_string(cards: CardsLike) -> str:
     Returns:
         str: The string of hand
     """
-
-
-def calc_all_tables(cards: np.ndarray) -> Tuple[List[List[int]], List[int]]:
-    ...
-
-
-def generate_deals(num_deals: int, seed: int) -> Tuple[List[List[Action]], List[List[int]], List[int]]:
-    ...
 
 
 def check_prob_not_zero(action: torch.Tensor, log_probs: torch.Tensor):

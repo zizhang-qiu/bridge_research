@@ -83,16 +83,16 @@ class ThreadLoop {
     cvPaused_.notify_one();
   }
 
-  virtual void WaitUntilResume() {
+  virtual void WaitUntilResume(){
     std::unique_lock<std::mutex> lk(mPaused_);
     cvPaused_.wait(lk, [this] { return !pause_signal; });
   }
 
-  virtual bool Terminated() {
+  virtual bool Terminated() const{
     return terminated_;
   }
 
-  virtual bool Paused() {
+  virtual bool Paused() const{
     return paused_;
   }
 

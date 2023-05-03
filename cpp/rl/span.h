@@ -2,9 +2,10 @@
 // Created by qzz on 2023/4/17.
 //
 
-#ifndef BRIDGE_RESEARCH_SPAN_H
-#define BRIDGE_RESEARCH_SPAN_H
+#ifndef BRIDGE_RESEARCH_RL_SPAN_H
+#define BRIDGE_RESEARCH_RL_SPAN_H
 #include <cstdio>
+#include <type_traits>
 namespace rl::utils {
 template <typename T>
 class Span {
@@ -50,4 +51,4 @@ private:
   size_type size_;
 };
 } // namespace rl::utils
-#endif // BRIDGE_RESEARCH_SPAN_H
+#endif // BRIDGE_RESEARCH_RL_SPAN_H
