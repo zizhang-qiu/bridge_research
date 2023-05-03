@@ -7,6 +7,7 @@
 #include "bridge_scoring.h"
 #include "multi_agent_transition_buffer.h"
 #include "bridge_state.h"
+#include "bridge_thread_loop.h"
 #include "rl/context.h"
 #include "encode_bridge.h"
 #include "rl/model_locker.h"
@@ -170,15 +171,6 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("terminate", &Context::Terminate)
       .def("terminated", &Context::Terminated);
 
-  py::class_<IntConVec, std::shared_ptr<IntConVec>>(m, "IntConVec")
-      .def(py::init<>())
-      .def("push_back", &IntConVec::PushBack)
-      .def("push_back_no_wait", &IntConVec::PushBackNoWait)
-      .def("empty", &IntConVec::Empty)
-      .def("size", &IntConVec::Size)
-      .def("get_vector", &IntConVec::GetVector)
-      .def("clear", &IntConVec::Clear);
-
   py::class_<ThreadLoop, std::shared_ptr<ThreadLoop>>(m, "ThreadLoop");
 
   py::class_<VecEnvEvalThreadLoop, ThreadLoop, std::shared_ptr<VecEnvEvalThreadLoop>>(m, "VecEnvEvalThreadLoop")
@@ -197,10 +189,6 @@ PYBIND11_MODULE(rl_cpp, m) {
   py::class_<bridge::ImpThreadLoop, ThreadLoop, std::shared_ptr<ImpThreadLoop>>(m, "ImpThreadLoop")
       .def(py::init<std::shared_ptr<ImpVecEnv>,
                     std::shared_ptr<VecEnvActor>>());
-
-  py::class_<ImpSingleEnvThreadLoop, ThreadLoop, std::shared_ptr<ImpSingleEnvThreadLoop>>(m, "ImpSingleEnvThreadLoop")
-      .def(py::init<std::shared_ptr<SingleEnvActor>, std::shared_ptr<SingleEnvActor>, std::shared_ptr<ImpEnv>, bool>())
-      .def("main_loop", &ImpSingleEnvThreadLoop::MainLoop);
 
   m.def("make_obs_tensor_dict", &bridge::MakeObsTensorDict);
   m.def("check_prob_not_zero", &rl::utils::CheckProbNotZero);
