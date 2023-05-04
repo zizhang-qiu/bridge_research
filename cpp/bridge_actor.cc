@@ -9,9 +9,9 @@ TensorDict SingleEnvActor::Act(const TensorDict &obs) {
   TorchJitInput input;
   int id = -1;
   auto model = model_locker_->GetModel(&id);
-  input.emplace_back(tensor_dict::ToTorchDict(obs, model_locker_->device_));
+  input.emplace_back(rl::tensor_dict::ToTorchDict(obs, model_locker_->device_));
   auto output = model.get_method("act")(input);
-  auto reply = tensor_dict::FromIValue(output, torch::kCPU, true);
+  auto reply = rl::tensor_dict::FromIValue(output, torch::kCPU, true);
 
   model_locker_->ReleaseModel(id);
   return reply;
@@ -22,7 +22,7 @@ double SingleEnvActor::GetProbForAction(const TensorDict &obs, Action action) {
   TorchJitInput input;
   int id = -1;
   auto model = model_locker_->GetModel(&id);
-  input.emplace_back(tensor_dict::ToTorchDict(obs, model_locker_->device_));
+  input.emplace_back(rl::tensor_dict::ToTorchDict(obs, model_locker_->device_));
   input.emplace_back(action);
   auto output = model.get_method("get_prob_for_action")(input);
   return output.toDouble();

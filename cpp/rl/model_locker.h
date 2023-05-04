@@ -11,69 +11,29 @@
 #include "utils.h"
 namespace rl {
 class ModelLocker {
-public:
-    ModelLocker(std::vector<py::object> py_models, const std::string &device)
-            : device_(torch::Device(device)), py_models_(py_models), model_call_counts_(py_models.size(), 0),
-              latest_model_(0) {
-        // assert(py_models_.Size() > 1);
-        for (size_t i = 0; i < py_models_.size(); ++i) {
-            models_.push_back(py_models_[i].attr("_c").cast<TorchJitModel *>());
-            // model_call_counts_.push_back(0);
-        }
-    }
+ public:
+  ModelLocker(std::vector<py::object> py_models, const std::string &device);
 
-    ModelLocker(std::vector<TorchJitModel*> models, const std::string &device):
-            device_(torch::Device(device)), model_call_counts_(models.size(), 0),
-            latest_model_(0){
-        for (size_t i = 0; i < models.size(); ++i) {
-            models_.push_back(models[i]);
-        }
-    }
+  ModelLocker(std::vector<TorchJitModel *> models, const std::string &device);
 
-    void UpdateModel(py::object py_model) {
-        std::unique_lock<std::mutex> lk(m_);
-        int id = (latest_model_ + 1) % model_call_counts_.size();
-        cv_.wait(lk, [this, id] { return model_call_counts_[id] == 0; });
-        lk.unlock();
+  void UpdateModel(py::object py_model);
 
-        py_models_[id].attr("load_state_dict")(py_model.attr("state_dict")());
+  const TorchJitModel GetModel(int *id);
 
-        lk.lock();
-        latest_model_ = id;
-        lk.unlock();
-    }
+  void ReleaseModel(int id);
 
-    const TorchJitModel GetModel(int *id) {
-        std::lock_guard<std::mutex> lk(m_);
-        *id = latest_model_;
-        // std::cout << "using mdoel: " << latest_model_ << std::endl;
-        ++model_call_counts_[latest_model_];
-        return *models_[latest_model_];
-    }
+  std::string GetDevice() const { return device_.str(); }
 
-    void ReleaseModel(int id) {
-        std::unique_lock<std::mutex> lk(m_);
-        --model_call_counts_[id];
-        if (model_call_counts_[id] == 0) {
-            cv_.notify_one();
-        }
-    }
+  const torch::Device device_;
 
-    torch::Device GetDevice() const {
-        return device_;
-    }
+ private:
+  std::vector<py::object> py_models_;
+  std::vector<int> model_call_counts_;
+  int latest_model_;
 
-    const torch::Device device_;
-
-private:
-    // py::function model_cons_;
-    std::vector<py::object> py_models_;
-    std::vector<int> model_call_counts_;
-    int latest_model_;
-
-    std::vector<TorchJitModel *> models_;
-    std::mutex m_;
-    std::condition_variable cv_;
+  std::vector<TorchJitModel *> models_;
+  std::mutex m_;
+  std::condition_variable cv_;
 };
 }
 #endif //BRIDGE_RESEARCH_RL_MODEL_LOCKER_H

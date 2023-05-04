@@ -2,8 +2,8 @@
 // Created by qzz on 2023/4/21.
 //
 
-#ifndef BRIDGE_RESEARCH_CPP_TENSOR_DICT_H_
-#define BRIDGE_RESEARCH_CPP_TENSOR_DICT_H_
+#ifndef BRIDGE_RESEARCH_RL_TENSOR_DICT_H_
+#define BRIDGE_RESEARCH_RL_TENSOR_DICT_H_
 #include <torch/extension.h>
 #include <unordered_map>
 namespace rl{
@@ -176,4 +176,4 @@ inline TorchTensorDict ToTorchDict(const TensorDict& tensorDict,
 }
 }
 }
-#endif //BRIDGE_RESEARCH_CPP_TENSOR_DICT_H_
+#endif //BRIDGE_RESEARCH_RL_TENSOR_DICT_H_

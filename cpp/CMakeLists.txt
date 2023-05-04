@@ -114,7 +114,8 @@ target_compile_definitions(bridge_double_dummy_solver PUBLIC DDS_NO_STATIC_INIT)
 
 add_library(_rl rl/model_locker.h rl/logging.h
         rl/types.h rl/thread_loop.h rl/context.h rl/utils.h
-        rl/tensor_dict.h rl/base.h rl/context.cc rl/span.h rl/str_utils.h rl/thread_loop.cc)
+        rl/tensor_dict.h rl/base.h rl/context.cc rl/span.h rl/str_utils.h
+        rl/thread_loop.cc rl/model_locker.cc)
 target_include_directories(_rl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rl)
 target_include_directories(_rl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(_rl PUBLIC ${TORCH_INCLUDE_DIRS})
@@ -124,12 +125,16 @@ target_link_libraries(_rl PUBLIC
         ${TORCH_PYTHON_LIBRARIES})
 set_target_properties(_rl PROPERTIES CXX_STANDARD 17)
 
-add_library(bridge_lib bridge_state.cc bridge_scoring.cc bluechip_utils.cc bridge_scoring.h bridge_actor.h bridge_envs.h bridge_envs.cc bridge_constants.h replay_buffer.h bridge_actor.cc search.h cards_and_ddts.h imp_env.h imp_env.cc multi_agent_transition_buffer.h multi_agent_transition_buffer.cc replay_buffer.cc search.cc bridge_deal.cc bridge_deal.h bridge_thread_loop.h bridge_thread_loop.cc)
+add_library(bridge_lib bridge_state.cc bridge_scoring.cc bluechip_utils.cc bridge_scoring.h bridge_actor.h
+        bridge_envs.h bridge_envs.cc bridge_constants.h replay_buffer.h bridge_actor.cc search.h cards_and_ddts.h
+        imp_env.h imp_env.cc multi_agent_transition_buffer.h multi_agent_transition_buffer.cc replay_buffer.cc
+        search.cc bridge_deal.cc bridge_deal.h bridge_thread_loop.h bridge_thread_loop.cc)
 target_include_directories(bridge_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(bridge_lib PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(bridge_lib PUBLIC ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(bridge_lib PUBLIC
         _rl
+        ${TORCH_LIBRARIES}
         bridge_double_dummy_solver)
 
 pybind11_add_module(rl_cpp SHARED pybind.cc)
