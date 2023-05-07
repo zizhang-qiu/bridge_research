@@ -11,7 +11,6 @@ from matplotlib import pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 
 from nets import PolicyNet
-
 from common_utils.logger import Logger
 from common_utils.other_utils import set_random_seeds, mkdir_with_time
 from common_utils.torch_utils import initialize_fc
@@ -48,7 +47,7 @@ def parse_args():
                         default=r"D:\RL\rlul\pyrlul\bridge\dataset\expert\sl_data")
 
     # save settings
-    parser.add_argument("--save_dir", type=str, default="imitation_learning/metrics")
+    parser.add_argument("--save_dir", type=str, default="imitation_learning")
 
     # train settings
     parser.add_argument("--trained_checkpoint", type=str,

@@ -56,3 +56,4 @@ class ValueNet(nn.Module):
     def forward(self, state: torch.Tensor):
         value = self.net(state)
         return value
+

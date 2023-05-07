@@ -109,12 +109,14 @@ class ParResultsDealer(Structure):
                 ("contracts", c_char * 10 * 10)]
 
 
-dll = CDLL("D:/Projects/bridge_research/src/dds.dll", winmode=0)
+dll = CDLL("D:/Projects/bridge_research/pysrc/dds.dll", winmode=0)
 dll.CalcDDtable.argtypes = (DDTabelDeal, POINTER(DDTableResults))
 dll.CalcDDtable.restype = c_int
 dll.CalcAllTables.argtypes = (POINTER(DDTableDeals), c_int, c_int * DDS_STRAINS, POINTER(DDTableRes),
                               POINTER(AllParResults))
 dll.CalcAllTables.restype = c_int
+dll.Par.argtypes = (POINTER(DDTableResults), POINTER(ParResults), c_int)
+dll.Par.restype = c_int
 
 
 def deal_return_code(return_code: int):
@@ -142,40 +144,6 @@ def holder_to_dd_table_deal(holder: np.ndarray) -> DDTabelDeal:
     return dd_table_deal
 
 
-def calc_dd_table(holder: np.ndarray) -> np.ndarray:
-    """
-    Calculate ddt for one table.
-    Args:
-        holder: The holder of each card.
-
-    Returns:
-        The ddt.
-    """
-    assert_eq(len(holder), NUM_CARDS)
-    dd_table_deal = holder_to_dd_table_deal(holder)
-    dd_table_results = DDTableResults()
-    dll.SetMaxThreads(0)
-    return_code = dll.CalcDDtable(dd_table_deal, byref(dd_table_results))
-    deal_return_code(return_code)
-    return dds_ddt_to_bridge_ddt(np.ctypeslib.as_array(dd_table_results.resTable))
-
-
-def get_holder_from_trajectory(trajectory: np.ndarray) -> np.ndarray:
-    """
-    Get holder of each card from a card trajectory.
-    Args:
-        trajectory: The card trajectory.
-
-    Returns:
-        A numpy array indicates the holder of each card.
-    """
-    assert_eq(trajectory.size, NUM_CARDS)
-    holder = np.full(NUM_CARDS, -1)
-    for length, card in np.ndenumerate(trajectory):
-        holder[card] = length[0] % NUM_PLAYERS
-    return holder
-
-
 def dds_ddt_to_bridge_ddt(dds_ddt: np.ndarray) -> np.ndarray:
     """
     Convert the ddt given by double dummy solver to out representation.
@@ -192,7 +160,45 @@ def dds_ddt_to_bridge_ddt(dds_ddt: np.ndarray) -> np.ndarray:
     return np.vstack([trump_table, no_trump_table])
 
 
-def _calc_all_tables_once(trajectories: np.ndarray):
+def calc_dd_table(holder: np.ndarray) -> DDTableResults:
+    """
+    Calculate ddt for one table.
+    Args:
+        holder: The holder of each card.
+
+    Returns:
+        The ddt.
+    """
+    assert_eq(len(holder), NUM_CARDS)
+    dd_table_deal = holder_to_dd_table_deal(holder)
+    dd_table_results = DDTableResults()
+    dll.SetMaxThreads(0)
+    return_code = dll.CalcDDtable(dd_table_deal, byref(dd_table_results))
+    deal_return_code(return_code)
+    return dd_table_results
+
+
+def dd_table_results_to_ddt(dd_table_results: DDTableResults):
+    return dds_ddt_to_bridge_ddt(np.ctypeslib.as_array(dd_table_results.resTable)).flatten()
+
+
+def get_holder_from_trajectory(trajectory: np.ndarray) -> np.ndarray:
+    """
+    Get holder of each card from a card trajectory.
+    Args:
+        trajectory: The card trajectory.
+
+    Returns:
+        A numpy array indicates the holder of each card.
+    """
+    assert_eq(trajectory.size, NUM_CARDS)
+    holder = np.full(NUM_CARDS, -1)
+    for length, card in enumerate(trajectory):
+        holder[card] = length % NUM_PLAYERS
+    return holder
+
+
+def _calc_all_tables_once(trajectories: np.ndarray) -> Tuple[DDTableRes, AllParResults]:
     """
     Since calc all table can only calc 32 tables, this function is used for calc once
     Args:
@@ -222,15 +228,15 @@ def _calc_all_tables_once(trajectories: np.ndarray):
     c_trump_filter = (c_int * DDS_STRAINS)(0, 0, 0, 0, 0)
     return_code = dll.CalcAllTables(byref(dd_table_deals), mode, c_trump_filter, byref(dd_table_res), byref(pres))
     deal_return_code(return_code)
-    ddts = [dds_ddt_to_bridge_ddt(np.ctypeslib.as_array(dd_table_res.results[j].resTable)) for j in
-            range(num_batch_deals)]
-    p_result = pres.presults
-    par_scores = [p_result[j] for j in range(num_batch_deals)]
+    # ddts = [dds_ddt_to_bridge_ddt(np.ctypeslib.as_array(dd_table_res.results[j].resTable)) for j in
+    #         range(num_batch_deals)]
+    # p_result = pres.presults
+    # par_scores = [p_result[j] for j in range(num_batch_deals)]
 
-    return ddts, par_scores
+    return dd_table_res, pres
 
 
-def calc_all_tables(trajectories: np.ndarray, show_progress_bar=True) -> Tuple[np.ndarray, List]:
+def calc_all_tables(trajectories: np.ndarray, show_progress_bar=True) -> Tuple[List[DDTableRes], List[AllParResults]]:
     """
     Calculate all tables of given card trajectories.
     Args:
@@ -244,35 +250,64 @@ def calc_all_tables(trajectories: np.ndarray, show_progress_bar=True) -> Tuple[n
     assert_eq(trajectories.shape[1], NUM_CARDS)
     num_deals = trajectories.shape[0]
     num_batches = math.ceil(num_deals / CALC_ALL_TABLES_BATCH_SIZE)
-    ddts = []
-    par_scores = []
+    dd_table_res_list = []
+    pres_list = []
     for i_batch in tqdm(range(num_batches), disable=not show_progress_bar):
         left = i_batch * CALC_ALL_TABLES_BATCH_SIZE
         right = min((i_batch + 1) * CALC_ALL_TABLES_BATCH_SIZE, num_deals)
         batch_trajectories = trajectories[left:right]
-        batch_ddts, batch_par_scores = _calc_all_tables_once(batch_trajectories)
-        ddts.append(batch_ddts)
-        par_scores.extend(batch_par_scores)
+        dd_table_res, pres = _calc_all_tables_once(batch_trajectories)
+        dd_table_res_list.append(dd_table_res)
+        pres_list.append(pres)
 
-    return np.vstack(ddts), par_scores
+    return dd_table_res_list, pres_list
 
 
-def get_par_score_and_contract_from_par_results(par_score: ParResults, view: int) -> int:
+def get_ddts_from_dd_table_res_list(dd_table_res_list: List[DDTableRes]):
+    res = []
+    for dd_table_res in dd_table_res_list:
+        num_boards = dd_table_res.noOfBoards // 20
+        for j in range(num_boards):
+            dd_table_results = dd_table_res.results[j]
+            res.append(dd_table_results_to_ddt(dd_table_results))
+    return np.array(res)
+
+
+def get_par_score_and_contract_from_par_results(par_results: ParResults) -> Tuple[List[int], List[str]]:
     """
     Get the par score from par results
     Args:
-        par_score: The par results
-        view: which side that starts the bidding
+        par_results: The par results
 
     Returns:
         The par score.
     """
-    assert view in [0, 1]
-    par_score_str = par_score.parScore[view].value.decode("utf-8")
-    par_contract_str = par_score.parContractsString[view].value.decode("utf-8")
-    par_score = int(re.search(r"[-]?\d+", par_score_str).group())
-    return par_score
+    par_scores = []
+    par_contracts = []
+    for view in [0, 1]:
+        par_score_str = par_results.parScore[view].value.decode("utf-8")
+        par_contract_str = par_results.parContractsString[view].value.decode("utf-8")
+        par_score = int(re.search(r"[-]?\d+", par_score_str).group())
+        par_scores.append(par_score)
+        par_contracts.append(par_contract_str)
+    return par_scores, par_contracts
 
+
+def get_par_scores_and_contracts_from_pres_list(pres_list: List[AllParResults]) \
+        -> Tuple[List[List[int]], List[List[str]]]:
+    par_scores_list = []
+    par_contracts_list = []
+    for pres in pres_list:
+        presults = pres.presults
+        for i in range(len(presults)):
+            par_results = presults[i]
+            if not par_results.parScore[0].value.decode("utf-8"):
+                break
+            par_scores, par_contracts = get_par_score_and_contract_from_par_results(par_results)
+            print(par_scores, par_contracts)
+            par_scores_list.append(par_scores)
+            par_contracts_list.append(par_contracts)
+    return par_scores_list, par_contracts_list
 
 # holdings = [
 #     [

@@ -9,7 +9,7 @@ import unittest
 
 import numpy as np
 
-from src.bridge.pbn import get_trajectories_and_ddts_from_pbn_file
+from pysrc.bridge.pbn import get_trajectories_and_ddts_from_pbn_file
 
 
 class TestPBN(unittest.TestCase):

@@ -17,7 +17,7 @@ from agent_for_cpp import VecEnvAgent
 
 
 def main():
-    with open("config/a2c.yaml") as f:
+    with open("conf/a2c.yaml") as f:
         cfg = yaml.safe_load(f)
     print(cfg)
 
@@ -55,6 +55,9 @@ def main():
         p_opt.load_state_dict(checkpoint["opt_state_dict"]["policy"])
         v_opt.load_state_dict(checkpoint["opt_state_dict"]["value"])
 
+    # p_lr_scheduler = torch.optim.lr_scheduler.StepLR(p_opt, step_size=200 * 1000, gamma=0.1)
+    # v_lr_scheduler = torch.optim.lr_scheduler.StepLR(v_opt, step_size=200 * 1000, gamma=0.1)
+
     # evaluator
     num_eval_deals = cfg["num_eval_deals"]
     num_eval_threads = cfg["num_eval_threads"]
@@ -67,7 +70,7 @@ def main():
     dataset = load_rl_dataset("train")
     deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
     buffer_capacity = cfg["buffer_capacity"]
-    replay_buffer = rl_cpp.ReplayBuffer(480, NUM_CALLS, buffer_capacity)
+    replay_buffer = rl_cpp.ReplayBuffer(480, NUM_CALLS, buffer_capacity, 0.6, 0.01)
     context = rl_cpp.Context()
     for _ in trange(num_threads):
         # vec_env = rl_cpp.BridgeVecEnv()
@@ -129,6 +132,8 @@ def main():
             torch.nn.utils.clip_grad_norm_(agent.p_net.parameters(), max_grad_norm)
             p_opt.step()
             v_opt.step()
+            # p_lr_scheduler.step()
+            # v_lr_scheduler.step()
             stopwatch.time("backprop & update")
 
             stats.feed("num_add", replay_buffer.num_add())

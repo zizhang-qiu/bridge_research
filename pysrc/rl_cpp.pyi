@@ -88,7 +88,7 @@ class VecEnvActor:
 
 
 class ReplayBuffer:
-    def __init__(self, state_size: int, num_actions: int, capacity: int):
+    def __init__(self, state_size: int, num_actions: int, capacity: int, alpha: float, eps: float):
         """
         A buffer stores states(obs), actions, rewards and log_probs
         Args:
@@ -573,56 +573,6 @@ class ImpVecEnv:
         ...
 
 
-class IntConVec:
-    def __init__(self):
-        """
-        A concurrent vector saves integer items.
-        """
-        ...
-
-    def push_back(self, item: int):
-        """
-        Push an item to the vector
-        Args:
-            item: the item to store
-
-        Returns:
-            No returns.
-        """
-        ...
-
-    def empty(self) -> bool:
-        """
-        Whether the vector is empty.
-        Returns:
-            A boolean value.
-        """
-        ...
-
-    def size(self) -> int:
-        """
-        Get the size of vector.
-        Returns:
-            An integer of size.
-        """
-        ...
-
-    def get_vector(self) -> List[int]:
-        """
-        Get the vector.
-        Returns:
-            A list stores integers.
-        """
-        ...
-
-    def clear(self):
-        """
-        Clear the vector.
-        Returns:
-            No returns.
-        """
-
-
 class ThreadLoop:
     ...
 
@@ -826,5 +776,5 @@ class SearchParams:
         self.seed = ...
 
 
-def search(probs: torch.Tensor, state: BridgeBiddingState, actor: SingleEnvActor, params: SearchParams):
+def search(probs: torch.Tensor, state: BridgeBiddingState, actors: List[SingleEnvActor], params: SearchParams):
     ...

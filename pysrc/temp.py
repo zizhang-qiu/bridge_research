@@ -10,11 +10,12 @@ import json
 import os
 import pickle
 import pprint
+import re
 import time
 from typing import Dict, Protocol, List
 import torch
 import yaml
-
+import dds
 import rl_cpp
 import numpy as np
 
@@ -91,26 +92,35 @@ def parse_args():
     return parser.parse_args()
 
 
+def find_par_zero_deal():
+    while True:
+        flag = False
+        cards = np.zeros([32, NUM_CARDS], dtype=int)
+        for i in range(32):
+            cards[i] = np.random.permutation(NUM_CARDS)
+        ddt, pres = dds.calc_all_tables(cards, False)
+        for i, par in enumerate(pres):
+            par_score_str = par.parScore[1].value.decode("utf-8")
+            par_score = int(re.search(r"[-]?\d+", par_score_str).group())
+            # print(par_score)
+            if par_score == 0:
+                print(cards[i])
+                print(par.parContractsString[0].value.decode("utf-8"))
+                flag = True
+                break
+        if flag:
+            break
+
+
 if __name__ == '__main__':
     torch.set_printoptions(threshold=100000)
-
-    # net = sl_net(device="cuda")
-    # agent = SingleEnvAgent(net)
-    # dataset = load_rl_dataset("train")
-    # manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
-    # deal = manager.next()
-    # state = rl_cpp.BridgeBiddingState(deal)
-    # for action in [0, 3, 0, 0, 0]:
-    #     state.apply_action(action)
-    # print(state)
-    # print(state.get_actual_trick_and_dd_trick())
-    # net = PolicyNet()
-    # net.load_state_dict(torch.load("a2c/folder_5/checkpoint_1.pth")["model_state_dict"]["policy"])
-    # analyze(net, "cuda")
-    # with open("analyze.pkl", "rb") as fp:
-    #     deal_info = pickle.load(fp)
-    # print(deal_info)
-    # rl_cpp.generate_deals(1000, 42)
-    imp = np.load(r"D:\Projects\bridge_research\vs_wbridge5\folder_9\imps_0.npy")
-    print(imp.shape)
-    print(common_utils.get_avg_and_sem(imp))
+    np.set_printoptions(threshold=100000)
+    common_utils.set_random_seeds(1)
+    cards = np.zeros([101, NUM_CARDS], dtype=int)
+    for i in range(101):
+        cards[i] = np.random.permutation(NUM_CARDS)
+    dd_table_res_list, pres_list = dds.calc_all_tables(cards)
+    ddts = dds.get_ddts_from_dd_table_res_list(dd_table_res_list)
+    print(ddts)
+    print(ddts.shape)
+    dds.get_par_scores_and_contracts_from_pres_list(pres_list)

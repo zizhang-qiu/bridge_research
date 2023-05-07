@@ -9,7 +9,7 @@ import re
 import socket
 import subprocess
 import time
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 import numpy as np
 import torch
@@ -22,7 +22,7 @@ from agent_for_cpp import SingleEnvAgent
 from bluechip_bridge import Controller, BlueChipBridgeBot
 from bridge_vars import NUM_PLAYERS, PLUS_MINUS_SYMBOL
 from nets import PolicyNet
-from utils import load_rl_dataset, tensor_dict_to_device
+from utils import load_rl_dataset, tensor_dict_to_device, sl_net
 
 
 class _WBridge5Client(Controller):
@@ -94,7 +94,7 @@ def controller_factory(port: int):
 
 class AgainstWb5Worker(mp.Process):
     def __init__(self, process_id: int, num_deals: int, port: int, cards: np.ndarray, ddts: np.ndarray,
-                 shared_dict: Dict, device: str, save_dir: Optional[str] = None):
+                 shared_dicts: Dict[str, Dict], search_config: Dict, device: str, save_dir: Optional[str] = None):
         """
         A worker to play against Wbridge5.
         Args:
@@ -103,7 +103,7 @@ class AgainstWb5Worker(mp.Process):
             port: The port number to connect with Wbridge5
             cards: The cards array.
             ddts: The ddts array.
-            shared_dict: The shared dict of policy network.
+            shared_dicts: The shared dict of policy network.
             device: The device of the agent.
             save_dir: The directory to save results.
         """
@@ -116,24 +116,43 @@ class AgainstWb5Worker(mp.Process):
         self._ddts = ddts
         self._port = port
         self._device = device
-        self.shared_dict = shared_dict.copy()
+        self._search_config = search_config
+        self._shared_dicts = {k: v.copy() for k, v in shared_dicts.items()}
         self.logger: Optional[common_utils.Logger] = None
         self.save_dir = save_dir
 
     def run(self) -> None:
-        p_net = PolicyNet()
-        p_net.load_state_dict(self.shared_dict)
-        agent = SingleEnvAgent(p_net)
-        agent.to(self._device)
-        model_locker = rl_cpp.ModelLocker([torch.jit.script(agent).to(self._device)], self._device)
-        actor = rl_cpp.SingleEnvActor(model_locker)
+        actors_ns = []
+        actors_ew = []
+        trained_net = PolicyNet()
+        trained_net.load_state_dict(self._shared_dicts["trained"])
+        trained_model_locker = rl_cpp.ModelLocker(
+            [torch.jit.script(SingleEnvAgent(trained_net)).to(self._device)], self._device)
+        if self._search_config["use_sl_net_as_opponent"]:
+            supervised_net = PolicyNet()
+            supervised_net.load_state_dict(self._shared_dicts["sl"])
+            sl_model_locker = rl_cpp.ModelLocker(
+                [torch.jit.script(SingleEnvAgent(supervised_net)).to(self._device)], self._device)
+            for i in range(2):
+                actors_ns.append(rl_cpp.SingleEnvActor(trained_model_locker))
+                actors_ns.append(rl_cpp.SingleEnvActor(sl_model_locker))
+                actors_ew.append(rl_cpp.SingleEnvActor(sl_model_locker))
+                actors_ew.append(rl_cpp.SingleEnvActor(trained_model_locker))
+
+        else:
+            actors_ns = [rl_cpp.SingleEnvActor(trained_model_locker) for _ in range(NUM_PLAYERS)]
+            actors_ew = [rl_cpp.SingleEnvActor(trained_model_locker) for _ in range(NUM_PLAYERS)]
+        net = PolicyNet()
+        net.load_state_dict(self._shared_dicts["trained"])
+        net.to(self._device)
+        agent = SingleEnvAgent(net).to(self._device)
         params = rl_cpp.SearchParams()
-        params.min_prob = 0.05
-        params.max_particles = 1000
-        params.max_rollouts = 100
-        params.min_rollouts = 10
-        params.verbose_level = 0
-        params.seed = 42
+        params.min_prob = self._search_config["min_prob"]
+        params.max_particles = self._search_config["max_particles"]
+        params.max_rollouts = self._search_config["max_rollouts"]
+        params.min_rollouts = self._search_config["min_rollouts"]
+        params.verbose_level = self._search_config["verbose_level"]
+        params.seed = self._search_config["seed"]
         i_deal = 0
         _imps = []
         bots = [BlueChipBridgeBot(i, controller_factory, self._port + i) for i in range(NUM_PLAYERS)]
@@ -156,7 +175,8 @@ class AgainstWb5Worker(mp.Process):
                         # action = reply["a"].item()
                         probs = torch.exp(reply["log_probs"]) * (obs["legal_actions"].cpu())
                         # print("probs: ", probs)
-                        action = rl_cpp.search(probs, state_0, actor, params)
+                        action = rl_cpp.search(probs, state_0, actors_ns, params)
+                        print(action)
                     else:
                         action = bots[current_player].step(state_0)
                     # print(action)
@@ -172,7 +192,8 @@ class AgainstWb5Worker(mp.Process):
                         # action = reply["a"].item()
                         probs = torch.exp(reply["log_probs"]) * (obs["legal_actions"].cpu())
                         # print("probs: ", probs)
-                        action = rl_cpp.search(probs, state_1, actor, params)
+                        action = rl_cpp.search(probs, state_1, actors_ew, params)
+                        print(action)
                     else:
                         action = bots[current_player].step(state_1)
                     state_1.apply_action(action)
@@ -186,7 +207,6 @@ class AgainstWb5Worker(mp.Process):
                     f.write(msg)
                 _imps_np = np.array(_imps)
                 np.save(os.path.join(self.save_dir, f"imps_{self._process_id}.npy"), _imps_np)
-                # print(msg)
                 i_deal += 1
                 print(f"Process {self._process_id}, {i_deal}/{self._num_deals}, imp:{imp}")
             except Exception as e:
@@ -199,20 +219,26 @@ def main():
     dataset = load_rl_dataset("vs_wb5_open_spiel")
     cards = dataset["cards"]
     ddts = dataset["ddts"]
-    with open("config/against_wb5.yaml", "r") as fp:
+    with open("conf/against_wb5_search.yaml", "r") as fp:
         config: Dict = yaml.safe_load(fp)
-    # print(config)
+    search_cfg = config["search"]
     net = PolicyNet()
     net.load_state_dict(torch.load(config["checkpoint_path"])["model_state_dict"]["policy"])
     net.to("cuda")
+    supervised_net = sl_net()
     num_processes = config["num_processes"]
     num_deals_per_process = common_utils.allocate_tasks_uniformly(num_processes, config["num_deals"])
     shared_dict = common_utils.create_shared_dict(net)
+    sl_shared_dict = common_utils.create_shared_dict(supervised_net)
+    shared_dicts = {
+        "sl": sl_shared_dict,
+        "trained": shared_dict
+    }
     save_dir = common_utils.mkdir_with_increment(config["save_dir"])
     base_port = 5050
     start = config["start"]
     st = time.perf_counter()
-    w = AgainstWb5Worker(0, 100, base_port, cards[:100], ddts[:100], shared_dict, "cuda", save_dir)
+    w = AgainstWb5Worker(0, 100, base_port, cards[:100], ddts[:100], shared_dicts, search_cfg, "cuda", save_dir)
     w.run()
     print(time.perf_counter() - st)
 
@@ -223,7 +249,7 @@ def main():
     #                          base_port + 10 * i,
     #                          cards[start + num_deals * i:start + num_deals * (i + 1)],
     #                          ddts[start + num_deals * i:start + num_deals * (i + 1)],
-    #                          shared_dict, "cuda", save_dir)
+    #                          shared_dicts, search_cfg, "cuda", save_dir)
     #     workers.append(w)
     # for w in workers:
     #     w.start()
@@ -237,6 +263,7 @@ def main():
     # avg, sem = common_utils.get_avg_and_sem(imps)
     # print(f"result is {avg}{PLUS_MINUS_SYMBOL}{sem}")
     # np.save(os.path.join(save_dir, "imps.npy"), imps)
+    # print(f"The whole process takes {time.perf_counter() - st:.2f} seconds.")
 
 
 if __name__ == '__main__':

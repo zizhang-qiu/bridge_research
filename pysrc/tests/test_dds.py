@@ -9,8 +9,8 @@ import unittest
 
 import numpy as np
 
-from src.bridge.dds import calc_dd_table, calc_all_tables, get_holder_from_trajectory
-from src.bridge.pbn import get_trajectories_and_ddts_from_pbn_file
+from pysrc.bridge.dds import calc_dd_table, calc_all_tables, get_holder_from_trajectory
+from pysrc.bridge.pbn import get_trajectories_and_ddts_from_pbn_file
 
 
 class TestDDS(unittest.TestCase):
