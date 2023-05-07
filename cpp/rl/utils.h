@@ -32,7 +32,7 @@ inline bool CheckProbNotZero(const torch::Tensor &action,
 
 inline std::tuple<double, double>
 ComputeMeanAndSem(const std::vector<int> &data) {
-  int n = data.size();
+  int n = static_cast<int>(data.size());
   double sum = 0.0;
   double sum_squared = 0.0;
   for (int i = 0; i < n; i++) {
@@ -65,7 +65,8 @@ inline std::string StrCat(const Args &...args) {
 
 inline std::vector<int> VectorMod(const std::vector<int> &vec, int num) {
   std::vector<int> ret;
-  for (auto v : vec) {
+  ret.reserve(vec.size());
+for (auto v : vec) {
     ret.emplace_back(v % num);
   }
   return ret;
@@ -73,7 +74,8 @@ inline std::vector<int> VectorMod(const std::vector<int> &vec, int num) {
 
 inline std::vector<float> VectorDiv(const std::vector<int> &vec, int num) {
   std::vector<float> ret;
-  for (auto v : vec) {
+  ret.reserve(vec.size());
+for (auto v : vec) {
     ret.emplace_back(v / num);
   }
   return ret;

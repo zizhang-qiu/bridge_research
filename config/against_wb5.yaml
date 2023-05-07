@@ -1,5 +1,0 @@
-num_deals : 100
-num_processes : 1
-checkpoint_path : "a2c/folder_5/checkpoint_1.pth"
-save_dir : "vs_wbridge5"
-start : 100

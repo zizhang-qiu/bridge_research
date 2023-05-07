@@ -128,7 +128,7 @@ set_target_properties(_rl PROPERTIES CXX_STANDARD 17)
 add_library(bridge_lib bridge_state.cc bridge_scoring.cc bluechip_utils.cc bridge_scoring.h bridge_actor.h
         bridge_envs.h bridge_envs.cc bridge_constants.h replay_buffer.h bridge_actor.cc search.h cards_and_ddts.h
         imp_env.h imp_env.cc multi_agent_transition_buffer.h multi_agent_transition_buffer.cc replay_buffer.cc
-        search.cc bridge_deal.cc bridge_deal.h bridge_thread_loop.h bridge_thread_loop.cc)
+        search.cc bridge_deal.cc bridge_deal.h bridge_thread_loop.h bridge_thread_loop.cc transition.h transition.cc)
 target_include_directories(bridge_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(bridge_lib PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(bridge_lib PUBLIC ${PYTHON_INCLUDE_DIRS})

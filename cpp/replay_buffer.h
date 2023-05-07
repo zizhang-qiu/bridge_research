@@ -9,7 +9,7 @@
 namespace rl::bridge {
 class ReplayBuffer {
  public:
-  ReplayBuffer(int state_size, int num_actions, int capacity);
+  ReplayBuffer(int state_size, int num_actions, int capacity, float alpha, float eps);
 
   void Push(const torch::Tensor &state, const torch::Tensor &action, const torch::Tensor &reward,
             const torch::Tensor &log_probs);
@@ -26,8 +26,11 @@ class ReplayBuffer {
   Sample(int batch_size, const std::string &device) {
     std::unique_lock<std::mutex> lk(m_);
     int size = full_ ? capacity_ : cursor_.load();
-    torch::Tensor indices = torch::multinomial(torch::abs(reward_storage_.slice(0, 0, size)) + 0.05, batch_size, false);
-//    torch::Tensor indices = torch::multinomial(torch::ones(size), batch_size, false);
+    torch::Tensor priorities = torch::abs(reward_storage_.slice(0, 0, size));
+    torch::Tensor exponent_priorities = torch::pow(priorities, alpha_);
+    torch::Tensor probs = exponent_priorities / torch::sum(exponent_priorities) + eps_;
+//    torch::Tensor indices = torch::multinomial(torch::abs(reward_storage_.slice(0, 0, size)) + 0.05, batch_size, false);
+    torch::Tensor indices = torch::multinomial(probs, batch_size, false);
     auto sample_states = state_storage_.index_select(0, indices);
     auto sample_actions = action_storage_.index_select(0, indices);
     auto sample_rewards = reward_storage_.index_select(0, indices);
@@ -56,6 +59,23 @@ class ReplayBuffer {
     return num_add_.load();
   }
 
+ private:
+  int state_size_;
+  int num_actions_;
+  int capacity_;
+  float alpha_;
+  float eps_;
+  std::atomic<int> cursor_;
+  std::atomic<bool> full_;
+  std::atomic<int> num_add_;
+  torch::Tensor state_storage_;
+  torch::Tensor action_storage_;
+  torch::Tensor reward_storage_;
+  torch::Tensor log_probs_storage_;
+  mutable std::mutex m_;
+};
+
+class BasicReplayBuffer : public ReplayBuffer {
  private:
   int state_size_;
   int num_actions_;

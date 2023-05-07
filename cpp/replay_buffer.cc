@@ -7,10 +7,14 @@ namespace rl::bridge {
 
 ReplayBuffer::ReplayBuffer(int state_size,
                            int num_actions,
-                           int capacity) :
+                           int capacity,
+                           float alpha,
+                           float eps) :
     state_size_(state_size),
     num_actions_(num_actions),
     capacity_(capacity),
+    alpha_(alpha),
+    eps_(eps),
     cursor_(0),
     full_(false),
     num_add_(0) {

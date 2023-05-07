@@ -6,9 +6,9 @@
 /models
 policy_gradient
 /imitation_learning
-/src/vs_wbridge5
+/pysrc/vs_wbridge5
 /dataset
-/src/cfg
+/pysrc/cfg
 /.idea
 results.md
 /a2c

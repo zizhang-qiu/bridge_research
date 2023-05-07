@@ -1,0 +1,5 @@
+num_deals : 10000
+num_processes : 8
+checkpoint_path : "a2c_fetch/folder_1/checkpoint_0.pth"
+save_dir : "vs_wbridge5"
+start : 0

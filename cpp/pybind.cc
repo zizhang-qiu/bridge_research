@@ -41,7 +41,7 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("act", &VecEnvActor::Act);
 
   py::class_<ReplayBuffer, std::shared_ptr<ReplayBuffer>>(m, "ReplayBuffer")
-      .def(py::init<int, int, int>())
+      .def(py::init<int, int, int, float, float>())
       .def("push", &ReplayBuffer::Push)
       .def("sample", &ReplayBuffer::Sample)
       .def("size", &ReplayBuffer::Size)
