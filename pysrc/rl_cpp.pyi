@@ -313,9 +313,6 @@ class BridgeBiddingState:
             The double dummy table.
         """
 
-    def get_actual_trick_and_dd_trick(self) -> List[int, int]:
-        ...
-
     def get_contract(self) -> Contract:
         ...
 

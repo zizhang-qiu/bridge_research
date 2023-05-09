@@ -34,20 +34,22 @@ void BridgeTransitionBuffer::PushToReplayBuffer(std::shared_ptr<ReplayBuffer> &r
   }
 }
 
-MultiAgentTransitionBuffer::MultiAgentTransitionBuffer(int num_agents) : num_agents_(num_agents) {
+MultiAgentTransitionBuffer::MultiAgentTransitionBuffer(int num_agents)
+    : num_agents_(num_agents) {
   for (size_t i = 0; i < num_agents_; i++) {
     storage_.emplace_back();
   }
 }
 
 void MultiAgentTransitionBuffer::PushObsActionLogProbs(int player,
-                           const torch::Tensor &obs,
-                           const torch::Tensor &action,
-                           const torch::Tensor &log_probs) {
+                                                       const torch::Tensor &obs,
+                                                       const torch::Tensor &action,
+                                                       const torch::Tensor &log_probs) {
   storage_[player].PushObsActionLogProbs(obs, action, log_probs);
 }
 
-void MultiAgentTransitionBuffer::PushToReplayBuffer(std::shared_ptr<ReplayBuffer> replay_buffer, const std::vector<double> &reward) {
+void MultiAgentTransitionBuffer::PushToReplayBuffer(std::shared_ptr<ReplayBuffer> replay_buffer,
+                                                    const std::vector<double> &reward) {
   RL_CHECK_EQ(reward.size(), num_agents_);
   for (size_t pl = 0; pl < num_agents_; ++pl) {
     storage_[pl].PushToReplayBuffer(replay_buffer, reward[pl]);

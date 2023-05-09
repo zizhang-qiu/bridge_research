@@ -1,5 +1,6 @@
 import copy
 import os
+import pprint
 import time
 from typing import Dict, Optional
 
@@ -27,6 +28,7 @@ def main():
     common_utils.set_random_seeds(cfg["seed"])
     stats = common_utils.MultiStats()
     logger = common_utils.Logger(os.path.join(save_dir, "log.txt"), verbose=True, auto_line_feed=True)
+    logger.write(pprint.pformat(cfg))
     saver = common_utils.TopKSaver(top_k, save_dir, "checkpoint")
     stopwatch = common_utils.Stopwatch()
 
@@ -49,8 +51,8 @@ def main():
     train_actor = rl_cpp.VecEnvActor(train_locker)
     # p_opt = torch.optim.AdamW(params=agent.p_net.parameters(), lr=p_lr)
     # v_opt = torch.optim.AdamW(params=agent.v_net.parameters(), lr=v_lr)
-    p_opt = Adan(params=agent.p_net.parameters(), lr=p_lr)
-    v_opt = Adan(params=agent.v_net.parameters(), lr=v_lr)
+    p_opt = Adan(params=agent.p_net.parameters(), lr=p_lr, fused=True)
+    v_opt = Adan(params=agent.v_net.parameters(), lr=v_lr, fused=True)
     if checkpoint_path:
         p_opt.load_state_dict(checkpoint["opt_state_dict"]["policy"])
         v_opt.load_state_dict(checkpoint["opt_state_dict"]["value"])
@@ -70,7 +72,7 @@ def main():
     dataset = load_rl_dataset("train")
     deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
     buffer_capacity = cfg["buffer_capacity"]
-    replay_buffer = rl_cpp.ReplayBuffer(480, NUM_CALLS, buffer_capacity, 0.6, 0.01)
+    replay_buffer = rl_cpp.ReplayBuffer(480, NUM_CALLS, buffer_capacity, 0.6, 1e-15)
     context = rl_cpp.Context()
     for _ in trange(num_threads):
         # vec_env = rl_cpp.BridgeVecEnv()

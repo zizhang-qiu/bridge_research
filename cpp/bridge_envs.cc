@@ -43,13 +43,13 @@ BridgeBiddingEnv::BridgeBiddingEnv(std::shared_ptr<BridgeDealManager> deal_manag
                                    const std::vector<int> &greedy,
                                    std::shared_ptr<ReplayBuffer> replay_buffer,
                                    bool use_par_score,
-                                   bool eval) :
-    deal_manager_(std::move(deal_manager)),
-    greedy_(greedy),
-    replay_buffer_(std::move(replay_buffer)),
-    use_par_score_(use_par_score),
-    eval_(eval),
-    transition_buffer_(bridge::kNumPlayers) {
+                                   bool eval)
+    : deal_manager_(std::move(deal_manager)),
+      greedy_(greedy),
+      replay_buffer_(std::move(replay_buffer)),
+      use_par_score_(use_par_score),
+      eval_(eval),
+      transition_buffer_(bridge::kNumPlayers) {
   RL_CHECK_EQ(greedy_.size(), bridge::kNumPlayers);
 }
 

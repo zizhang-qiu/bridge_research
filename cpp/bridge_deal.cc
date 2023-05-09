@@ -5,8 +5,9 @@
 namespace rl::bridge {
 BridgeDealManager::BridgeDealManager(const std::vector<Cards> &cards_vector,
                                      const std::vector<DDT> &ddts,
-                                     const std::vector<int> &par_scores) : cards_vector_(cards_vector),
-                                                                           ddts_(ddts), par_scores_(par_scores) {
+                                     const std::vector<int> &par_scores)
+    : cards_vector_(cards_vector),
+      ddts_(ddts), par_scores_(par_scores) {
   RL_CHECK_EQ(cards_vector_.size(), ddts_.size());
   RL_CHECK_EQ(cards_vector_.size(), par_scores_.size());
   size_ = static_cast<int>(cards_vector_.size());
@@ -23,6 +24,5 @@ void BridgeDealManager::Reset() {
   std::lock_guard<std::mutex> lk(m_);
   cursor_ = 0;
 }
-
 
 }

@@ -48,6 +48,15 @@ int SuitToDDSStrain(Suit suit);
 
 int DenominationToDDSStrain(Denomination denomination);
 
+struct HandEvaluation {
+  int high_card_point = 0;
+  int length_points = 0;
+  int shortness_points = 0;
+  int support_points = 0;
+  int control_count = 0;
+
+};
+
 class BridgeBiddingState {
  public:
   explicit BridgeBiddingState(const BridgeDeal &deal)
@@ -111,7 +120,6 @@ class BridgeBiddingState {
     if (!double_dummy_results_.has_value()) {
       ComputeDoubleDummyResult();
     }
-    auto trump = contract_.trumps;
     auto level = contract_.level;
     int actual_trick = level + 6;
     std::vector<int> ret = {actual_trick, num_declarer_tricks_};
@@ -125,7 +133,7 @@ class BridgeBiddingState {
   static int ObservationTensorSize() {
     std::vector<int> shape = ObservationTensorShape();
     return std::accumulate(shape.begin(), shape.end(), 1,
-                           std::multiplies<int>());
+                           std::multiplies<>());
   }
 
   friend std::ostream &

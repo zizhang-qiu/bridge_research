@@ -14,17 +14,17 @@ class Transition {
              TensorDict &reply,
              torch::Tensor &reward,
              torch::Tensor &terminal,
-             TensorDict &next_obs) :
-      obs(obs),
-      reply(reply),
-      reward(reward),
-      terminal(terminal),
-      next_obs(next_obs) {
+             TensorDict &next_obs)
+      : obs(obs),
+        reply(reply),
+        reward(reward),
+        terminal(terminal),
+        next_obs(next_obs) {
   }
 
   Transition Index(int i) const;
 
-  static Transition MakeBatch(const std::vector<Transition>& transitions, const std::string& device);
+  static Transition MakeBatch(const std::vector<Transition> &transitions, const std::string &device);
 
   TensorDict obs;
   TensorDict reply;

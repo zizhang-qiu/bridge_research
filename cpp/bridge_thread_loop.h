@@ -11,11 +11,11 @@ class VecEnvEvalThreadLoop : public ThreadLoop {
   VecEnvEvalThreadLoop(std::shared_ptr<bridge::VecEnvActor> train_actor,
                        std::shared_ptr<bridge::VecEnvActor> oppo_actor,
                        std::shared_ptr<BridgeVecEnv> env_ns,
-                       std::shared_ptr<BridgeVecEnv> env_ew) :
-      train_actor_(std::move(train_actor)),
-      oppo_actor_(std::move(oppo_actor)),
-      env_ns_(std::move(env_ns)),
-      env_ew_(std::move(env_ew)) {
+                       std::shared_ptr<BridgeVecEnv> env_ew)
+      : train_actor_(std::move(train_actor)),
+        oppo_actor_(std::move(oppo_actor)),
+        env_ns_(std::move(env_ns)),
+        env_ew_(std::move(env_ew)) {
   };
 
   void MainLoop() override;
@@ -29,9 +29,9 @@ class VecEnvEvalThreadLoop : public ThreadLoop {
 class BridgeThreadLoop : public ThreadLoop {
  public:
   BridgeThreadLoop(std::shared_ptr<BridgeVecEnv> env,
-                   std::shared_ptr<VecEnvActor> actor) :
-      env_(std::move(env)),
-      actor_(std::move(actor)) {}
+                   std::shared_ptr<VecEnvActor> actor)
+      : env_(std::move(env)),
+        actor_(std::move(actor)) {}
 
   void MainLoop() override;
 
@@ -43,8 +43,9 @@ class BridgeThreadLoop : public ThreadLoop {
 class ImpThreadLoop : public ThreadLoop {
  public:
   ImpThreadLoop(std::shared_ptr<ImpVecEnv> env,
-                std::shared_ptr<VecEnvActor> actor) :
-      env_(std::move(env)), actor_(std::move(actor)) {}
+                std::shared_ptr<VecEnvActor> actor)
+      : env_(std::move(env)),
+        actor_(std::move(actor)) {}
 
   void MainLoop() override;
  private:

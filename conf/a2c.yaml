@@ -2,11 +2,11 @@
 checkpoint_path: null
 act_device: "cuda"
 train_device: "cuda"
-num_threads: 16
+num_threads: 10
 num_games_per_thread: 100
 
-policy_lr: !!float 1e-6
-value_lr: !!float 3e-4
+policy_lr: !!float 1e-5
+value_lr: !!float 1e-4
 seed: !!int 42
 burn_in_frames: !!int 80000
 buffer_capacity: !!int 800000
