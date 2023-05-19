@@ -115,7 +115,7 @@ target_compile_definitions(bridge_double_dummy_solver PUBLIC DDS_NO_STATIC_INIT)
 add_library(_rl rl/model_locker.h rl/logging.h
         rl/types.h rl/thread_loop.h rl/context.h rl/utils.h
         rl/tensor_dict.h rl/base.h rl/context.cc rl/span.h rl/str_utils.h
-        rl/thread_loop.cc rl/model_locker.cc)
+        rl/thread_loop.cc rl/model_locker.cc rl/str_utils.cc)
 target_include_directories(_rl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rl)
 target_include_directories(_rl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(_rl PUBLIC ${TORCH_INCLUDE_DIRS})
@@ -194,6 +194,16 @@ if (WIN32)
             gtest gtest_main)
     include(GoogleTest)
     gtest_discover_tests(bridge_state_test)
+
+    add_executable(concurrent_queue_test tests/concurrent_queue_test.cc)
+    target_include_directories(concurrent_queue_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    target_include_directories(concurrent_queue_test PUBLIC ${TORCH_INCLUDE_DIRS})
+    target_include_directories(concurrent_queue_test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    target_link_libraries(concurrent_queue_test PUBLIC
+            bridge_lib
+            gtest gtest_main)
+    include(GoogleTest)
+    gtest_discover_tests(concurrent_queue_test)
 endif ()
 
 

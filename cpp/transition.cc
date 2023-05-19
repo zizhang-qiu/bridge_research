@@ -54,8 +54,21 @@ Transition Transition::MakeBatch(const std::vector<Transition> &transitions, con
     batch.terminal = batch.terminal.to(d);
     batch.next_obs = tensor_dict::Apply(batch.next_obs, ToDevice);
   }
-
   return batch;
+}
+TensorDict Transition::ToDict() const {
+  TensorDict ret = obs;
+  for (auto &kv : next_obs) {
+    ret.emplace("next_" + kv.first, kv.second);
+  }
+
+  for (auto &kv : reply) {
+    ret.emplace(kv.first, kv.second);
+  }
+
+  ret.emplace("reward", reward);
+  ret.emplace("terminal", terminal);
+  return ret;
 }
 
 }

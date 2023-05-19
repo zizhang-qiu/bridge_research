@@ -7,19 +7,25 @@
 #define BRIDGE_RESEARCH_RL_BASE_H
 #include "torch/torch.h"
 #include "tensor_dict.h"
+#include "types.h"
 namespace rl {
-using ObsRewardTerminal = std::tuple<TensorDict, float, bool>;
 class Env {
  public:
   Env() = default;
 
   ~Env() = default;
 
-  virtual TensorDict Reset() = 0;
+  virtual bool Reset() = 0;
 
-  virtual ObsRewardTerminal Step(const TensorDict &reply) = 0;
+  virtual void Step(const TensorDict &reply) = 0;
 
-  virtual bool Terminated() const = 0;
+  [[nodiscard]] virtual std::vector<float> Returns() const = 0;
+
+  [[nodiscard]] virtual TensorDict GetFeature() const = 0;
+
+  [[nodiscard]] virtual bool Terminated() const = 0;
+
+  [[nodiscard]] virtual Player CurrentPlayer() const = 0;
 };
 
 class Actor {

@@ -8,8 +8,8 @@ from typing import Optional, Tuple, Dict, List
 
 import torch
 from torch import nn
-
-from nets import PolicyNet, ValueNet
+import rl_cpp
+from nets import PolicyNet, ValueNet, PerfectValueNet
 
 
 class SingleEnvAgent(nn.Module):
@@ -50,6 +50,7 @@ class SingleEnvAgent(nn.Module):
         s = obs["s"]
         log_probs = self.get_log_probs(s.unsqueeze(0)).squeeze()
         probs = torch.exp(log_probs) * legal_actions
+        value = self.v_net(s).squeeze()
         # print(probs)
         if greedy:
             action = torch.argmax(probs)
@@ -59,7 +60,7 @@ class SingleEnvAgent(nn.Module):
                 action = torch.multinomial(legal_actions, 1).squeeze()
             else:
                 action = torch.multinomial(probs, 1).squeeze()
-        return {"a": action.detach().cpu(), "log_probs": log_probs.detach().cpu()}
+        return {"a": action.detach().cpu(), "log_probs": log_probs.detach().cpu(), "values": value}
 
     @torch.jit.export
     def get_log_probs(self, s: torch.Tensor) -> torch.Tensor:
@@ -105,6 +106,14 @@ class SingleEnvAgent(nn.Module):
         probs = torch.exp(log_probs) * legal_actions
         action_prob = probs[action].item()
         return action_prob
+
+    def simple_act(self, obs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        legal_actions = obs["legal_actions"]
+        s = obs["s"]
+        log_probs = self.get_log_probs(s.unsqueeze(0)).squeeze()
+        probs = torch.exp(log_probs) * legal_actions
+        action = torch.argmax(probs)
+        return {"a": action.detach().cpu()}
 
     def compute_policy_gradient_loss(self, batch_obs: torch.Tensor, batch_action: torch.Tensor,
                                      batch_reward: torch.Tensor, batch_log_probs: torch.Tensor,
@@ -216,7 +225,13 @@ class VecEnvAgent(nn.Module):
         """
         super().__init__()
         self.p_net = p_net
-        self.v_net = ValueNet()
+        self.v_net = PerfectValueNet()
+
+    def compute_priority(self, batch: rl_cpp.Transition):
+        values = self.get_values(batch.obs["s"]).squeeze()
+        rewards = batch.reward
+        td_err = rewards - values
+        return torch.abs(td_err).detach().cpu()
 
     @torch.jit.export
     def get_probs(self, s: torch.Tensor) -> torch.Tensor:
@@ -255,6 +270,7 @@ class VecEnvAgent(nn.Module):
         """
         # vec env obs is always 2d
         s = obs["s"]
+        perfect_s = obs["perfect_s"]
         legal_actions = obs["legal_actions"]
         log_probs = self.get_log_probs(s)
         probs = torch.exp(log_probs) * legal_actions
@@ -270,28 +286,34 @@ class VecEnvAgent(nn.Module):
 
         # print("random actions", random_actions)
         action = greedy * greedy_action + (1 - greedy) * random_actions
-        return {"a": action.detach().cpu(), "log_probs": log_probs.detach().cpu()}
+        values = self.v_net(perfect_s).squeeze()
+        return {"a": action.detach().cpu(), "log_probs": log_probs.detach().cpu(), "values": values.detach().cpu()}
 
-    def loss(self, batch_state: torch.Tensor, batch_action: torch.Tensor,
-             batch_reward: torch.Tensor, batch_log_probs: torch.Tensor,
-             clip_eps: float, entropy_ratio: float) -> Tuple[torch.Tensor, torch.Tensor]:
-        current_log_probs = self.get_log_probs(batch_state)
-        current_action_log_probs = current_log_probs.gather(1, batch_action.long().unsqueeze(1)).squeeze(1)
-        old_action_log_probs = batch_log_probs.gather(1, batch_action.long().unsqueeze(1)).squeeze(1)
+    def compute_loss_and_priority(self, batch: rl_cpp.Transition, clip_eps: float, entropy_ratio: float) \
+            -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        current_log_probs = self.get_log_probs(batch.obs["s"])
+        current_action_log_probs = current_log_probs.gather(1, batch.reply["a"].long().unsqueeze(1)).squeeze(1)
+        old_action_log_probs = batch.reply["log_probs"].gather(1, batch.reply["a"].long().unsqueeze(1)).squeeze(1)
 
         ratio = torch.exp(current_action_log_probs - old_action_log_probs)
+        # print("ratio:", ratio)
         # advantage = (batch_reward - batch_reward.mean()) / (batch_reward.std() + 1e-5)
         # advantage = batch_reward
-        advantage = batch_reward - self.get_values(batch_state).squeeze()
+        values = self.get_values(batch.obs["perfect_s"]).squeeze()
+        advantage = batch.reward - values
+        # print("advantage:", advantage)
 
         surr1 = ratio * (advantage.detach())
         surr2 = torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * (advantage.detach())
         current_probs = torch.exp(current_log_probs)
         entropy = -torch.sum(current_probs * current_log_probs, dim=-1)
+        # print("entropy:", entropy)
 
         policy_loss = -torch.min(surr1, surr2) - entropy * entropy_ratio
         value_loss = torch.pow(advantage, 2)
-        return policy_loss.mean(), value_loss.mean()
+        rewards = batch.reward
+        td_err = rewards - values
+        return policy_loss, value_loss, torch.abs(td_err).detach().cpu()
 
     def pg_loss(self, batch_state: torch.Tensor, batch_action: torch.Tensor,
                 batch_reward: torch.Tensor, batch_log_probs: torch.Tensor,

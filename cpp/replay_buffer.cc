@@ -43,7 +43,7 @@ void ReplayBuffer::Push(const torch::Tensor &state, const torch::Tensor &action,
   }
 }
 
-std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
+std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 ReplayBuffer::Sample(int batch_size, const std::string &device) {
   std::unique_lock<std::mutex> lk(m_);
   int size = full_ ? capacity_ : cursor_.load();
@@ -57,14 +57,19 @@ ReplayBuffer::Sample(int batch_size, const std::string &device) {
   auto sample_actions = action_storage_.index_select(0, indices);
   auto sample_rewards = reward_storage_.index_select(0, indices);
   auto sample_log_probs = log_probs_storage_.index_select(0, indices);
+  auto weights = priorities.index_select(0, indices);
+  weights /= priorities.sum();
+  weights = torch::pow(size * weights, -beta_);
+  weights /= weights.max();
   if (device != "cpu") {
     auto d = torch::device(device);
     sample_states = sample_states.to(d);
     sample_actions = sample_actions.to(d);
     sample_rewards = sample_rewards.to(d);
     sample_log_probs = sample_log_probs.to(d);
+    weights = weights.to(d);
   }
-  return std::make_tuple(sample_states, sample_actions, sample_rewards, sample_log_probs);
+  return std::make_tuple(sample_states, sample_actions, sample_rewards, sample_log_probs, weights);
 }
 
 

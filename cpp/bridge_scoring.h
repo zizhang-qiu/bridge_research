@@ -18,8 +18,8 @@ struct Contract {
   DoubleStatus double_status = kUndoubled;
   int declarer = -1;
 
-  std::string ToString() const;
-  int Index() const;
+  [[nodiscard]] std::string ToString() const;
+  [[nodiscard]] int Index() const;
 };
 
 int ComputeScore(Contract contract, int declarer_tricks, bool is_vulnerable);

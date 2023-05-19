@@ -22,9 +22,11 @@ class Transition {
         next_obs(next_obs) {
   }
 
-  Transition Index(int i) const;
+  [[nodiscard]] Transition Index(int i) const;
 
   static Transition MakeBatch(const std::vector<Transition> &transitions, const std::string &device);
+
+  [[nodiscard]] TensorDict ToDict() const;
 
   TensorDict obs;
   TensorDict reply;

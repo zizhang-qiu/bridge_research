@@ -190,11 +190,9 @@ class Evaluator:
                 self.ddts[left:right],
                 self.par_scores[left:right])
             for i_env in range(self.num_deals_per_thread):
-                env_0 = rl_cpp.BridgeBiddingEnv(deal_manager_0, self.greedy,
-                                                None, False, True)
+                env_0 = rl_cpp.BridgeBiddingEnv(deal_manager_0, self.greedy)
 
-                env_1 = rl_cpp.BridgeBiddingEnv(deal_manager_1, self.greedy,
-                                                None, False, True)
+                env_1 = rl_cpp.BridgeBiddingEnv(deal_manager_1, self.greedy)
                 vec_env_0.push(env_0)
                 vec_env_1.push(env_1)
             self.vec_env0_list.append(vec_env_0)

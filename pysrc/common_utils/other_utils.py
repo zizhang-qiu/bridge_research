@@ -9,7 +9,7 @@ import datetime
 import os
 import platform
 import random
-from typing import List
+from typing import List, Any
 
 import numpy as np
 import torch
@@ -142,3 +142,16 @@ def allocate_tasks_uniformly(num_processes: int, num_tasks: int) -> List[int]:
         task_counts[i] += 1
 
     return task_counts
+
+
+def to_str_list(l: List[Any]) -> List[str]:
+    """
+    Convert a list of some type to a list of str.
+    Args:
+        l: The list
+
+    Returns:
+        The list of str
+    """
+    ret = [str(item) for item in l]
+    return ret

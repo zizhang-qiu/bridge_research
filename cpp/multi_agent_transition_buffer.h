@@ -5,8 +5,9 @@
 #ifndef BRIDGE_RESEARCH_MULTI_AGENT_TRANSITION_BUFFER_H_
 #define BRIDGE_RESEARCH_MULTI_AGENT_TRANSITION_BUFFER_H_
 #include <vector>
-#include "torch/torch.h"
+#include "transition.h"
 #include "replay_buffer.h"
+#include "torch/torch.h"
 namespace rl::bridge {
 
 // A bridge transition buffer only stores
@@ -17,27 +18,29 @@ class BridgeTransitionBuffer {
  public:
   BridgeTransitionBuffer() = default;
 
-  bool PushObsActionLogProbs(const torch::Tensor &obs,
-                             const torch::Tensor &action,
-                             const torch::Tensor &log_probs);
+  bool PushObsAndReply(const TensorDict &obs,
+                       const TensorDict &reply);
   void Clear();
-  void PushToReplayBuffer(std::shared_ptr<ReplayBuffer> &replay_buffer, double final_reward);
+
+  [[nodiscard]] int Size() const { return static_cast<int>(obs_history_.size()); }
+
+  void PushToReplayBuffer(std::shared_ptr<Replay> &replay_buffer, float final_reward) const;
+
+  [[nodiscard]] std::tuple<std::vector<Transition>, torch::Tensor> PopTransitions(float final_reward) const;
 
  private:
-  std::vector<torch::Tensor> obs_history_;
-  std::vector<torch::Tensor> action_history_;
-  std::vector<torch::Tensor> log_probs_history_;
+  std::vector<TensorDict> obs_history_;
+  std::vector<TensorDict> reply_history_;
 };
 
 class MultiAgentTransitionBuffer {
  public:
 
   explicit MultiAgentTransitionBuffer(int num_agents);
-  void PushObsActionLogProbs(int player,
-                             const torch::Tensor &obs,
-                             const torch::Tensor &action,
-                             const torch::Tensor &log_probs);
-  void PushToReplayBuffer(std::shared_ptr<ReplayBuffer> replay_buffer, const std::vector<double> &reward);
+  void PushObsAndReply(int player,
+                       const TensorDict &obs,
+                       const TensorDict &reply);
+  void PushToReplayBuffer(std::shared_ptr<Replay> replay_buffer, const std::vector<float> &reward);
   void Clear();
 
  private:

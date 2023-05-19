@@ -19,7 +19,7 @@ int Card(Suit suit, int rank) {
   return rank * kNumSuits + static_cast<int>(suit);
 }
 
-int Partnership(Player player){ return player & 1; }
+int Partnership(Player player) { return player & 1; }
 
 int Partner(Player player) { return player ^ 2; }
 
@@ -110,7 +110,7 @@ std::vector<std::string> BridgeBiddingState::BidStrHistory() const {
   return bid_str_history;
 }
 
-std::vector<double> BridgeBiddingState::Returns() const {
+std::vector<float> BridgeBiddingState::Returns() const {
   RL_CHECK_EQ(phase_, kGameOver);
   return returns_;
 }
@@ -251,11 +251,21 @@ std::vector<float> BridgeBiddingState::ObservationTensor() const {
   return ObservationTensor(current_player_);
 }
 
-std::vector<float> BridgeBiddingState::ObservationTensor2() const {
-  std::vector<float> observation_tensor = ObservationTensor();
-  std::vector<float> legal_actions_mask = LegalActionsMask();
-  observation_tensor.insert(observation_tensor.end(), legal_actions_mask.begin(), legal_actions_mask.end());
-  return observation_tensor;
+std::vector<float> BridgeBiddingState::HiddenObservationTensor() const {
+  std::vector<float> hidden_observation_tensor(kHiddenInfoTensorSize);
+  auto values = utils::Span<float>(hidden_observation_tensor);
+  std::fill(values.begin(), values.end(), 0.0);
+  auto ptr = values.begin();
+  for (int interval = 1; interval < kNumPlayers; ++interval) {
+    Player player = (current_player_ + interval) % kNumPlayers;
+    for (int i = 0; i < kNumCards; ++i)
+      if (holder_[i] == player) {
+        ptr[i] = 1;
+      }
+    ptr += kNumCards;
+  }
+  RL_CHECK_EQ(std::distance(values.begin(), ptr), kHiddenInfoTensorSize);
+  return hidden_observation_tensor;
 }
 
 std::vector<int> BridgeBiddingState::GetDoubleDummyTable() {
@@ -322,8 +332,8 @@ void BridgeBiddingState::ScoreUp() {
                                     is_vulnerable_[Partnership(contract_.declarer)]);
   for (int pl = 0; pl < kNumPlayers; ++pl) {
     returns_[pl] = Partnership(pl) == Partnership(contract_.declarer)
-                   ? declarer_score
-                   : -declarer_score;
+                   ? static_cast<float>(declarer_score)
+                   : static_cast<float>(-declarer_score);
   }
 }
 
@@ -475,4 +485,67 @@ std::string BridgeBiddingState::FormatResult() const {
   return rv;
 }
 
+std::vector<HandEvaluation> BridgeBiddingState::GetHandEvaluation() const {
+  if (hand_evaluation_.has_value()) {
+    return hand_evaluation_.value();
+  }
+  std::vector<std::vector<Action>> cards_per_player(kNumPlayers);
+  std::vector<HandEvaluation> ret(kNumPlayers);
+  for (int cards = 0; cards < kNumCards; ++cards) {
+    Player holder = holder_[cards].value();
+    cards_per_player[holder].push_back(cards);
+  }
+  for (Player player = 0; player < kNumPlayers; ++player) {
+    HandEvaluation hand_evaluation;
+    std::array<int, kNumSuits> length_per_suit{0, 0, 0, 0};
+    for (const auto card : cards_per_player[player]) {
+      Suit suit = CardSuit(card);
+      int rank = CardRank(card);
+      hand_evaluation.high_card_points += std::max(0, rank - 8);
+      hand_evaluation.control_count += std::max(0, rank - 10);
+      length_per_suit[static_cast<int>(suit)] += 1;
+    }
+    hand_evaluation.length_per_suit = length_per_suit;
+    hand_evaluation.length_points = hand_evaluation.high_card_points;
+    hand_evaluation.shortness_points = hand_evaluation.high_card_points;
+    hand_evaluation.support_points = hand_evaluation.high_card_points;
+    for (const auto suit_len : length_per_suit) {
+      hand_evaluation.length_points += std::max(0, suit_len - 4);
+      hand_evaluation.shortness_points += std::max(0, 3 - suit_len);
+      hand_evaluation.support_points += std::max(0, 5 - 2 * suit_len);
+    }
+    ret[player] = hand_evaluation;
+  }
+  hand_evaluation_.emplace(ret);
+  return ret;
+}
+std::vector<float> BridgeBiddingState::ObservationTensorWithHandEvaluation() const {
+  auto hand_evaluation = GetHandEvaluation()[current_player_];
+  auto observation_tensor = ObservationTensor();
+  const int size = kAuctionTensorSize + 35 + (kNumCardsPerSuit + 1) * kNumSuits;
+  observation_tensor.resize(size);
+  auto values = utils::Span<float>(observation_tensor);
+  auto ptr = values.begin() + kAuctionTensorSize;
+  ptr[hand_evaluation.high_card_points] = 1;
+  ptr += 35;
+  auto length_per_suit = hand_evaluation.length_per_suit;
+  for (const Suit suit : {Suit::kClubs, Suit::kDiamonds, Suit::kHearts, Suit::kSpades}) {
+    int suit_int = static_cast<int>(suit);
+    ptr[length_per_suit[suit_int]] = 1;
+    ptr += kNumCardsPerSuit + 1;
+  }
+  RL_CHECK_EQ(std::distance(values.begin(), ptr), size);
+  return observation_tensor;
+}
+
+std::string HandEvaluation::ToString() const {
+  std::string
+      fmt = "hcp: %d, length points: %d, shortness points: %d, support points: %d, control count: %d\nSuit length:";
+  std::string
+      ret = utils::StrFormat(fmt, high_card_points, length_points, shortness_points, support_points, control_count);
+  for (const Suit suit : {Suit::kClubs, Suit::kDiamonds, Suit::kHearts, Suit::kSpades}) {
+    utils::StrAppend(&ret, kSuitChar[static_cast<int>(suit)], ": ", length_per_suit[static_cast<int>(suit)], " ");
+  }
+  return ret;
+}
 } // namespace rl::bridge

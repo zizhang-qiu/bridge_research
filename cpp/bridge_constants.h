@@ -6,7 +6,7 @@
 #define BRIDGE_RESEARCH_CPP_BRIDGE_CONSTANTS_H_
 #include "types.h"
 #include <vector>
-namespace rl::bridge{
+namespace rl::bridge {
 using Cards = std::vector<Action>;
 using DDT = std::vector<int>;
 
@@ -50,31 +50,34 @@ inline constexpr int kNumObservationTypes = 4; // Bid, lead, declare, defend
 // eventually, kAuctionTensorSize=(4 * 106) + 52 + 4 = 480
 inline constexpr int kAuctionTensorSize =
     kNumPlayers * (1          // Did this player pass before the opening bid?
-                   + kNumBids // Did this player make each bid?
-                   + kNumBids // Did this player double each bid?
-                   + kNumBids // Did this player redouble each bid?
-                   ) +
-    kNumCards // Our hand
-    + kNumVulnerabilities * kNumPartnerships;
+        + kNumBids // Did this player make each bid?
+        + kNumBids // Did this player double each bid?
+        + kNumBids // Did this player redouble each bid?
+    ) +
+        kNumCards // Our hand
+        + kNumVulnerabilities * kNumPartnerships;
+// 52 * 3
+inline constexpr int kHiddenInfoTensorSize = kNumCards * (kNumPlayers - 1);
+inline constexpr int kPerfectInfoTensorSize = kHiddenInfoTensorSize + kAuctionTensorSize;
 // eventually, kPublicInfoTensorSize= 480 - 52+ 4 = 432
 inline constexpr int kPublicInfoTensorSize =
     kAuctionTensorSize // The auction
-    - kNumCards        // But not any player's cards
-    + kNumPlayers;     // Plus trailing passes
+        - kNumCards        // But not any player's cards
+        + kNumPlayers;     // Plus trailing passes
 // eventually, kPlayTensorSize = 7 + 5 + 3 + 4 + 2 + 52 + 52 + 4 * 52 + 4 * 52 +
 // 13 + 13 = 567
 inline constexpr int kPlayTensorSize =
     kNumBidLevels             // What the contract is
-    + kNumDenominations       // What trumps are
-    + kNumOtherCalls          // Undoubled / doubled / redoubled
-    + kNumPlayers             // Who declarer is
-    + kNumVulnerabilities     // Vulnerability of the declaring side
-    + kNumCards               // Our remaining cards
-    + kNumCards               // Dummy's remaining cards
-    + kNumPlayers * kNumCards // Cards played to the previous trick
-    + kNumPlayers * kNumCards // Cards played to the current trick
-    + kNumTricks              // Number of tricks we have won
-    + kNumTricks;             // Number of tricks they have won
+        + kNumDenominations       // What trumps are
+        + kNumOtherCalls          // Undoubled / doubled / redoubled
+        + kNumPlayers             // Who declarer is
+        + kNumVulnerabilities     // Vulnerability of the declaring side
+        + kNumCards               // Our remaining cards
+        + kNumCards               // Dummy's remaining cards
+        + kNumPlayers * kNumCards // Cards played to the previous trick
+        + kNumPlayers * kNumCards // Cards played to the current trick
+        + kNumTricks              // Number of tricks we have won
+        + kNumTricks;             // Number of tricks they have won
 // eventually, kObservationTensorSize = 480
 inline constexpr int kObservationTensorSize = kAuctionTensorSize;
 // every bid can lead a sequence as 1C-P-P-D-P-P-R-P-P

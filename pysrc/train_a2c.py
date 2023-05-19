@@ -18,6 +18,7 @@ from agent_for_cpp import VecEnvAgent
 
 
 def main():
+    torch.set_printoptions(threshold=100000)
     with open("conf/a2c.yaml") as f:
         cfg = yaml.safe_load(f)
     print(cfg)
@@ -72,7 +73,11 @@ def main():
     dataset = load_rl_dataset("train")
     deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
     buffer_capacity = cfg["buffer_capacity"]
-    replay_buffer = rl_cpp.ReplayBuffer(480, NUM_CALLS, buffer_capacity, 0.6, 1e-15)
+    alpha = cfg["alpha"]
+    beta = cfg["beta"]
+    prefetch = cfg["prefetch"]
+    # replay_buffer = rl_cpp.ReplayBuffer(480, NUM_CALLS, buffer_capacity, 0.6, 1e-15, 0.5)
+    replay_buffer = rl_cpp.Replay(buffer_capacity, cfg["seed"], alpha, beta, prefetch)
     context = rl_cpp.Context()
     for _ in trange(num_threads):
         # vec_env = rl_cpp.BridgeVecEnv()
@@ -80,7 +85,7 @@ def main():
         for i_env in range(num_games_per_thread):
             # env = rl_cpp.BridgeBiddingEnv(deal_manager, [0, 0, 0, 0], replay_buffer, True, False)
             # vec_env.push(env)
-            env = rl_cpp.ImpEnv(deal_manager, [0, 0, 0, 0], replay_buffer, False)
+            env = rl_cpp.ImpEnvWrapper(deal_manager, [0, 0, 0, 0], replay_buffer)
             vec_env.push(env)
         # t = rl_cpp.BridgeThreadLoop(vec_env, train_actor)
         t = rl_cpp.ImpThreadLoop(vec_env, train_actor)
@@ -119,26 +124,38 @@ def main():
 
             stopwatch.time("sync and updating")
 
-            batch_state, batch_action, batch_reward, batch_log_probs = replay_buffer.sample(sample_batch_size,
-                                                                                            train_device)
+            batch, weights = replay_buffer.sample(sample_batch_size, train_device)
+            # print(weights)
+            # print(batch_reward)
             stopwatch.time("sample data")
 
-            p_loss, v_loss = agent.loss(batch_state, batch_action, batch_reward, batch_log_probs,
-                                        clip_eps, entropy_ratio)
+            p_loss, v_loss, priority = agent.compute_loss_and_priority(batch, clip_eps, entropy_ratio)
+            # print(p_loss, v_loss)
+            # print(v_loss.mean())
+            torch.cuda.synchronize()
 
+            # stats.feed("p_loss", p_loss.item())
+            stats.feed("v_loss", v_loss.mean().item())
+
+            weighted_loss = ((p_loss + v_loss) * weights).mean()
+            torch.cuda.synchronize()
+            stats.feed("weighted_loss", weighted_loss.item())
             stopwatch.time("calculating loss")
-            stats.feed("p_loss", p_loss.item())
-            stats.feed("v_loss", v_loss.item())
-
-            (p_loss + v_loss).backward()
+            # print(weighted_loss)
+            weighted_loss.backward()
             torch.nn.utils.clip_grad_norm_(agent.p_net.parameters(), max_grad_norm)
             p_opt.step()
             v_opt.step()
             # p_lr_scheduler.step()
             # v_lr_scheduler.step()
+            torch.cuda.synchronize()
             stopwatch.time("backprop & update")
 
-            stats.feed("num_add", replay_buffer.num_add())
+            replay_buffer.update_priority(priority)
+
+            stopwatch.time("update priority")
+
+            # stats.feed("num_add", replay_buffer.num_add())
 
         stopwatch.summary()
         context.pause()

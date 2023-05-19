@@ -41,7 +41,7 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("act", &VecEnvActor::Act);
 
   py::class_<ReplayBuffer, std::shared_ptr<ReplayBuffer>>(m, "ReplayBuffer")
-      .def(py::init<int, int, int, float, float>())
+      .def(py::init<int, int, int, float, float, float>())
       .def("push", &ReplayBuffer::Push)
       .def("sample", &ReplayBuffer::Sample)
       .def("size", &ReplayBuffer::Size)
@@ -64,6 +64,15 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("trumps", [](const Contract &c) { return static_cast<int>(c.trumps); })
       .def("double_status", [](const Contract &c) { return static_cast<int>(c.double_status); })
       .def_readonly("declarer", &Contract::declarer);
+
+  py::class_<HandEvaluation>(m, "HandEvaluation")
+      .def_readonly("high_card_points", &HandEvaluation::high_card_points)
+      .def_readonly("length_points", &HandEvaluation::length_points)
+      .def_readonly("shortness_points", &HandEvaluation::shortness_points)
+      .def_readonly("support_points", &HandEvaluation::support_points)
+      .def_readonly("control_count", &HandEvaluation::control_count)
+      .def_readonly("length_per_suit", &HandEvaluation::length_per_suit)
+      .def("__repr__", &HandEvaluation::ToString);
 
   py::class_<BridgeBiddingState, std::shared_ptr<BridgeBiddingState>>(
       m, "BridgeBiddingState")
@@ -88,21 +97,33 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("get_contract", &BridgeBiddingState::GetContract)
       .def("observation_tensor", py::overload_cast<>(&BridgeBiddingState::ObservationTensor, py::const_))
       .def("observation_tensor", py::overload_cast<Player>(&BridgeBiddingState::ObservationTensor, py::const_))
-      .def("observation_tensor2", &BridgeBiddingState::ObservationTensor2)
+      .def("hidden_observation_tensor", &BridgeBiddingState::HiddenObservationTensor)
+      .def("observation_tensor_with_hand_evaluation", &BridgeBiddingState::ObservationTensorWithHandEvaluation)
       .def("terminate", &BridgeBiddingState::Terminate)
       .def("legal_actions", &BridgeBiddingState::LegalActions)
       .def("clone", &BridgeBiddingState::Clone)
       .def("get_double_dummy_table", &BridgeBiddingState::GetDoubleDummyTable)
+      .def("get_hand_evaluation", &BridgeBiddingState::GetHandEvaluation)
       .def("__repr__", &BridgeBiddingState::ToString);
+
+  py::class_<Transition, std::shared_ptr<Transition>>(m, "Transition")
+      .def_readwrite("obs", &Transition::obs)
+      .def_readwrite("reply", &Transition::reply)
+      .def_readwrite("reward", &Transition::reward)
+      .def_readwrite("terminal", &Transition::terminal)
+      .def_readwrite("next_obs", &Transition::next_obs)
+      .def("to_dict", &Transition::ToDict);
 
   py::class_<BridgeTransitionBuffer, std::shared_ptr<BridgeTransitionBuffer>>(m, "BridgeTransitionBuffer")
       .def(py::init<>())
-      .def("push_obs_action_log_probs", &BridgeTransitionBuffer::PushObsActionLogProbs)
-      .def("push_to_replay_buffer", &BridgeTransitionBuffer::PushToReplayBuffer);
+      .def("push_obs_and_reply", &BridgeTransitionBuffer::PushObsAndReply)
+      .def("size", &BridgeTransitionBuffer::Size)
+      .def("pop_transitions", &BridgeTransitionBuffer::PopTransitions);
+//      .def("push_to_replay_buffer", &BridgeTransitionBuffer::PushToReplayBuffer);
 
   py::class_<MultiAgentTransitionBuffer, std::shared_ptr<MultiAgentTransitionBuffer>>(m, "MultiAgentTransitionBuffer")
       .def(py::init<int>())
-      .def("push_obs_action_log_probs", &MultiAgentTransitionBuffer::PushObsActionLogProbs)
+      .def("push_obs_and_reply", &MultiAgentTransitionBuffer::PushObsAndReply)
       .def("push_to_replay_buffer", &MultiAgentTransitionBuffer::PushToReplayBuffer);
 
   py::class_<BridgeDealManager, std::shared_ptr<BridgeDealManager>>(m, "BridgeDealManager")
@@ -114,19 +135,17 @@ PYBIND11_MODULE(rl_cpp, m) {
 
   py::class_<BridgeBiddingEnv, std::shared_ptr<BridgeBiddingEnv>>(m, "BridgeBiddingEnv")
       .def(py::init<std::shared_ptr<BridgeDealManager>,
-                    std::vector<int>,
-                    std::shared_ptr<ReplayBuffer>,
-                    bool,
-                    bool
+                    std::vector<int>
       >())
       .def("reset", &BridgeBiddingEnv::Reset)
       .def("step", &BridgeBiddingEnv::Step)
       .def("returns", &BridgeBiddingEnv::Returns)
       .def("terminated", &BridgeBiddingEnv::Terminated)
-      .def("get_current_player", &BridgeBiddingEnv::GetCurrentPlayer)
+      .def("current_player", &BridgeBiddingEnv::CurrentPlayer)
       .def("get_state", &BridgeBiddingEnv::GetState)
       .def("get_num_deals", &BridgeBiddingEnv::GetNumDeals)
       .def("get_feature_size", &BridgeBiddingEnv::GetFeatureSize)
+      .def("get_feature", &BridgeBiddingEnv::GetFeature)
       .def("__repr__", &BridgeBiddingEnv::ToString);
 
   py::class_<BridgeVecEnv, std::shared_ptr<BridgeVecEnv>>(m, "BridgeVecEnv")
@@ -137,20 +156,20 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("step", &BridgeVecEnv::Step)
       .def("get_envs", &BridgeVecEnv::GetEnvs)
       .def("get_returns", &BridgeVecEnv::GetReturns)
+      .def("get_feature", &BridgeVecEnv::GetFeatures)
       .def("any_terminated", &BridgeVecEnv::AnyTerminated)
       .def("all_terminated", &BridgeVecEnv::AllTerminated);
 
   py::class_<ImpEnv, std::shared_ptr<ImpEnv>>(m, "ImpEnv")
       .def(py::init<std::shared_ptr<BridgeDealManager>,
-                    std::vector<int>,
-                    std::shared_ptr<ReplayBuffer>,
-                    bool>())
+                    std::vector<int>>())
       .def("reset", &ImpEnv::Reset)
       .def("step", &ImpEnv::Step)
       .def("terminated", &ImpEnv::Terminated)
       .def("returns", &ImpEnv::Returns)
       .def("get_acting_player", &ImpEnv::GetActingPlayer)
       .def("get_num_deals", &ImpEnv::GetNumDeals)
+      .def("get_feature", &ImpEnv::GetFeature)
       .def("__repr__", &ImpEnv::ToString);
 
   py::class_<ImpVecEnv, std::shared_ptr<ImpVecEnv>>(m, "ImpVecEnv")
@@ -159,7 +178,22 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("size", &ImpVecEnv::Size)
       .def("reset", &ImpVecEnv::Reset)
       .def("step", &ImpVecEnv::Step)
+      .def("get_feature", &ImpVecEnv::GetFeature)
+      .def("get_envs", &ImpVecEnv::GetEnvs)
+      .def("all_terminated", &ImpVecEnv::AllTerminated)
       .def("any_terminated", &ImpVecEnv::AnyTerminated);
+
+  py::class_<ImpEnvWrapper, std::shared_ptr<ImpEnvWrapper>>(m, "ImpEnvWrapper")
+      .def(py::init<
+          std::shared_ptr<BridgeDealManager>,
+          const std::vector<int>,
+          std::shared_ptr<Replay>
+      >())
+      .def("get_feature", &ImpEnvWrapper::GetFeature)
+      .def("step", &ImpEnvWrapper::Step)
+      .def("terminated", &ImpEnvWrapper::Terminated)
+      .def("__repr__", &ImpEnvWrapper::ToString)
+      .def("reset", &ImpEnvWrapper::Reset);
 
   py::class_<Context, std::shared_ptr<Context>>(m, "Context")
       .def(py::init<>())
@@ -209,4 +243,11 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def_readwrite("seed", &SearchParams::seed);
 
   m.def("search", &rl::bridge::Search);
+
+  py::class_<Replay, std::shared_ptr<Replay>>(m, "Replay")
+      .def(py::init<int, int, float, float, int>())
+      .def("sample", &Replay::Sample)
+      .def("num_add", &Replay::NumAdd)
+      .def("update_priority", &Replay::UpdatePriority)
+      .def("size", &Replay::Size);
 }

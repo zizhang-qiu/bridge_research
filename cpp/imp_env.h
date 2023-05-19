@@ -4,6 +4,8 @@
 
 #ifndef BRIDGE_RESEARCH_IMP_ENV_H
 #define BRIDGE_RESEARCH_IMP_ENV_H
+#include <utility>
+
 #include "rl/base.h"
 #include "bridge_deal.h"
 #include "bridge_envs.h"
@@ -12,17 +14,19 @@ namespace rl::bridge {
 class ImpEnv : public Env {
  public:
   ImpEnv(std::shared_ptr<BridgeDealManager> deal_manager,
-         std::vector<int> greedy,
-         std::shared_ptr<ReplayBuffer> replay_buffer,
-         bool eval);
+         const std::vector<int> &greedy);
 
-  TensorDict Reset() override;
-  int GetNumDeals() const { return num_deals_played_; }
-  ObsRewardTerminal Step(const TensorDict &reply) override;
-  Player GetActingPlayer() const { return (states_[current_state_]->CurrentPlayer() + current_state_) % kNumPlayers; }
-  bool Terminated() const override;
-  std::vector<int> Returns();
-  std::string ToString();
+  bool Reset() override;
+  [[nodiscard]] int GetNumDeals() const { return num_deals_played_; }
+  void Step(const TensorDict &reply) override;
+  [[nodiscard]] Player GetActingPlayer() const {
+    return (states_[current_state_]->CurrentPlayer() + current_state_) % kNumPlayers;
+  }
+  [[nodiscard]] Player CurrentPlayer() const override;
+  [[nodiscard]] bool Terminated() const override;
+  [[nodiscard]] std::vector<float> Returns() const override;
+  [[nodiscard]] std::string ToString() const;
+  [[nodiscard]] TensorDict GetFeature() const override;
 
  private:
   BridgeDeal current_deal_;
@@ -31,28 +35,81 @@ class ImpEnv : public Env {
   int current_state_ = 0;
   const std::vector<int> greedy_;
   int num_deals_played_ = -1;
+};
+
+class ImpEnvWrapper {
+ public:
+  ImpEnvWrapper(std::shared_ptr<BridgeDealManager> deal_manager,
+                const std::vector<int> &greedy,
+                std::shared_ptr<Replay> replay_buffer)
+      : env_(std::move(deal_manager), greedy),
+        replay_buffer_(std::move(replay_buffer)),
+        transition_buffer_(bridge::kNumPlayers) {}
+  bool Reset() {
+    env_.Reset();
+    return true;
+  }
+
+  void Step(const TensorDict &reply) {
+    auto acting_player = env_.GetActingPlayer();
+    transition_buffer_.PushObsAndReply(acting_player, last_obs_, reply);
+    env_.Step(reply);
+    if (env_.Terminated()) {
+      std::vector<float> rewards = env_.Returns();
+      std::vector<float> normalized_rewards(kNumPlayers);
+      for(int i=0; i<kNumPlayers;++i){
+        normalized_rewards[i] = rewards[i] / static_cast<float>(bridge::kMaxImp);
+      }
+      transition_buffer_.PushToReplayBuffer(replay_buffer_, normalized_rewards);
+      transition_buffer_.Clear();
+    }
+  }
+
+  [[nodiscard]] TensorDict GetFeature() {
+    auto obs = env_.GetFeature();
+    last_obs_ = tensor_dict::Clone(obs);
+    return obs;
+  }
+
+  [[nodiscard]] bool Terminated() const {
+    return env_.Terminated();
+  }
+
+  [[nodiscard]] std::string ToString() const{
+    return env_.ToString();
+  }
+
+ private:
+  ImpEnv env_;
   MultiAgentTransitionBuffer transition_buffer_;
+  std::shared_ptr<Replay> replay_buffer_;
   TensorDict last_obs_;
-  bool eval_;
-  std::shared_ptr<ReplayBuffer> replay_buffer = nullptr;
 };
 
 class ImpVecEnv {
  public:
   ImpVecEnv() = default;
 
-  void Push(const std::shared_ptr<ImpEnv> &env) { envs_.emplace_back(env); }
+  void Push(const std::shared_ptr<ImpEnvWrapper> &env) { envs_.emplace_back(env); }
 
-  int Size() const { return static_cast<int>(envs_.size()); }
+  [[nodiscard]] int Size() const { return static_cast<int>(envs_.size()); }
 
-  TensorDict Reset(const TensorDict &obs);
+  bool Reset();
 
-  std::tuple<TensorDict, torch::Tensor, torch::Tensor> Step(const TensorDict &reply);
+  void Step(const TensorDict &reply);
 
-  bool AnyTerminated() const;
+  [[nodiscard]] bool AnyTerminated() const;
+
+  [[nodiscard]] bool AllTerminated() const;
+
+  [[nodiscard]] TensorDict GetFeature() const;
+
+  [[nodiscard]] std::vector<std::shared_ptr<ImpEnvWrapper>> GetEnvs() const{
+    return envs_;
+  }
 
  private:
-  std::vector<std::shared_ptr<ImpEnv>> envs_;
+  std::vector<std::shared_ptr<ImpEnvWrapper>> envs_;
 };
 }
 #endif //BRIDGE_RESEARCH_IMP_ENV_H

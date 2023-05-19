@@ -14,6 +14,8 @@ torch::Tensor LegalActionsMask(const std::vector<Action> &legal_actions) {
 TensorDict MakeObsTensorDict(const std::shared_ptr<BridgeBiddingState> &state,
                              int greedy) {
   auto observation = state->ObservationTensor();
+  auto hidden_info = state->HiddenObservationTensor();
+  auto perfect_observation = utils::ConcatenateVectors(observation, hidden_info);
   torch::Tensor legal_actions_mask;
   if (!state->Terminated()) {
     auto legal_actions = state->LegalActions();
@@ -22,6 +24,7 @@ TensorDict MakeObsTensorDict(const std::shared_ptr<BridgeBiddingState> &state,
     legal_actions_mask = torch::ones(kNumCalls);
   }
   TensorDict obs = {
+      {"perfect_s", torch::tensor(torch::ArrayRef<float>(perfect_observation))},
       {"s", torch::tensor(torch::ArrayRef<float>(observation))},
       {"legal_actions", legal_actions_mask},
       {"greedy", torch::tensor(greedy)}
@@ -32,6 +35,7 @@ TensorDict MakeObsTensorDict(const std::shared_ptr<BridgeBiddingState> &state,
 
 TensorDict MakeTerminalObs(int greedy) {
   TensorDict obs = {
+      {"perfect_s", torch::zeros(bridge::kPerfectInfoTensorSize)},
       {"s", torch::zeros(bridge::kAuctionTensorSize)},
       {"legal_actions", torch::ones(bridge::kNumCalls)},
       {"greedy", torch::tensor(greedy)}
@@ -40,16 +44,9 @@ TensorDict MakeTerminalObs(int greedy) {
 }
 
 BridgeBiddingEnv::BridgeBiddingEnv(std::shared_ptr<BridgeDealManager> deal_manager,
-                                   const std::vector<int> &greedy,
-                                   std::shared_ptr<ReplayBuffer> replay_buffer,
-                                   bool use_par_score,
-                                   bool eval)
+                                   const std::vector<int> &greedy)
     : deal_manager_(std::move(deal_manager)),
-      greedy_(greedy),
-      replay_buffer_(std::move(replay_buffer)),
-      use_par_score_(use_par_score),
-      eval_(eval),
-      transition_buffer_(bridge::kNumPlayers) {
+      greedy_(greedy){
   RL_CHECK_EQ(greedy_.size(), bridge::kNumPlayers);
 }
 
@@ -60,60 +57,31 @@ bool BridgeBiddingEnv::Terminated() const {
   return state_->Terminated();
 }
 
-TensorDict BridgeBiddingEnv::Reset() {
+bool BridgeBiddingEnv::Reset() {
   ++num_deals_played_;
   current_deal_ = deal_manager_->Next();
   state_ = std::make_shared<BridgeBiddingState>(current_deal_);
-  auto obs = MakeObsTensorDict(state_, greedy_[state_->CurrentPlayer()]);
-  last_obs_ = obs;
-  return obs;
+//  auto obs = MakeObsTensorDict(state_, greedy_[state_->CurrentPlayer()]);
+  return true;
 }
 
-ObsRewardTerminal BridgeBiddingEnv::Step(const TensorDict &reply) {
-  float reward = 0.0f;
-  auto current_player = state_->CurrentPlayer();
+void BridgeBiddingEnv::Step(const TensorDict &reply) {
   auto action = reply.at("a");
 
   auto action_int = action.item<int>();
   TensorDict obs;
 
   state_->ApplyAction(action_int);
-  obs = MakeObsTensorDict(state_, greedy_[state_->CurrentPlayer()]);
-
-  bool terminal = state_->Terminated();
-  if (!eval_) {
-    auto log_probs = reply.at("log_probs");
-    transition_buffer_.PushObsActionLogProbs(current_player,
-                                             last_obs_.at("s"),
-                                             action,
-                                             log_probs);
-    if (terminal) {
-      std::vector<double> rewards = state_->Returns();
-      if (use_par_score_) {
-
-        auto par_score = static_cast<double>(current_deal_.par_score.value());
-        for (size_t pl = 0; pl < bridge::kNumPlayers; pl++) {
-          rewards[pl] = rewards[pl] - (pl % 2 == 0 ? par_score : -par_score);
-        }
-      } else {
-        for (size_t pl = 0; pl < bridge::kNumPlayers; pl++) {
-          rewards[pl] = rewards[pl] / kMaxScore;
-        }
-      }
-      transition_buffer_.PushToReplayBuffer(replay_buffer_, rewards);
-      transition_buffer_.Clear();
-    }
-  }
-  last_obs_ = obs;
-  return std::make_tuple(obs, reward, terminal);
+//  obs = MakeObsTensorDict(state_, greedy_[state_->CurrentPlayer()]);
+//  return std::make_tuple(obs, reward, terminal);
 }
 
-Player BridgeBiddingEnv::GetCurrentPlayer() const {
+Player BridgeBiddingEnv::CurrentPlayer() const {
   RL_CHECK_NOTNULL(state_);
   return state_->CurrentPlayer();
 }
 
-std::vector<double> BridgeBiddingEnv::Returns() const {
+std::vector<float> BridgeBiddingEnv::Returns() const {
   RL_CHECK_NOTNULL(state_);
   return state_->Returns();
 }
@@ -129,67 +97,79 @@ std::shared_ptr<BridgeBiddingState> BridgeBiddingEnv::GetState() const {
   RL_CHECK_NOTNULL(state_);
   return state_;
 }
-
-TensorDict BridgeVecEnv::Reset(const TensorDict &obs) {
-  std::vector<TensorDict> batch_obs;
-  for (size_t i = 0; i < envs_.size(); ++i) {
-    if (!envs_[i]->Terminated()) {
-      batch_obs.emplace_back(tensor_dict::Index(obs, i));
-    } else {
-      auto env_obs = envs_[i]->Reset();
-      batch_obs.emplace_back(env_obs);
-    }
-  }
-  return tensor_dict::Stack(batch_obs, 0);
+TensorDict BridgeBiddingEnv::GetFeature() const {
+  RL_CHECK_NOTNULL(state_);
+  auto current_player = state_->CurrentPlayer();
+  return MakeObsTensorDict(state_, greedy_[current_player]);
 }
 
-std::tuple<TensorDict, torch::Tensor, torch::Tensor> BridgeVecEnv::Step(const TensorDict &reply) {
-  std::vector<TensorDict> obs_vector;
-  torch::Tensor batch_reward = torch::zeros(envs_.size(), {torch::kFloat});
-  torch::Tensor batch_terminal = torch::zeros(envs_.size(), {torch::kBool});
-  TensorDict obs;
-  float reward;
-  bool terminal;
+bool BridgeVecEnv::Reset() {
+//  std::vector<TensorDict> batch_obs;
+//  for (size_t i = 0; i < envs_.size(); ++i) {
+//    if (!envs_[i]->Terminated()) {
+//      batch_obs.emplace_back(tensor_dict::Index(obs, i));
+//    } else {
+//      auto env_obs = envs_[i]->Reset();
+//      batch_obs.emplace_back(env_obs);
+//    }
+//  }
+//  return tensor_dict::Stack(batch_obs, 0);
   for (size_t i = 0; i < envs_.size(); ++i) {
-    auto rep = tensor_dict::Index(reply, i);
-    if (!envs_[i]->Terminated()) {
-      std::tie(obs, reward, terminal) = envs_[i]->Step(rep);
-    } else {
-      obs = MakeTerminalObs(1);
-      reward = 0.0f;
-      terminal = true;
-    }
-    obs_vector.emplace_back(obs);
-    batch_reward[i] = reward;
-    batch_terminal[i] = terminal;
-  }
-  return std::make_tuple(tensor_dict::Stack(obs_vector, 0), batch_reward, batch_terminal);
-}
-
-bool BridgeVecEnv::AnyTerminated() const {
-  for (size_t i = 0; i < envs_.size(); i++) {
     if (envs_[i]->Terminated()) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool BridgeVecEnv::AllTerminated() const {
-  for (size_t i = 0; i < envs_.size(); i++) {
-    if (!envs_[i]->Terminated()) {
-      return false;
+      envs_[i]->Reset();
     }
   }
   return true;
 }
 
-std::vector<int> BridgeVecEnv::GetReturns(Player player) {
-  int size = Size();
-  std::vector<int> ret(size);
-  for (size_t i = 0; i < size; ++i) {
-    ret[i] = static_cast<int>(envs_[i]->Returns()[player]);
+void BridgeVecEnv::Step(const TensorDict &reply) {
+  std::vector<TensorDict> obs_vector;
+//  torch::Tensor batch_reward = torch::zeros(envs_.size(), {torch::kFloat});
+//  torch::Tensor batch_terminal = torch::zeros(envs_.size(), {torch::kBool});
+  for (size_t i = 0; i < envs_.size(); ++i) {
+    if (!envs_[i]->Terminated()) {
+      auto rep = tensor_dict::Index(reply, i);
+      envs_[i]->Step(rep);
+    }
+//  return std::make_tuple(tensor_dict::Stack(obs_vector, 0), batch_reward, batch_terminal);
   }
-  return ret;
+}
+
+  bool BridgeVecEnv::AnyTerminated() const {
+    for (size_t i = 0; i < envs_.size(); i++) {
+      if (envs_[i]->Terminated()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool BridgeVecEnv::AllTerminated() const {
+    for (size_t i = 0; i < envs_.size(); i++) {
+      if (!envs_[i]->Terminated()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  std::vector<int> BridgeVecEnv::GetReturns(Player player) {
+    int size = Size();
+    std::vector<int> ret(size);
+    for (size_t i = 0; i < size; ++i) {
+      ret[i] = static_cast<int>(envs_[i]->Returns()[player]);
+    }
+    return ret;
+  }
+TensorDict BridgeVecEnv::GetFeatures() const {
+  std::vector<TensorDict> obs_vec;
+  for(size_t i=0; i<static_cast<int>(envs_.size()); ++i){
+    if(!envs_[i]->Terminated()) {
+      obs_vec.emplace_back(envs_[i]->GetFeature());
+    }else{
+      obs_vec.emplace_back(MakeTerminalObs(1));
+    }
+  }
+  return tensor_dict::Stack(obs_vec, 0);
 }
 }

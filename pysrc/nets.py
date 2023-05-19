@@ -32,6 +32,29 @@ class PolicyNet(nn.Module):
         policy = F.log_softmax(out, -1)
         return policy
 
+class PolicyNet2(nn.Module):
+    def __init__(self):
+        """
+        A policy net to output policy distribution.
+        """
+        super(PolicyNet2, self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(571, 2048),
+            nn.GELU(),
+            nn.Linear(2048, 2048),
+            nn.GELU(),
+            nn.Linear(2048, 2048),
+            nn.GELU(),
+            nn.Linear(2048, 2048),
+            nn.GELU(),
+            nn.Linear(2048, 38)
+        )
+
+    def forward(self, state: torch.Tensor):
+        out = self.net(state)
+        policy = F.log_softmax(out, -1)
+        return policy
+
 
 class ValueNet(nn.Module):
 
@@ -57,3 +80,24 @@ class ValueNet(nn.Module):
         value = self.net(state)
         return value
 
+
+class PerfectValueNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(636, 1024),
+            nn.GELU(),
+            nn.Linear(1024, 1024),
+            nn.GELU(),
+            nn.Linear(1024, 1024),
+            nn.GELU(),
+            nn.Linear(1024, 1024),
+            nn.GELU(),
+            nn.Linear(1024, 1024),
+            nn.GELU(),
+            nn.Linear(1024, 1)
+        )
+
+    def forward(self, p_state: torch.Tensor):
+        value = self.net(p_state)
+        return value

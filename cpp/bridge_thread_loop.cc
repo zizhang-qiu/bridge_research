@@ -7,29 +7,37 @@ namespace rl::bridge {
 void VecEnvEvalThreadLoop::MainLoop() {
   TensorDict obs = {};
   TensorDict reply;
-  torch::Tensor reward, terminal;
-  obs = env_ns_->Reset(obs);
+  env_ns_->Reset();
+  obs = env_ns_->GetFeatures();
   Player current_player = kNorth;
   while (!env_ns_->AllTerminated()) {
+//    std::cout << current_player << std::endl;
     if (current_player % 2 == 0) {
       reply = train_actor_->Act(obs);
     } else {
       reply = oppo_actor_->Act(obs);
     }
-    std::tie(obs, reward, terminal) = env_ns_->Step(reply);
+    env_ns_->Step(reply);
+//    std::cout << "stepped." << std::endl;
+    obs = env_ns_->GetFeatures();
+//    std::cout << "got feature." << std::endl;
     current_player = (current_player + 1) % kNumPlayers;
   }
+//  std::cout << "env ns end." << std::endl;
 
   current_player = kNorth;
   obs = {};
-  obs = env_ew_->Reset(obs);
+  env_ew_->Reset();
+  obs = env_ew_->GetFeatures();
   while (!env_ew_->AllTerminated()) {
+//    std::cout << current_player << std::endl;
     if (current_player % 2 == 1) {
       reply = train_actor_->Act(obs);
     } else {
       reply = oppo_actor_->Act(obs);
     }
-    std::tie(obs, reward, terminal) = env_ew_->Step(reply);
+    env_ew_->Step(reply);
+    obs = env_ew_->GetFeatures();
     current_player = (current_player + 1) % kNumPlayers;
   }
   terminated_ = true;
@@ -41,7 +49,8 @@ void BridgeThreadLoop::MainLoop() {
   torch::Tensor reward, terminal;
 
   while (!Terminated()) {
-    obs = env_->Reset(obs);
+    env_->Reset();
+    obs = env_->GetFeatures();
     while (!env_->AnyTerminated()) {
       if (Terminated()) {
         break;
@@ -51,7 +60,8 @@ void BridgeThreadLoop::MainLoop() {
         WaitUntilResume();
       }
       reply = actor_->Act(obs);
-      std::tie(obs, reward, terminal) = env_->Step(reply);
+      env_->Step(reply);
+      obs = env_->GetFeatures();
     }
   }
   terminated_ = true;
@@ -60,10 +70,10 @@ void BridgeThreadLoop::MainLoop() {
 void ImpThreadLoop::MainLoop() {
   TensorDict obs = {};
   TensorDict reply;
-  torch::Tensor reward, terminal;
 
   while (!Terminated()) {
-    obs = env_->Reset(obs);
+    env_->Reset();
+    obs = env_->GetFeature();
     while (!env_->AnyTerminated()) {
       if (Terminated()) {
         break;
@@ -73,7 +83,8 @@ void ImpThreadLoop::MainLoop() {
         WaitUntilResume();
       }
       reply = actor_->Act(obs);
-      std::tie(obs, reward, terminal) = env_->Step(reply);
+      env_->Step(reply);
+      obs = env_->GetFeature();
     }
   }
   terminated_ = true;

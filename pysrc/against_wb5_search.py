@@ -32,7 +32,7 @@ class _WBridge5Client(Controller):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind(("localhost", port))
         self.port = port
-        self.sock.listen(5)
+        self.sock.listen(1)
         self.process = None
         self.command = command.format(port=self.port)
 
@@ -55,7 +55,7 @@ class _WBridge5Client(Controller):
         """
         line = ""
         while True:
-            self.conn.settimeout(60)
+            self.conn.settimeout(120)
             data = self.conn.recv(2048)
             if not data:
                 raise EOFError("Connection closed")
@@ -212,6 +212,8 @@ class AgainstWb5Worker(mp.Process):
             except Exception as e:
                 print(f"Process {self._process_id} meet exception: {e}.")
                 continue
+        for bot in bots:
+            bot.terminate()
 
 
 def main():

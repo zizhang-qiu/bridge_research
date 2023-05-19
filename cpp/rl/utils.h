@@ -23,8 +23,19 @@
 
 namespace rl::utils {
 
+template<typename T>
+inline std::vector<T> ConcatenateVectors(const std::vector<T> &vector1, const std::vector<T> &vector2) {
+  std::vector<T> concatenated_vector;
+  concatenated_vector.reserve(vector1.size() + vector2.size());
+
+  concatenated_vector.insert(concatenated_vector.end(), vector1.begin(), vector1.end());
+  concatenated_vector.insert(concatenated_vector.end(), vector2.begin(), vector2.end());
+
+  return concatenated_vector;
+}
+
 inline bool CheckProbNotZero(const torch::Tensor &action,
-                      const torch::Tensor &log_probs) {
+                             const torch::Tensor &log_probs) {
   auto index = action.item<int>();
   auto value = torch::exp(log_probs[index]).item<float>();
   return value != 0.0;
@@ -66,7 +77,7 @@ inline std::string StrCat(const Args &...args) {
 inline std::vector<int> VectorMod(const std::vector<int> &vec, int num) {
   std::vector<int> ret;
   ret.reserve(vec.size());
-for (auto v : vec) {
+  for (auto v : vec) {
     ret.emplace_back(v % num);
   }
   return ret;
@@ -75,7 +86,7 @@ for (auto v : vec) {
 inline std::vector<float> VectorDiv(const std::vector<int> &vec, int num) {
   std::vector<float> ret;
   ret.reserve(vec.size());
-for (auto v : vec) {
+  for (auto v : vec) {
     ret.emplace_back(v / num);
   }
   return ret;
@@ -172,6 +183,16 @@ inline torch::Tensor GetTopkActions(const torch::Tensor &policy, int k,
     }
   }
   return torch::tensor(torch::ArrayRef<int>(ret));
+}
+
+inline std::vector<int> GetOneHotIndices(const std::vector<float> &tensor) {
+  std::vector<int> indices;
+  for (int i = 0; i < tensor.size(); ++i) {
+    if(tensor[i]==1.0){
+      indices.push_back(i);
+    }
+  }
+  return indices;
 }
 
 inline void PrintProgressBar(int percent) {

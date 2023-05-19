@@ -5,34 +5,57 @@
 #include "rl/logging.h"
 namespace rl::bridge {
 
-bool BridgeTransitionBuffer::PushObsActionLogProbs(const torch::Tensor &obs,
-                                                   const torch::Tensor &action,
-                                                   const torch::Tensor &log_probs) {
-  RL_CHECK_EQ(obs_history_.size(), action_history_.size());
-  RL_CHECK_EQ(action_history_.size(), log_probs_history_.size());
-  bool available = utils::CheckProbNotZero(action, log_probs);
+bool BridgeTransitionBuffer::PushObsAndReply(const TensorDict &obs,
+                                             const TensorDict &reply) {
+  RL_CHECK_EQ(obs_history_.size(), reply_history_.size());
+  bool available = utils::CheckProbNotZero(reply.at("a"), reply.at("log_probs"));
   if (available) {
     obs_history_.emplace_back(obs);
-    action_history_.emplace_back(action);
-    log_probs_history_.emplace_back(log_probs);
+    reply_history_.emplace_back(reply);
   }
   return available;
 }
 
 void BridgeTransitionBuffer::Clear() {
   obs_history_.clear();
-  action_history_.clear();
-  log_probs_history_.clear();
+  reply_history_.clear();
 }
 
-void BridgeTransitionBuffer::PushToReplayBuffer(std::shared_ptr<ReplayBuffer> &replay_buffer, double final_reward) {
-  for (int i = obs_history_.size() - 1; i >= 0; --i) {
-    replay_buffer->Push(obs_history_[i],
-                        action_history_[i],
-                        torch::tensor(final_reward),
-                        log_probs_history_[i]);
+
+std::tuple<std::vector<Transition>, torch::Tensor> BridgeTransitionBuffer::PopTransitions(const float final_reward) const {
+  int size = Size();
+  std::vector<Transition> transitions(size);
+  torch::Tensor weights = torch::zeros({size}, torch::kFloat32);
+  auto weight_acc = weights.accessor<float, 1>();
+  for (int i = size - 1; i >= 0; --i) {
+    Transition t;
+    t.obs = obs_history_[i];
+    t.reply = reply_history_[i];
+    float td_error;
+    t.reward = torch::tensor(final_reward, torch::kFloat32);
+    if (i == size - 1) {
+      t.terminal = torch::tensor(1, torch::kBool);
+      t.next_obs = tensor_dict::ZerosLike(t.obs);
+
+    } else {
+      t.terminal = torch::tensor(0, torch::kBool);
+      t.next_obs = obs_history_[i + 1];
+    }
+    td_error = final_reward - t.reply.at("values").item<float>();
+    transitions[i] = t;
+    weight_acc[i] = std::abs(td_error);
   }
+  return std::make_tuple(transitions, weights);
 }
+
+
+void BridgeTransitionBuffer::PushToReplayBuffer(std::shared_ptr<Replay> &replay_buffer, const float final_reward) const {
+  std::vector<Transition> transitions;
+  torch::Tensor weights;
+  std::tie(transitions, weights) = PopTransitions(final_reward);
+  replay_buffer->Add(transitions, weights);
+}
+
 
 MultiAgentTransitionBuffer::MultiAgentTransitionBuffer(int num_agents)
     : num_agents_(num_agents) {
@@ -41,15 +64,14 @@ MultiAgentTransitionBuffer::MultiAgentTransitionBuffer(int num_agents)
   }
 }
 
-void MultiAgentTransitionBuffer::PushObsActionLogProbs(int player,
-                                                       const torch::Tensor &obs,
-                                                       const torch::Tensor &action,
-                                                       const torch::Tensor &log_probs) {
-  storage_[player].PushObsActionLogProbs(obs, action, log_probs);
+void MultiAgentTransitionBuffer::PushObsAndReply(const int player,
+                                                 const TensorDict &obs,
+                                                 const TensorDict &reply) {
+  storage_[player].PushObsAndReply(obs, reply);
 }
 
-void MultiAgentTransitionBuffer::PushToReplayBuffer(std::shared_ptr<ReplayBuffer> replay_buffer,
-                                                    const std::vector<double> &reward) {
+void MultiAgentTransitionBuffer::PushToReplayBuffer(std::shared_ptr<Replay> replay_buffer,
+                                                    const std::vector<float> &reward) {
   RL_CHECK_EQ(reward.size(), num_agents_);
   for (size_t pl = 0; pl < num_agents_; ++pl) {
     storage_[pl].PushToReplayBuffer(replay_buffer, reward[pl]);

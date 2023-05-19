@@ -49,12 +49,14 @@ int SuitToDDSStrain(Suit suit);
 int DenominationToDDSStrain(Denomination denomination);
 
 struct HandEvaluation {
-  int high_card_point = 0;
+  int high_card_points = 0;
   int length_points = 0;
   int shortness_points = 0;
   int support_points = 0;
   int control_count = 0;
+  std::array<int, kNumSuits> length_per_suit{};
 
+  [[nodiscard]] std::string ToString() const;
 };
 
 class BridgeBiddingState {
@@ -62,7 +64,7 @@ class BridgeBiddingState {
   explicit BridgeBiddingState(const BridgeDeal &deal)
       : is_vulnerable_{deal.is_dealer_vulnerable, deal.is_non_dealer_vulnerable} {
     RL_CHECK_EQ(deal.cards.size(), kNumCards);
-    RL_CHECK_LT(deal.dealer, kNumCards);
+    RL_CHECK_LT(deal.dealer, kNumPlayers);
     RL_CHECK_GE(deal.dealer, 0);
     auto cards = deal.cards;
     dealer_ = deal.dealer;
@@ -101,20 +103,25 @@ class BridgeBiddingState {
   void ApplyAction(Action action);
   std::string BidStr() const;
   std::vector<std::string> BidStrHistory() const;
-  std::vector<double> Returns() const;
+  std::vector<float> Returns() const;
   std::string ContractString() const { return contract_.ToString(); }
   std::string ObservationString(Player player) const;
   std::string ToString() const;
   std::vector<float> ObservationTensor(Player player) const;
   std::vector<float> ObservationTensor() const;
-  std::vector<float> ObservationTensor2() const;
+  // return a vector contains other player's cards.
+  std::vector<float> HiddenObservationTensor() const;
   std::vector<Action> LegalActions() const;
   std::vector<float> LegalActionsMask() const;
   std::shared_ptr<BridgeBiddingState> Clone() const;
 
+  std::vector<float> ObservationTensorWithHandEvaluation() const;
+
   std::vector<int> GetDoubleDummyTable();
   // use dds to compute double dummy result
   void ComputeDoubleDummyResult();
+
+  std::vector<HandEvaluation> GetHandEvaluation() const;
 
   std::vector<int> GetActualTrickAndDDTrick() {
     if (!double_dummy_results_.has_value()) {
@@ -146,7 +153,7 @@ class BridgeBiddingState {
   enum Phase { kAuction = 0, kGameOver = 1 };
   int num_passes_ = 0; // Number of consecutive passes since the last non-pass.
   int num_declarer_tricks_ = 0;
-  std::vector<double> returns_ = std::vector<double>(kNumPlayers);
+  std::vector<float> returns_ = std::vector<float>(kNumPlayers);
   std::vector<PlayerAction> history_;
   bool is_vulnerable_[kNumPartnerships]{};
   Phase phase_ = Phase::kAuction;
@@ -162,6 +169,7 @@ class BridgeBiddingState {
   // holder tracks each card's owner.
   std::array<std::optional<Player>, kNumCards> holder_{};
   std::string vul_strs[2][2] = {{"None", ""}, {"", "All"}};
+  mutable std::optional<std::vector<HandEvaluation>> hand_evaluation_;
 
   void GetHolder(const Cards &cards);
   void ScoreUp();

@@ -1,6 +1,6 @@
-num_deals : 10000
+num_deals : 100
 num_processes : 8
-checkpoint_path : "a2c/folder_11/checkpoint_0.pth"
+checkpoint_path : "a2c/1/folder_11/checkpoint_0.pth"
 save_dir : "vs_wbridge5"
 start : 0
 
@@ -11,5 +11,5 @@ search:
   max_particles : 100000
   top_k : 4
   min_prob : 0.005
-  verbose_level : 1
+  verbose_level : 0
   seed : 1

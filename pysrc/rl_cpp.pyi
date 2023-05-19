@@ -88,7 +88,7 @@ class VecEnvActor:
 
 
 class ReplayBuffer:
-    def __init__(self, state_size: int, num_actions: int, capacity: int, alpha: float, eps: float):
+    def __init__(self, state_size: int, num_actions: int, capacity: int, alpha: float, eps: float, beta: float):
         """
         A buffer stores states(obs), actions, rewards and log_probs
         Args:
@@ -101,7 +101,8 @@ class ReplayBuffer:
     def push(self, state: torch.Tensor, action: torch.Tensor, reward: torch.Tensor, log_probs: torch.Tensor):
         ...
 
-    def sample(self, batch_size: int, device: str) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def sample(self, batch_size: int, device: str) -> Tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample a batch of obs, actions, rewards and log_probs
         Args:
@@ -142,10 +143,13 @@ class BridgeTransitionBuffer:
     def __init__(self):
         ...
 
-    def push_obs_action_log_probs(self, obs: torch.Tensor, action: torch.Tensor, log_probs: torch.Tensor):
+    def push_obs_and_reply(self, obs: TensorDict, action: TensorDict):
         ...
 
     def push_to_replay_buffer(self, replay_buffer: ReplayBuffer, final_reward: float):
+        ...
+
+    def pop_transitions(self) -> Tuple[List[Transition], torch.Tensor]:
         ...
 
 
@@ -153,8 +157,7 @@ class MultiAgentTransitionBuffer:
     def __init__(self, num_agents: int):
         ...
 
-    def push_obs_action_log_probs(self, player: Player, obs: torch.Tensor, action: torch.Tensor,
-                                  log_probs: torch.Tensor):
+    def push_obs_and_reply(self, player: Player, obs: TensorDict, reply: TensorDict):
         ...
 
     def push_to_replay_buffer(self, replay_buffer: ReplayBuffer, final_reward: Union[List[float], np.ndarray]):
@@ -191,6 +194,15 @@ class Contract:
 
     def double_status(self) -> int:
         ...
+
+
+class HandEvaluation:
+    high_card_points: int = ...
+    length_points: int = ...
+    shortness_points: int = ...
+    support_points: int = ...
+    control_count: int = ...
+    length_per_suit: List[int] = ...
 
 
 class BridgeBiddingState:
@@ -322,6 +334,9 @@ class BridgeBiddingState:
     def observation_tensor2(self) -> List[float]:
         ...
 
+    def hidden_observation_tensor(self) -> List[float]:
+        ...
+
     def terminate(self) -> NoReturn:
         """
         Force terminate the state.
@@ -344,6 +359,12 @@ class BridgeBiddingState:
         Returns:
             The cloned state.
         """
+        ...
+
+    def get_hand_evaluation(self) -> List[HandEvaluation]:
+        ...
+
+    def observation_tensor_with_hand_evaluation(self) -> List[float]:
         ...
 
     def __repr__(self) -> str:
@@ -487,8 +508,7 @@ class BridgeVecEnv:
 
 
 class ImpEnv:
-    def __init__(self, deal_manager: BridgeDealManager, greedy: List[int],
-                 replay_buffer: Optional[ReplayBuffer], eval_: bool):
+    def __init__(self, deal_manager: BridgeDealManager, greedy: List[int]):
         """
         An imp env which a deal is played twice. The player sit at NS first time should play at EW for second time.
         Args:
@@ -497,7 +517,7 @@ class ImpEnv:
         """
         ...
 
-    def acting_player(self) -> int:
+    def get_acting_player(self) -> int:
         """
         Get the player index. If it's the first game, the index is same as seat.
         For the second game, the player moved clockwise, i.e. index 0 plays ar East.
@@ -553,20 +573,66 @@ class ImpEnv:
         ...
 
 
+class Replay:
+    def __init__(self, capacity: int, seed: int, alpha: float, beta: float, prefetch: int):
+        ...
+
+    def sample(self, batch_size: int, device: str) -> Tuple[Transition, torch.Tensor]:
+        ...
+
+    def update_priority(self, priority: torch.Tensor):
+        ...
+
+    def num_add(self) -> int:
+        ...
+
+    def size(self) -> int:
+        ...
+
+
+class ImpEnvWrapper:
+    def __init__(self, deal_manager: BridgeDealManager, greedy: List[int], replay_buffer: Replay):
+        ...
+
+    def get_feature(self) -> TensorDict:
+        ...
+
+    def step(self, reply: TensorDict):
+        ...
+
+    def terminated(self) -> bool:
+        ...
+
+    def reset(self):
+        ...
+
+    def __repr__(self):
+        ...
+
+
 class ImpVecEnv:
     def __init__(self):
         ...
 
-    def push(self, env: ImpEnv):
+    def push(self, env: ImpEnvWrapper):
         ...
 
-    def reset(self, obs: TensorDict) -> TensorDict:
+    def reset(self):
         ...
 
-    def step(self, reply: TensorDict) -> Tuple[TensorDict, torch.Tensor, torch.Tensor]:
+    def step(self, reply: TensorDict):
+        ...
+
+    def get_feature(self) -> TensorDict:
+        ...
+
+    def get_envs(self) -> List[ImpEnvWrapper]:
         ...
 
     def any_terminated(self) -> bool:
+        ...
+
+    def all_terminated(self) -> bool:
         ...
 
 
@@ -775,3 +841,19 @@ class SearchParams:
 
 def search(probs: torch.Tensor, state: BridgeBiddingState, actors: List[SingleEnvActor], params: SearchParams):
     ...
+
+
+class Transition:
+    obs: TensorDict = ...
+    reply: TensorDict = ...
+    reward: torch.Tensor = ...
+    terminal: torch.Tensor = ...
+    next_obs: TensorDict = ...
+
+    def to_dict(self) -> TensorDict:
+        """
+        Convert transition to tensor dict
+        Returns:
+            The dict.
+        """
+        ...

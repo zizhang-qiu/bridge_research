@@ -113,14 +113,114 @@ def find_par_zero_deal():
 
 
 if __name__ == '__main__':
-    torch.set_printoptions(threshold=100000)
-    np.set_printoptions(threshold=100000)
-    common_utils.set_random_seeds(1)
-    cards = np.zeros([101, NUM_CARDS], dtype=int)
-    for i in range(101):
-        cards[i] = np.random.permutation(NUM_CARDS)
-    dd_table_res_list, pres_list = dds.calc_all_tables(cards)
-    ddts = dds.get_ddts_from_dd_table_res_list(dd_table_res_list)
-    print(ddts)
-    print(ddts.shape)
-    dds.get_par_scores_and_contracts_from_pres_list(pres_list)
+    # torch.set_printoptions(threshold=1000000)
+    # common_utils.set_random_seeds(1)
+    # dataset = load_rl_dataset("train")
+    # deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
+    # agent = sl_single_env_agent()
+    # agent = sl_vec_env_agent()
+    # env = rl_cpp.ImpEnv(deal_manager, [0, 0, 0, 0])
+    # obs = env.reset()
+    # transition_buffers = [rl_cpp.BridgeTransitionBuffer() for _ in range(4)]
+    # while not env.terminated():
+    #     player = env.get_acting_player()
+    #     reply = agent.act(tensor_dict_to_device(obs, "cuda"))
+    #     print(reply)
+    #     transition_buffers[player].push_obs_and_reply(obs, reply)
+    #     obs, r, t = env.step(reply)
+    #
+    # reward = env.returns()
+    # for i, transition_buffer in enumerate(transition_buffers):
+    #     transitions, weight = transition_buffer.pop_transitions(reward[i])
+    #     for transition in transitions:
+    #         print(transition.to_dict())
+    # evaluator = Evaluator(100, 1, "cuda")
+    # net1 = sl_net()
+    # net2 = sl_net()
+    # avg, sem, t, env0, env1 = evaluator.evaluate(net1, net2)
+    # print(avg, sem, t)
+    # env_ns = env0[0].get_envs()
+    # env_ew = env1[0].get_envs()
+    # for i in range(100):
+    #     print(env_ns[i], env_ew[i])
+    # replay_buffer = rl_cpp.Replay(800000, 42, 0.6, 0.4, 0)
+    # imp_vec_env = rl_cpp.ImpVecEnv()
+    # model_locker = rl_cpp.ModelLocker([torch.jit.script(agent)], "cuda")
+    # actor = rl_cpp.VecEnvActor(model_locker)
+    # for i in range(10):
+    #     imp_env = rl_cpp.ImpEnvWrapper(deal_manager, [0, 0, 0, 0], replay_buffer)
+    #     imp_vec_env.push(imp_env)
+    #
+    # imp_vec_env.reset()
+    # print(imp_vec_env.get_feature())
+    # while not imp_vec_env.all_terminated():
+    #     obs = imp_vec_env.get_feature()
+    #     print(obs)
+    #     reply = actor.act(obs)
+    #     imp_vec_env.step(reply)
+    #
+    # t = rl_cpp.ImpThreadLoop(imp_vec_env, actor)
+    # context = rl_cpp.Context()
+    # context.push_thread_loop(t)
+    # context.start()
+    # while replay_buffer.size() < 10000:
+    #     print(replay_buffer.size())
+    #     time.sleep(1)
+    #
+    # transition, weight = replay_buffer.sample(10, "cuda")
+    # print(transition.to_dict()["s"])
+    # print(transition.reply["values"])
+    # print(transition.reward)
+    # print(weight)
+    # priority = agent.compute_priority(transition)
+    # print(priority)
+
+    # imp_vec_env.reset()
+    # obs = imp_vec_env.get_feature()
+    # print(obs["perfect_s"].shape)
+    # while not imp_vec_env.all_terminated():
+    #     reply = agent.act(tensor_dict_to_device(obs, "cuda"))
+    #     print(reply["a"])
+    #     imp_vec_env.step(reply)
+    #     obs = imp_vec_env.get_feature()
+    # print(replay_buffer.num_add())
+    # print(replay_buffer.size())
+    # transition, weight = replay_buffer.sample(10, "cuda")
+    # print(transition.to_dict())
+    # print(weight)
+    # priority = agent.compute_priority(transition)
+    # print(priority)
+    # save_dir = "vs_wbridge5/folder_14"
+    # logs = []
+    # for i in range(8):
+    #     with open(os.path.join(save_dir, f"log_{i}.txt"), "r") as f:
+    #         log = f.read()
+    #     logs.append(log)
+    # with open(os.path.join(save_dir, "log.txt"), "a") as f:
+    #     f.write("\n\n".join(logs))
+    # save_dir = "vs_wbridge5/folder_16"
+    # imps_list = [np.load(os.path.join(save_dir, f"imps_{i}.npy")) for i in range(8)]
+    # imps = np.concatenate(imps_list)
+    #
+    # final_imps = np.concatenate([imps, np.load("vs_wbridge5/folder_19/imps.npy")])
+    # print(final_imps.shape)
+    # avg, sem = common_utils.get_avg_and_sem(final_imps)
+    # print(avg, sem)
+    # deal = deal_manager.next()
+    # state = rl_cpp.BridgeBiddingState(deal)
+    # print(state)
+    # evaluations = state.get_hand_evaluation()
+    # for evaluation in evaluations:
+    #     print(evaluation)
+    #     print(evaluation.length_per_suit)
+    # imps = []
+    # for i in range(20, 25):
+    #     imp = np.load(os.path.join(f"vs_wbridge5/folder_{i}", "imps.npy"))
+    #     imps.append(imp)
+    # final_imps = np.concatenate(imps)
+    # print(final_imps.shape)
+    # print(common_utils.get_avg_and_sem(final_imps))
+    # stats = torch.load("imitation_learning/metrics/stats.pth")
+    # for k, v in stats.items():
+    #     print(k, v)
+    pass
