@@ -8,13 +8,14 @@ import torchmetrics
 from matplotlib import pyplot as plt
 
 from bridge_vars import NUM_CALLS
-from nets import PolicyNet
+from nets import PolicyNet, PolicyNet2
 import common_utils
+from utils import sl_net
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint_path", type=str, default=None)
+    parser.add_argument("--checkpoint_path", type=str, default="imitation_learning/folder_20/checkpoint_0.pth")
     parser.add_argument("--dataset_dir", type=str,
                         default=r"D:/RL/rlul/pyrlul/bridge/dataset/expert/sl_data")
     parser.add_argument("--device", type=str, default="cuda")
@@ -22,20 +23,62 @@ def parse_args():
     return parser.parse_args()
 
 
+def test():
+    torch.set_printoptions(threshold=10000000)
+    args = parse_args()
+    dataset = torch.load(os.path.join(args.dataset_dir, "test_obs.p"))
+    obs = dataset["s"]
+    # obs = torch.hstack([dataset["s"], dataset["legal_actions"]])
+    labels = torch.load(os.path.join(args.dataset_dir, "test_label.p"))
+    # net = PolicyNet2()
+    # net.load_state_dict(torch.load(args.checkpoint_path)["model_state_dict"])
+    # net.to(args.device)
+    net = sl_net()
+    with torch.no_grad():
+        log_probs = net(obs.to(args.device))
+    log_probs = log_probs.cpu()
+    # print(log_probs)
+    probs = torch.exp(log_probs)
+    # print(probs)
+    pred_actions = torch.argmax(probs, 1)
+    accuracy = (pred_actions == labels).int().sum() / pred_actions.shape[0]
+
+    eq_indices = torch.nonzero(pred_actions == labels).squeeze()
+    neq_indices = torch.nonzero(pred_actions != labels).squeeze()
+    correct_classification_label_probs = probs[eq_indices].gather(1, labels[eq_indices].unsqueeze(1)).squeeze(1)
+    print(f"correct_classification_label_probs:"
+          f"max: {correct_classification_label_probs.max()},"
+          f"min : {correct_classification_label_probs.min()},"
+          f"mean : {correct_classification_label_probs.mean()},"
+          f"std: {torch.std(correct_classification_label_probs)}")
+    incorrect_classification_label_probs = probs[neq_indices].gather(1, labels[neq_indices].unsqueeze(1)).squeeze(1)
+    print(f"incorrect_classification_label_probs:"
+          f"max: {incorrect_classification_label_probs.max()},"
+          f"min : {incorrect_classification_label_probs.min()},"
+          f"mean : {incorrect_classification_label_probs.mean()},"
+          f"std: {torch.std(incorrect_classification_label_probs)}")
+
+    print(neq_indices.shape)
+    print(labels[neq_indices])
+
+
 def test_and_compute_metrics():
+    torch.set_printoptions(threshold=10000000)
     args = parse_args()
     save_dir = common_utils.mkdir_with_increment(args.save_dir)
-    obs = torch.load(os.path.join(args.dataset_dir, "test_obs.p"))["s"]
+    dataset = torch.load(os.path.join(args.dataset_dir, "test_obs.p"))
+    obs = torch.hstack([dataset["s"], dataset["legal_actions"]])
     labels = torch.load(os.path.join(args.dataset_dir, "test_label.p"))
 
-    net = PolicyNet()
+    net = PolicyNet2()
     net.load_state_dict(torch.load(args.checkpoint_path)["model_state_dict"])
     net.to(args.device)
     with torch.no_grad():
         log_probs = net(obs.to(args.device))
     log_probs = log_probs.cpu()
-    print(log_probs)
+    # print(log_probs)
     probs = torch.exp(log_probs)
+    print(probs)
     pred_actions = torch.argmax(probs, 1)
     accuracy = (pred_actions == labels).int().sum() / pred_actions.shape[0]
 
@@ -141,5 +184,7 @@ def test_and_compute_metrics():
     torch.save(stats, os.path.join(save_dir, "stats.pth"))
     pprint.pprint(stats)
 
+
 if __name__ == '__main__':
-    test_and_compute_metrics()
+    # test_and_compute_metrics()
+    test()

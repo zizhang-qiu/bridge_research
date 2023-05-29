@@ -4,12 +4,12 @@
 @date:2023/2/23
 @encoding:utf-8
 """
-from typing import Optional, Tuple, Dict, List
+from typing import Optional, Tuple, Dict, List, Union
 
 import torch
 from torch import nn
 import rl_cpp
-from nets import PolicyNet, ValueNet, PerfectValueNet
+from nets import PolicyNet, ValueNet, PerfectValueNet, PolicyNet2
 
 
 class SingleEnvAgent(nn.Module):
@@ -56,7 +56,7 @@ class SingleEnvAgent(nn.Module):
             action = torch.argmax(probs)
         else:
             if torch.equal(probs, torch.zeros_like(probs)):
-                # print("Warning: all the probs are zero")
+                print("Warning: all the probs are zero")
                 action = torch.multinomial(legal_actions, 1).squeeze()
             else:
                 action = torch.multinomial(probs, 1).squeeze()
@@ -111,9 +111,10 @@ class SingleEnvAgent(nn.Module):
         legal_actions = obs["legal_actions"]
         s = obs["s"]
         log_probs = self.get_log_probs(s.unsqueeze(0)).squeeze()
-        probs = torch.exp(log_probs) * legal_actions
+        raw_probs = torch.exp(log_probs)
+        probs = raw_probs * legal_actions
         action = torch.argmax(probs)
-        return {"a": action.detach().cpu()}
+        return {"a": action.detach().cpu(), "probs": probs.detach().cpu(), "raw_probs": raw_probs.detach().cpu()}
 
     def compute_policy_gradient_loss(self, batch_obs: torch.Tensor, batch_action: torch.Tensor,
                                      batch_reward: torch.Tensor, batch_log_probs: torch.Tensor,
@@ -217,7 +218,7 @@ class SingleEnvAgent(nn.Module):
 
 
 class VecEnvAgent(nn.Module):
-    def __init__(self, p_net: PolicyNet):
+    def __init__(self, p_net: Union[PolicyNet, PolicyNet2]):
         """
         An agent for acting in vectorized env.
         Args:
@@ -273,16 +274,21 @@ class VecEnvAgent(nn.Module):
         perfect_s = obs["perfect_s"]
         legal_actions = obs["legal_actions"]
         log_probs = self.get_log_probs(s)
-        probs = torch.exp(log_probs) * legal_actions
-        all_zeros = torch.all(probs == 0, dim=1)
+        probs = torch.exp(log_probs)
+        topk_values, topk_indices = probs.topk(4, dim=1)
+        mask = torch.zeros_like(probs)
+        mask.scatter_(1, topk_indices, 1)
+        legal_probs = probs * legal_actions
+        all_zeros = torch.all(legal_probs == 0, dim=1)
         zero_indices = torch.nonzero(all_zeros).squeeze()
         if zero_indices.numel() > 0:
-            probs[zero_indices] = legal_actions[zero_indices]
+            print("warning.")
+            legal_probs[zero_indices] = legal_actions[zero_indices]
         greedy = obs["greedy"]
 
-        greedy_action = torch.argmax(probs, 1)
+        greedy_action = torch.argmax(legal_probs, 1)
         # print("greedy actions",  greedy_action)
-        random_actions = torch.multinomial(probs, 1).squeeze()
+        random_actions = torch.multinomial(legal_probs, 1).squeeze()
 
         # print("random actions", random_actions)
         action = greedy * greedy_action + (1 - greedy) * random_actions

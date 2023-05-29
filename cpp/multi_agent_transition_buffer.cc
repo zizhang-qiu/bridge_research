@@ -3,6 +3,7 @@
 //
 #include "multi_agent_transition_buffer.h"
 #include "rl/logging.h"
+#include "rl/utils.h"
 namespace rl::bridge {
 
 bool BridgeTransitionBuffer::PushObsAndReply(const TensorDict &obs,

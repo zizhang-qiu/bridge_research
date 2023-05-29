@@ -8,7 +8,7 @@ void VecEnvEvalThreadLoop::MainLoop() {
   TensorDict obs = {};
   TensorDict reply;
   env_ns_->Reset();
-  obs = env_ns_->GetFeatures();
+  obs = env_ns_->GetFeature();
   Player current_player = kNorth;
   while (!env_ns_->AllTerminated()) {
 //    std::cout << current_player << std::endl;
@@ -19,7 +19,7 @@ void VecEnvEvalThreadLoop::MainLoop() {
     }
     env_ns_->Step(reply);
 //    std::cout << "stepped." << std::endl;
-    obs = env_ns_->GetFeatures();
+    obs = env_ns_->GetFeature();
 //    std::cout << "got feature." << std::endl;
     current_player = (current_player + 1) % kNumPlayers;
   }
@@ -28,7 +28,7 @@ void VecEnvEvalThreadLoop::MainLoop() {
   current_player = kNorth;
   obs = {};
   env_ew_->Reset();
-  obs = env_ew_->GetFeatures();
+  obs = env_ew_->GetFeature();
   while (!env_ew_->AllTerminated()) {
 //    std::cout << current_player << std::endl;
     if (current_player % 2 == 1) {
@@ -37,7 +37,7 @@ void VecEnvEvalThreadLoop::MainLoop() {
       reply = oppo_actor_->Act(obs);
     }
     env_ew_->Step(reply);
-    obs = env_ew_->GetFeatures();
+    obs = env_ew_->GetFeature();
     current_player = (current_player + 1) % kNumPlayers;
   }
   terminated_ = true;
@@ -50,7 +50,7 @@ void BridgeThreadLoop::MainLoop() {
 
   while (!Terminated()) {
     env_->Reset();
-    obs = env_->GetFeatures();
+    obs = env_->GetFeature();
     while (!env_->AnyTerminated()) {
       if (Terminated()) {
         break;
@@ -61,7 +61,7 @@ void BridgeThreadLoop::MainLoop() {
       }
       reply = actor_->Act(obs);
       env_->Step(reply);
-      obs = env_->GetFeatures();
+      obs = env_->GetFeature();
     }
   }
   terminated_ = true;
@@ -90,4 +90,26 @@ void ImpThreadLoop::MainLoop() {
   terminated_ = true;
 }
 
+void BridgeVecEnvThreadLoop::MainLoop() {
+  TensorDict obs = {};
+  TensorDict reply;
+
+  while (!Terminated()) {
+    env_->Reset();
+    obs = env_->GetFeature();
+    while (!env_->AnyTerminated()) {
+      if (Terminated()) {
+        break;
+      }
+      if (pause_signal) {
+        paused_ = true;
+        WaitUntilResume();
+      }
+      reply = actor_->Act(obs);
+      env_->Step(reply);
+      obs = env_->GetFeature();
+    }
+  }
+  terminated_ = true;
+}
 }

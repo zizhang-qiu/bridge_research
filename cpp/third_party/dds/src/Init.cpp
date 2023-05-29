@@ -120,6 +120,9 @@ void STDCALL SetResources(
     thrMax = ncores;
   else
     thrMax = min(maxThreadsIn, ncores);
+//  std::cout << "ncores: " << ncores << std::endl;
+//  std::cout << "sysdep.IsSingleThreaded(): "<< sysdep.IsSingleThreaded() << std::endl;
+//  std::cout << "thrMax: "<< thrMax << std::endl;
 
   // For simplicity we won't vary the amount of memory per thread
   // in the small and large versions.

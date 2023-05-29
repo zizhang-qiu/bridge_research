@@ -21,7 +21,13 @@ namespace py = pybind11;
 using namespace bridge_encode;
 using namespace rl;
 using namespace rl::bridge;
-
+void AccessorTest() {
+  torch::Tensor a = torch::tensor({1, 3, 2, 4}, torch::kInt);
+  auto accessor = a.accessor<int, 1>();
+  for (int i = 0; i < 4; ++i) {
+    std::cout << accessor[i] << std::endl;
+  }
+}
 PYBIND11_MODULE(rl_cpp, m) {
   m.def("encode", &Encode, "A function encodes bridge state.");
   m.def("get_imp", &GetImp);
@@ -74,6 +80,11 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def_readonly("length_per_suit", &HandEvaluation::length_per_suit)
       .def("__repr__", &HandEvaluation::ToString);
 
+  m.def("card_string", &CardString);
+  m.def("get_card", &Card);
+  m.def("bid_string", &BidString);
+  m.def("get_bid", &Bid);
+
   py::class_<BridgeBiddingState, std::shared_ptr<BridgeBiddingState>>(
       m, "BridgeBiddingState")
       .def(py::init<BridgeDeal>())
@@ -99,6 +110,8 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("observation_tensor", py::overload_cast<Player>(&BridgeBiddingState::ObservationTensor, py::const_))
       .def("hidden_observation_tensor", &BridgeBiddingState::HiddenObservationTensor)
       .def("observation_tensor_with_hand_evaluation", &BridgeBiddingState::ObservationTensorWithHandEvaluation)
+      .def("observation_tensor_with_legal_actions", &BridgeBiddingState::ObservationTensorWithLegalActions)
+      .def("observation_tensor2", &BridgeBiddingState::ObservationTensor2)
       .def("terminate", &BridgeBiddingState::Terminate)
       .def("legal_actions", &BridgeBiddingState::LegalActions)
       .def("clone", &BridgeBiddingState::Clone)
@@ -156,9 +169,16 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("step", &BridgeVecEnv::Step)
       .def("get_envs", &BridgeVecEnv::GetEnvs)
       .def("get_returns", &BridgeVecEnv::GetReturns)
-      .def("get_feature", &BridgeVecEnv::GetFeatures)
+      .def("get_feature", &BridgeVecEnv::GetFeature)
       .def("any_terminated", &BridgeVecEnv::AnyTerminated)
       .def("all_terminated", &BridgeVecEnv::AllTerminated);
+
+  py::class_<BridgeBiddingEnvWrapper, std::shared_ptr<BridgeBiddingEnvWrapper>>(m, "BridgeBiddingEnvWrapper")
+      .def(py::init<std::shared_ptr<BridgeDealManager>, std::vector<int>, std::shared_ptr<Replay>>());
+
+  py::class_<BridgeWrapperVecEnv, std::shared_ptr<BridgeWrapperVecEnv>>(m, "BridgeWrapperVecEnv")
+      .def(py::init<>())
+      .def("push", &BridgeWrapperVecEnv::Push, py::keep_alive<1, 2>());
 
   py::class_<ImpEnv, std::shared_ptr<ImpEnv>>(m, "ImpEnv")
       .def(py::init<std::shared_ptr<BridgeDealManager>,
@@ -224,6 +244,9 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def(py::init<std::shared_ptr<ImpVecEnv>,
                     std::shared_ptr<VecEnvActor>>());
 
+  py::class_<BridgeVecEnvThreadLoop, ThreadLoop, std::shared_ptr<BridgeVecEnvThreadLoop>>(m, "BridgeVecEnvThreadLoop")
+      .def(py::init<std::shared_ptr<BridgeWrapperVecEnv>, std::shared_ptr<VecEnvActor>>());
+
   m.def("make_obs_tensor_dict", &bridge::MakeObsTensorDict);
   m.def("check_prob_not_zero", &rl::utils::CheckProbNotZero);
 
@@ -240,7 +263,8 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def_readwrite("top_k", &SearchParams::top_k)
       .def_readwrite("min_prob", &SearchParams::min_prob)
       .def_readwrite("verbose_level", &SearchParams::verbose_level)
-      .def_readwrite("seed", &SearchParams::seed);
+      .def_readwrite("seed", &SearchParams::seed)
+      .def_readwrite("select_highest_rollout_value", &SearchParams::select_highest_rollout_value);
 
   m.def("search", &rl::bridge::Search);
 
@@ -250,4 +274,12 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("num_add", &Replay::NumAdd)
       .def("update_priority", &Replay::UpdatePriority)
       .def("size", &Replay::Size);
+
+  py::class_<Searcher, std::shared_ptr<Searcher>>(m, "Searcher")
+      .def(py::init<SearchParams,
+                    std::vector<std::shared_ptr<VecEnvActor>>,
+                    int>())
+      .def("search", &Searcher::Search);
+
+  m.def("accessor_test", &AccessorTest);
 }

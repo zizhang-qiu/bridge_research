@@ -17,6 +17,7 @@ struct Contract {
   Denomination trumps = kNoTrump;
   DoubleStatus double_status = kUndoubled;
   int declarer = -1;
+  int bidder = -1;
 
   [[nodiscard]] std::string ToString() const;
   [[nodiscard]] int Index() const;

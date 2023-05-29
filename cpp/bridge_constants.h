@@ -56,6 +56,19 @@ inline constexpr int kAuctionTensorSize =
     ) +
         kNumCards // Our hand
         + kNumVulnerabilities * kNumPartnerships;
+
+inline constexpr int kAuctionComplicateTensorSize =
+    kAuctionTensorSize
+    + 1 // Is it the opening bid?
+    + kNumSuits // High card points for each suit
+    + 1 // Total high card points
+    + kNumSuits // Length for each suit
+    + (1 + kNumBids) // current contract (pass + 35 contracts)
+    + kNumPlayers // Which player bid the current contract?
+    + kNumPlayers // Who declarer is?
+    + kNumDoubleStates // Is the contract undoubled, doubled or redoubled?
+    + kNumCalls; // Available calls
+
 // 52 * 3
 inline constexpr int kHiddenInfoTensorSize = kNumCards * (kNumPlayers - 1);
 inline constexpr int kPerfectInfoTensorSize = kHiddenInfoTensorSize + kAuctionTensorSize;

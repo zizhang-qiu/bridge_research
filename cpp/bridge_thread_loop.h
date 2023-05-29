@@ -52,5 +52,18 @@ class ImpThreadLoop : public ThreadLoop {
   std::shared_ptr<ImpVecEnv> env_;
   std::shared_ptr<VecEnvActor> actor_;
 };
+
+class BridgeVecEnvThreadLoop : public ThreadLoop {
+ public:
+  BridgeVecEnvThreadLoop(std::shared_ptr<BridgeWrapperVecEnv> env,
+                         std::shared_ptr<VecEnvActor> actor)
+      : env_(std::move(env)),
+        actor_(std::move(actor)) {}
+
+  void MainLoop() override;
+ private:
+  std::shared_ptr<BridgeWrapperVecEnv> env_;
+  std::shared_ptr<VecEnvActor> actor_;
+};
 }
 #endif //BRIDGE_RESEARCH_CPP_BRIDGE_THREAD_LOOP_H_

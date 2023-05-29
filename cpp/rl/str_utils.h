@@ -6,9 +6,11 @@
 #define BRIDGE_RESEARCH_RL_STR_UTILS_H
 #include <memory>
 #include <stdexcept>
+#include <cstring>
 #include <string>
 #include <sstream>
 #include <vector>
+#undef snprintf
 namespace rl::utils {
 
 namespace str_utils::internal {
@@ -24,8 +26,7 @@ extern const char kToLower[256];
 
 template<typename... Args>
 std::string StrFormat(const std::string &format, Args... args) {
-  int size_s = std::snprintf(nullptr, 0, format.c_str(), args...) +
-      1; // Extra space for '\0'
+  int size_s = std::snprintf(nullptr, 0, format.c_str(), args...) + 1; // Extra space for '\0'
   if (size_s <= 0) {
     throw std::runtime_error("Error during formatting.");
   }
@@ -52,6 +53,8 @@ template<typename... Args>
 void StrAppend(std::string *str, Args... args) {
   StrAppendImpl(str, args...);
 }
+
+inline void StrAppend(std::string *) {}
 
 inline std::string StrJoin(const std::vector<std::string> &values, const std::string &delimiter) {
   std::ostringstream os;
@@ -98,6 +101,14 @@ inline bool StrContains(const std::string &str, const std::string &substr) {
 
 inline bool StrContains(const std::string &str, char substr) {
   return str.find(substr) != std::string::npos;
+}
+
+template<class... Args>
+inline std::string StrCat(const Args &...args) {
+  using Expander = int[];
+  std::stringstream ss;
+  (void) Expander{0, (void(ss << args), 0)...};
+  return ss.str();
 }
 
 inline bool StartsWith(const std::string &text,

@@ -15,7 +15,7 @@ const std::vector<std::string> AllBidStr = {
     "6C", "6D", "6H", "6S", "6NT", "7C", "7D", "7H", "7S", "7NT"
 };
 
-TEST(BluechipTest, TestBidActionToStr) {
+TEST(BluechipTest, BidActionToStrTest) {
   // bid action to str
   for (int bid = 0; bid < kNumCalls; ++bid) {
     auto bid_str = bluechip::BidActionToStr(bid);
@@ -24,7 +24,7 @@ TEST(BluechipTest, TestBidActionToStr) {
   }
 }
 
-TEST(BluechipTest, TestBidStrToAction) {
+TEST(BluechipTest, BidStrToActionTest) {
   std::vector<std::string> levels = {"1", "2", "3", "4", "5", "6", "7"};
   for (int i = bluechip::kRedouble + 1; i < kNumCalls; ++i) {
     int bid = bluechip::BidStrToAction(AllBidStr[i]);
@@ -32,14 +32,14 @@ TEST(BluechipTest, TestBidStrToAction) {
   }
 }
 
-TEST(BluechipTest, TestHandStrNoVoid) {
+TEST(BluechipTest, HandStrNoVoidTest) {
   // no void suit
   std::vector<int> cards = {47, 35, 31, 23, 11, 7, 50, 42, 34, 10, 6, 37, 20};
   auto hand_str = bluechip::GetHandString(cards);
   EXPECT_EQ(hand_str, "C 7. D J. H A Q T 4 3. S K T 9 7 4 3.");
 }
 
-TEST(BluechipTest, TestHandStrVoid) {
+TEST(BluechipTest, HandStrVoidTest) {
   // void suit
   std::vector<int> cards = {0, 1, 2, 4, 5, 6, 8, 9, 10, 13, 14, 20, 21};
   auto hand_str = bluechip::GetHandString(cards);

@@ -26,16 +26,16 @@ class BridgeBiddingEnv : public Env {
   BridgeBiddingEnv(std::shared_ptr<BridgeDealManager> deal_manager,
                    const std::vector<int> &greedy);
 
-  bool Terminated() const override;
+  [[nodiscard]] bool Terminated() const override;
   bool Reset() override;
   void Step(const TensorDict &reply) override;
-  TensorDict GetFeature() const override;
-  Player CurrentPlayer() const override;
-  std::vector<float> Returns() const override;
-  std::string ToString() const;
-  std::shared_ptr<BridgeBiddingState> GetState() const;
+  [[nodiscard]] TensorDict GetFeature() const override;
+  [[nodiscard]] Player CurrentPlayer() const override;
+  [[nodiscard]] std::vector<float> Returns() const override;
+  [[nodiscard]] std::string ToString() const;
+  [[nodiscard]] std::shared_ptr<BridgeBiddingState> GetState() const;
   static int GetFeatureSize() { return kAuctionTensorSize; }
-  int GetNumDeals() const { return num_deals_played_; }
+  [[nodiscard]] int GetNumDeals() const { return num_deals_played_; }
 
  private:
   BridgeDeal current_deal_;
@@ -43,6 +43,33 @@ class BridgeBiddingEnv : public Env {
   std::shared_ptr<BridgeDealManager> deal_manager_;
   const std::vector<int> greedy_;
   int num_deals_played_ = -1;
+};
+
+class BridgeBiddingEnvWrapper {
+ public:
+  BridgeBiddingEnvWrapper(std::shared_ptr<BridgeDealManager> deal_manager,
+                          const std::vector<int> &greedy,
+                          std::shared_ptr<Replay> replay_buffer)
+      : env_(std::move(deal_manager), greedy),
+        replay_buffer_(std::move(replay_buffer)),
+        transition_buffer_(bridge::kNumPlayers) {}
+
+  bool Reset();
+  [[nodiscard]] bool Terminated() const;
+  void Step(const TensorDict &reply);
+  [[nodiscard]] TensorDict GetFeature() {
+    auto obs = env_.GetFeature();
+    last_obs_ = tensor_dict::Clone(obs);
+    return obs;
+  }
+  [[nodiscard]] std::string ToString() const {
+    return env_.ToString();
+  }
+ private:
+  BridgeBiddingEnv env_;
+  MultiAgentTransitionBuffer transition_buffer_;
+  std::shared_ptr<Replay> replay_buffer_ = nullptr;
+  TensorDict last_obs_;
 };
 
 class BridgeVecEnv {
@@ -57,7 +84,7 @@ class BridgeVecEnv {
   void Step(const TensorDict &reply);
   [[nodiscard]] bool AnyTerminated() const;
   [[nodiscard]] bool AllTerminated() const;
-  [[nodiscard]] TensorDict GetFeatures() const;
+  [[nodiscard]] TensorDict GetFeature() const;
   [[nodiscard]] std::vector<std::shared_ptr<BridgeBiddingEnv>> GetEnvs() const {
     return envs_;
   }
@@ -66,5 +93,25 @@ class BridgeVecEnv {
  private:
   std::vector<std::shared_ptr<BridgeBiddingEnv>> envs_;
 };
+
+class BridgeWrapperVecEnv{
+ public:
+  BridgeWrapperVecEnv() = default;
+  void Push(const std::shared_ptr<BridgeBiddingEnvWrapper> &env) {
+    envs_.emplace_back(env);
+  }
+  bool Reset();
+  void Step(const TensorDict &reply);
+  [[nodiscard]] bool AnyTerminated() const;
+  [[nodiscard]] bool AllTerminated() const;
+  [[nodiscard]] TensorDict GetFeature() const;
+  [[nodiscard]] std::vector<std::shared_ptr<BridgeBiddingEnvWrapper>> GetEnvs() const {
+    return envs_;
+  }
+
+ private:
+  std::vector<std::shared_ptr<BridgeBiddingEnvWrapper>> envs_;
+};
+
 }  // namespace rl::bridge
 #endif  // BRIDGE_RESEARCH_BRIDGE_ENVS_H_

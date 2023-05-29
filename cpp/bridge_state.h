@@ -20,6 +20,10 @@ namespace rl::bridge {
 
 inline constexpr int kFirstBid = kRedouble + 1;
 
+int SuitToDDSStrain(Suit suit);
+
+int DenominationToDDSStrain(Denomination denomination);
+
 int Bid(int level, Denomination denomination);
 
 int BidLevel(int bid);
@@ -44,9 +48,7 @@ int Partnership(Player player);
 
 int Partner(Player player);
 
-int SuitToDDSStrain(Suit suit);
-
-int DenominationToDDSStrain(Denomination denomination);
+int RelativePlayer(Player me, Player target);
 
 struct HandEvaluation {
   int high_card_points = 0;
@@ -54,6 +56,7 @@ struct HandEvaluation {
   int shortness_points = 0;
   int support_points = 0;
   int control_count = 0;
+  std::array<int, kNumSuits> hcp_per_suit{};
   std::array<int, kNumSuits> length_per_suit{};
 
   [[nodiscard]] std::string ToString() const;
@@ -115,7 +118,15 @@ class BridgeBiddingState {
   std::vector<float> LegalActionsMask() const;
   std::shared_ptr<BridgeBiddingState> Clone() const;
 
+  std::shared_ptr<BridgeBiddingState> Child(Action action) const;
+
+  void SetDoubleDummyResults(ddTableResults double_dummy_results) { double_dummy_results_ = double_dummy_results; }
+
   std::vector<float> ObservationTensorWithHandEvaluation() const;
+
+  std::vector<float> ObservationTensorWithLegalActions() const;
+
+  std::vector<float> ObservationTensor2() const;
 
   std::vector<int> GetDoubleDummyTable();
   // use dds to compute double dummy result
@@ -132,6 +143,12 @@ class BridgeBiddingState {
     std::vector<int> ret = {actual_trick, num_declarer_tricks_};
     return ret;
   }
+
+  int GetDeclarerTricks() const;
+
+  std::vector<int> ScoreForContracts(int player, const std::vector<int> &contracts) const;
+
+  std::vector<Action> GetCards() const;
 
   std::vector<Action> GetPlayerCards(Player player) const;
   Contract GetContract() const { return contract_; }

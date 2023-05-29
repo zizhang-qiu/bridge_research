@@ -139,7 +139,7 @@ def main():
     # net.load_state_dict(torch.load(config["checkpoint_path"])["model_state_dict"])
     net.to("cuda")
     num_processes = config["num_processes"]
-    num_deals_per_process = common_utils.allocate_tasks_uniformly(num_processes, config["num_deals"])
+    num_deals_per_process = common_utils.allocate_tasks_uniformly(num_processes, min(config["num_deals"], cards.shape[0]))
     shared_dict = common_utils.create_shared_dict(net)
     save_dir = common_utils.mkdir_with_increment(config["save_dir"])
     logger = common_utils.Logger(os.path.join(save_dir, "log.txt"), auto_line_feed=True, verbose=False)

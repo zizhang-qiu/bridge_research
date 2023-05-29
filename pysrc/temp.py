@@ -7,22 +7,25 @@
 """
 import argparse
 import json
+import math
 import os
 import pickle
 import pprint
 import re
+import sys
 import time
+from collections import Counter
 from typing import Dict, Protocol, List
 import torch
 import yaml
 import dds
 import rl_cpp
 import numpy as np
-
+import torch.nn.functional as F
 import torchviz
 from torchviz import make_dot
 import torchview
-from agent_for_cpp import SingleEnvAgent
+from agent_for_cpp import SingleEnvAgent, VecEnvAgent
 from bridge_vars import NUM_SUITS, PLUS_MINUS_SYMBOL, NUM_CARDS, NUM_PLAYERS
 from global_vars import RLDataset
 from nets import PolicyNet
@@ -52,46 +55,6 @@ def _deal_trajectory(line: str) -> List[int]:
     return actions[:NUM_CARDS]
 
 
-def make_open_spiel_test_data():
-    data_path = r"D:\Projects\bridge_research\dataset\expert\test.txt"
-    with open(data_path, "r") as f:
-        deals = f.readlines()
-    ret_deals = [_deal_trajectory(deal) for deal in deals]
-    deals_np = np.array(ret_deals)
-    assert np.array_equal(deals_np.shape, [10000, NUM_CARDS])
-    np.save(r"D:\Projects\bridge_research\dataset\rl_data\vs_wb5_open_spiel_trajectories.npy", deals_np)
-
-
-def parse_args():
-    """
-    Parse arguments using Argument parser
-    Returns:
-        The args.
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint_path", type=str,
-                        default=None)
-    parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--eval_device", type=str, default="cuda")
-    parser.add_argument("--num_threads", type=int, default=8)
-    parser.add_argument("--policy_lr", type=float, default=1e-6)
-    parser.add_argument("--value_lr", type=float, default=1e-4)
-    parser.add_argument("--seed", type=int, default=88)
-    parser.add_argument("--burn_in_frames", type=int, default=80000)
-    parser.add_argument("--buffer_capacity", type=int, default=800000)
-    parser.add_argument("--num_epochs", type=int, default=2000)
-    parser.add_argument("--epoch_len", type=int, default=1000)
-    parser.add_argument("--sample_batch_size", type=int, default=2048)
-    parser.add_argument("--max_grad_norm", type=float, default=40.0)
-    parser.add_argument("--entropy_ratio", type=float, default=0.01)
-    parser.add_argument("--clip_eps", type=float, default=0.2)
-    parser.add_argument("--actor_update_freq", type=int, default=100)
-    parser.add_argument("--opponent_update_freq", type=int, default=400)
-    parser.add_argument("--save_dir", type=str, default="a2c")
-
-    return parser.parse_args()
-
-
 def find_par_zero_deal():
     while True:
         flag = False
@@ -113,10 +76,19 @@ def find_par_zero_deal():
 
 
 if __name__ == '__main__':
+    # imps = np.load("vs_wbridge5/folder_28/imps.npy")
+    # c = Counter(imps)
+    # print(c)
+    # print(sorted(c.items()))
     # torch.set_printoptions(threshold=1000000)
     # common_utils.set_random_seeds(1)
     # dataset = load_rl_dataset("train")
     # deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
+    # deal = deal_manager.next()
+    # state = rl_cpp.BridgeBiddingState(deal)
+    # obs = rl_cpp.make_obs_tensor_dict(state, 1)
+    # for k, v in obs.items():
+    #     print(k, v.shape)
     # agent = sl_single_env_agent()
     # agent = sl_vec_env_agent()
     # env = rl_cpp.ImpEnv(deal_manager, [0, 0, 0, 0])
@@ -223,4 +195,73 @@ if __name__ == '__main__':
     # stats = torch.load("imitation_learning/metrics/stats.pth")
     # for k, v in stats.items():
     #     print(k, v)
-    pass
+    # rl_cpp.accessor_test()
+    # device = "cuda"
+    # net = sl_net()
+    #
+    # s_agent = SingleEnvAgent(net).to(device)
+    # v_agent = VecEnvAgent(net).to(device)
+    # s_actor = rl_cpp.SingleEnvActor(rl_cpp.ModelLocker([torch.jit.script(s_agent).to(device)], device))
+    # v_actor = rl_cpp.VecEnvActor(rl_cpp.ModelLocker([torch.jit.script(v_agent).to(device)], device))
+    #
+    # deal = deal_manager.next()
+    # state = rl_cpp.BridgeBiddingState(deal)
+    # params = rl_cpp.SearchParams()
+    # params.verbose_level = 1
+    # params.max_rollouts = 1000
+    # params.min_rollouts = 100
+    # params.max_particles = 100000
+    # state.apply_action(6)
+    # state.apply_action(13)
+    # state.apply_action(0)
+    # state.apply_action(14)
+    #
+
+    # searcher = rl_cpp.Searcher(params, [v_actor for _ in range(NUM_PLAYERS)], 100)
+    # while not state.terminated():
+    #
+    #     obs = rl_cpp.make_obs_tensor_dict(state, 1)
+    # # print(obs)
+    #     reply = s_actor.act(obs)
+    #     # print(reply)
+    #     probs = torch.exp(reply["log_probs"])
+    #     st = time.perf_counter()
+    #     action = searcher.search(state, probs)
+    #     ed = time.perf_counter()
+    #     print(action, f"Elapsed time: {ed - st}", sep="\t")
+    #     state.apply_action(action)
+    #     input("press random key.")
+    # print(state)
+    # cards = dataset["cards"]
+    # ddts = dataset["ddts"]
+    # par_scores = dataset["par_scores"]
+    # with open("temp.txt", "w") as f:
+    #     cards_str = np.array2string(par_scores[:100], separator=", ", threshold=sys.maxsize, max_line_width=sys.maxsize)
+    #     cards_str = cards_str.replace("[", "{").replace("]", "}")
+    #     f.write(cards_str)
+    # a = torch.rand(10)
+    # a = F.log_softmax(a, -1)
+    # print(a)
+    # a = F.log_softmax(a, -1)
+    # print(a)
+    # print(torch.exp(a))
+    # probs = torch.tensor([5.0048e-01, 0.0000e+00, 0.0000e+00, 1.5615e-03, 8.6133e-04, 1.9591e-04,
+    #                       1.5676e-06, 4.2391e-06, 2.1365e-07, 9.7709e-07, 3.2186e-07, 5.4442e-11,
+    #                       4.4298e-09, 9.7094e-12, 6.0384e-14, 6.9944e-15, 1.9726e-15, 2.9187e-14,
+    #                       1.8934e-18, 1.4101e-23, 1.7813e-24, 9.5524e-29, 4.3005e-34, 6.8552e-31,
+    #                       2.6937e-32, 3.2111e-33, 2.1944e-35, 2.2660e-15, 8.7025e-36, 1.2179e-34,
+    #                       5.9316e-34, 5.1651e-35, 4.2461e-31, 1.3505e-23, 2.7572e-13, 1.4730e-10,
+    #                       1.4084e-31, 2.5270e-12])
+    # values = torch.zeros(38, dtype=torch.float)
+    # values[0] = -112280
+    # values[3] = -156770
+    # values[4] = -142790
+    # values[5] = -161930
+    # probs_posterior = probs * torch.exp(values / (100 * math.sqrt(1000)))
+    # print(probs_posterior)
+    # print(probs_posterior / torch.sum(probs_posterior))
+    # imps = np.load("vs_wbridge5/folder_47/imps_0.npy")
+    # print(imps)
+    # print(np.load("vs_wbridge5/folder_44/imps_0.npy")[:imps.size])
+    net = sl_net(device="cpu")
+    torch.save(net.state_dict(), "net.pth")

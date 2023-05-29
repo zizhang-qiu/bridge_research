@@ -7,7 +7,7 @@
 #include <cassert>
 #include <iostream>
 #include <string>
-#include "utils.h"
+#include "str_utils.h"
 namespace rl::logging{
 template <class... Args>
 void AssertWithMessage(bool condition, Args&&... args) {

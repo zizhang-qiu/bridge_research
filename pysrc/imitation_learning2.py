@@ -14,7 +14,7 @@ from bridge_vars import NUM_CARDS
 from nets import PolicyNet2
 from bridge_bidding_imitation_learning import cross_entropy, compute_accuracy
 
-OBSERVATION_TENSOR_SIZE = 571
+OBSERVATION_TENSOR_SIZE = 480 + 38
 
 dataset_dir = "dataset/expert"
 
@@ -42,7 +42,7 @@ def make_sample(dataset: List[List[int]]) -> Generator:
             state = rl_cpp.BridgeBiddingState(deal)
             for action in trajectory[NUM_CARDS:action_index]:
                 state.apply_action(action - 52)
-            observation_tensor = torch.tensor(state.observation_tensor_with_hand_evaluation())
+            observation_tensor = torch.tensor(state.observation_tensor_with_legal_actions())
             yield observation_tensor, trajectory[action_index] - 52
 
 
@@ -78,7 +78,7 @@ def make_all_samples(dataset: List[List[int]], device: str) -> Tuple[torch.Tenso
         deal.ddt = np.zeros(20, dtype=int)
         state = rl_cpp.BridgeBiddingState(deal)
         for action in trajectory[NUM_CARDS:]:
-            observation_tensor = torch.tensor(state.observation_tensor_with_hand_evaluation())
+            observation_tensor = torch.tensor(state.observation_tensor_with_legal_actions())
             label = action - 52
             observations.append(observation_tensor)
             labels.append(label)
@@ -88,7 +88,7 @@ def make_all_samples(dataset: List[List[int]], device: str) -> Tuple[torch.Tenso
 
 def main():
     common_utils.set_random_seeds(42)
-    train_batch_size = 128
+    train_batch_size = 16
     num_iterations = 500000
     lr = 3e-4
     eval_freq = 10000

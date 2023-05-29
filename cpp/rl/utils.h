@@ -19,9 +19,14 @@
 #include <vector>
 #include <stdexcept>
 
-#undef snprintf
-
 namespace rl::utils {
+
+template<typename T, std::size_t N>
+inline std::vector<T> GetTopKElements(const std::array<T, N> &arr, int k) {
+  std::vector<T> copy(arr.begin(), arr.end());
+  std::partial_sort(copy.begin(), copy.begin() + k, copy.end(), std::greater<T>());
+  return std::vector<T>(copy.begin(), copy.begin() + k);
+}
 
 template<typename T>
 inline std::vector<T> ConcatenateVectors(const std::vector<T> &vector1, const std::vector<T> &vector2) {
@@ -66,12 +71,32 @@ inline void Print2DArray(const T (&arr)[ROW][COL]) {
   }
 }
 
-template<class... Args>
-inline std::string StrCat(const Args &...args) {
-  using Expander = int[];
-  std::stringstream ss;
-  (void) Expander{0, (void(ss << args), 0)...};
-  return ss.str();
+template<typename T, std::size_t N>
+inline void PrintArray(const std::array<T, N> &arr) {
+  for (size_t i = 0; i < N; ++i) {
+    std::cout << arr[i] << ", " << std::endl;
+  }
+}
+
+template<typename T>
+inline T SumUpVector(const std::vector<T> &vec) {
+  T sum{};
+  for (const auto elem : vec) {
+    sum += elem;
+  }
+  return sum;
+}
+
+template<typename T>
+inline std::vector<T> RepeatVector(const std::vector<T> &vec, int n) {
+  std::vector<T> result;
+  result.reserve(vec.size() * n);  // Reserve space for the repeated vector
+
+  for (int i = 0; i < n; ++i) {
+    result.insert(result.end(), vec.begin(), vec.end());
+  }
+
+  return result;
 }
 
 inline std::vector<int> VectorMod(const std::vector<int> &vec, int num) {
@@ -188,12 +213,24 @@ inline torch::Tensor GetTopkActions(const torch::Tensor &policy, int k,
 inline std::vector<int> GetOneHotIndices(const std::vector<float> &tensor) {
   std::vector<int> indices;
   for (int i = 0; i < tensor.size(); ++i) {
-    if(tensor[i]==1.0){
+    if (tensor[i] == 1.0) {
       indices.push_back(i);
     }
   }
   return indices;
 }
+
+inline std::vector<int> GetNonZeroIndices(const std::vector<float> &tensor){
+  std::vector<int> indices;
+  for (int i = 0; i < tensor.size(); ++i) {
+    if (tensor[i] != 0.0) {
+      indices.push_back(i);
+    }
+  }
+  return indices;
+}
+
+
 
 inline void PrintProgressBar(int percent) {
   std::string bar;

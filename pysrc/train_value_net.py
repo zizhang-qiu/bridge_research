@@ -32,7 +32,7 @@ class ValueDataset(Dataset):
 
         dataset: Dict[str, torch.Tensor] = torch.load(dataset_path)
         self.perfect_obs = dataset["perfect_obs"]
-        self.labels = dataset["labels"]
+        self.labels = dataset["labels"] / 7600
         self.device = device
 
     def __len__(self):
@@ -107,7 +107,6 @@ def main():
     valid_dataloader = DataLoader(valid_dataset, batch_size=len(valid_dataset), shuffle=True)
     num_mini_batches = 0
     opt = torch.optim.Adam(net.parameters(), lr=args.lr, fused=True)
-    num_mini_batches = 0
 
     def evaluate():
         with torch.no_grad():
@@ -121,6 +120,7 @@ def main():
     def train():
         nonlocal num_mini_batches
         for perfect_obs, labels in train_dataloader:
+            # print(labels)
             print(f"\rnum_mini_batches: {num_mini_batches}", end="")
             opt.zero_grad()
             pred = net(perfect_obs).squeeze()
@@ -138,18 +138,20 @@ def main():
 def test():
     torch.set_printoptions(threshold=1000000, sci_mode=False)
     net = PerfectValueNet()
-    net.load_state_dict(torch.load("value_sl/folder_1/value_0.pth"))
+    net.load_state_dict(torch.load("../value_sl/folder_3/value_0.pth"))
     net.to("cuda")
-    test_dataset = ValueDataset("dataset/expert/perfect_test.p", "cuda")
+    test_dataset = ValueDataset("../expert/perfect_test.p", "cuda")
     test_loader = DataLoader(test_dataset, batch_size=len(test_dataset))
     with torch.no_grad():
         for perfect_obs, labels in test_loader:
             pred = net(perfect_obs).squeeze()
             test_loss = torch.nn.functional.mse_loss(pred, labels, reduction="mean")
             print(test_loss)
+            print(pred * 7600, labels * 7600)
             # for p, l in zip(pred, labels):
             #     print(p, l)
 
 
 if __name__ == '__main__':
     test()
+    # main()

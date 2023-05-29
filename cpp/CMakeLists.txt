@@ -16,13 +16,13 @@ else ()
             "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Wno-register -fPIC -march=native -Wfatal-errors")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DPYBIND11_COMPILER_TYPE=\\\"_gcc\\\" -DPYBIND11_STDLIB=\\\"_libstdcpp\\\" -DPYBIND11_BUILD_ABI=\\\"_cxxabi1011\\\"")
     set(CMAKE_CUDA_FLAGS "-std=c++17")
-    SET(CUDA_HOME /usr/local/cuda-11.8)
-    set(CMAKE_CUDA_COMPILER /usr/local/cuda-11.8/bin/nvcc)
-    set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.8")
+    SET(CUDA_HOME /usr/local/cuda-11.6)
+    set(CMAKE_CUDA_COMPILER /usr/local/cuda-11.6/bin/nvcc)
+    set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.6")
     #    set(CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES /usr/local/cuda-11.8)
-    set(CUDA_NVCC_EXECUTABLE /usr/local/cuda-11.8/bin/nvcc)
+    set(CUDA_NVCC_EXECUTABLE /usr/local/cuda-11.6/bin/nvcc)
     set(CMAKE_CUDA_EXTENSIONS ON)
-    set(PYTHON_EXECUTABLE /root/miniconda3/bin/python)
+    set(PYTHON_EXECUTABLE /home/miniconda3/envs/bridge_research/bin/python)
 endif ()
 
 
@@ -31,6 +31,8 @@ find_package(PythonLibs REQUIRED)
 
 add_subdirectory(third_party/pybind11)
 include_directories(third_party/pybind11/include)
+#add_subdirectory(third_party/z3)
+#include_directories(third_party/z3/src/api)
 execute_process(
         COMMAND ${PYTHON_EXECUTABLE} -c "import torch; import os; print(os.path.dirname(torch.__file__), end='')"
         OUTPUT_VARIABLE TorchPath
@@ -50,6 +52,7 @@ endif ()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 include_directories(${TORCH_INCLUDE_DIRS})
 
+find_package(Threads)
 add_library(bridge_double_dummy_solver OBJECT
         third_party/dds/include/dll.h
         third_party/dds/include/portab.h
@@ -110,7 +113,7 @@ add_library(bridge_double_dummy_solver OBJECT
         third_party/dds/src/TransTableS.h
         )
 target_include_directories(bridge_double_dummy_solver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(bridge_double_dummy_solver PUBLIC DDS_NO_STATIC_INIT)
+target_compile_features(bridge_double_dummy_solver PRIVATE cxx_std_17)
 
 add_library(_rl rl/model_locker.h rl/logging.h
         rl/types.h rl/thread_loop.h rl/context.h rl/utils.h
@@ -128,14 +131,17 @@ set_target_properties(_rl PROPERTIES CXX_STANDARD 17)
 add_library(bridge_lib bridge_state.cc bridge_scoring.cc bluechip_utils.cc bridge_scoring.h bridge_actor.h
         bridge_envs.h bridge_envs.cc bridge_constants.h replay_buffer.h bridge_actor.cc search.h cards_and_ddts.h
         imp_env.h imp_env.cc multi_agent_transition_buffer.h multi_agent_transition_buffer.cc replay_buffer.cc
-        search.cc bridge_deal.cc bridge_deal.h bridge_thread_loop.h bridge_thread_loop.cc transition.h transition.cc bridge_state.h)
+        search.cc bridge_deal.cc bridge_deal.h bridge_thread_loop.h bridge_thread_loop.cc transition.h transition.cc bridge_state.h dds.h dds.cc sayc_bot.h sayc_bot.cc)
 target_include_directories(bridge_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(bridge_lib PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(bridge_lib PUBLIC ${PYTHON_INCLUDE_DIRS})
+target_include_directories(bridge_lib PUBLIC "third_party/z3/src/api")
+
 target_link_libraries(bridge_lib PUBLIC
         _rl
         ${TORCH_LIBRARIES}
         bridge_double_dummy_solver)
+target_compile_options(bridge_lib PUBLIC ${Z3_COMPONENT_CXX_FLAGS})
 
 pybind11_add_module(rl_cpp SHARED pybind.cc)
 target_include_directories(rl_cpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -146,6 +152,8 @@ target_link_libraries(rl_cpp PUBLIC
 set_target_properties(rl_cpp PROPERTIES OUTPUT_NAME "rl_cpp")
 
 if (WIN32)
+    set(CMAKE_CXX_FLAGS_RELEASE "/MT")
+    set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
 
     add_executable(test test.cc)
     set_target_properties(test PROPERTIES LINKER_LANGUAGE CXX)
@@ -153,6 +161,7 @@ if (WIN32)
     target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
     target_include_directories(test PUBLIC ${TORCH_INCLUDE_DIRS})
     target_include_directories(test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    target_include_directories(bridge_lib PUBLIC "third_party/z3/src/api")
     target_link_libraries(test PUBLIC
             bridge_lib
             ${TORCH_LIBRARIES}
@@ -204,6 +213,26 @@ if (WIN32)
             gtest gtest_main)
     include(GoogleTest)
     gtest_discover_tests(concurrent_queue_test)
+
+    add_executable(str_utils_test tests/str_utils_test.cc)
+    target_include_directories(str_utils_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    target_include_directories(str_utils_test PUBLIC ${TORCH_INCLUDE_DIRS})
+    target_include_directories(str_utils_test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    target_link_libraries(str_utils_test PUBLIC
+            bridge_lib
+            gtest gtest_main)
+    include(GoogleTest)
+    gtest_discover_tests(str_utils_test)
+
+    add_executable(dds_test tests/dds_test.cc)
+    target_include_directories(dds_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    target_include_directories(dds_test PUBLIC ${TORCH_INCLUDE_DIRS})
+    target_include_directories(dds_test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    target_link_libraries(dds_test PUBLIC
+            bridge_lib
+            gtest gtest_main)
+    include(GoogleTest)
+    gtest_discover_tests(dds_test)
 endif ()
 
 

@@ -25,7 +25,7 @@ TensorDict MakeObsTensorDict(const std::shared_ptr<BridgeBiddingState> &state,
   }
   TensorDict obs = {
       {"perfect_s", torch::tensor(torch::ArrayRef<float>(perfect_observation))},
-      {"s", torch::tensor(torch::ArrayRef<float>(observation))},
+      {"s", torch::hstack({torch::tensor(torch::ArrayRef<float>(observation)), legal_actions_mask})},
       {"legal_actions", legal_actions_mask},
       {"greedy", torch::tensor(greedy)}
   };
@@ -36,7 +36,7 @@ TensorDict MakeObsTensorDict(const std::shared_ptr<BridgeBiddingState> &state,
 TensorDict MakeTerminalObs(int greedy) {
   TensorDict obs = {
       {"perfect_s", torch::zeros(bridge::kPerfectInfoTensorSize)},
-      {"s", torch::zeros(bridge::kAuctionTensorSize)},
+      {"s", torch::zeros(bridge::kAuctionTensorSize + kNumCalls)},
       {"legal_actions", torch::ones(bridge::kNumCalls)},
       {"greedy", torch::tensor(greedy)}
   };
@@ -103,6 +103,32 @@ TensorDict BridgeBiddingEnv::GetFeature() const {
   return MakeObsTensorDict(state_, greedy_[current_player]);
 }
 
+
+bool BridgeBiddingEnvWrapper::Reset() {
+  env_.Reset();
+  return true;
+}
+
+bool BridgeBiddingEnvWrapper::Terminated() const {
+  return env_.Terminated();
+}
+void BridgeBiddingEnvWrapper::Step(const TensorDict &reply) {
+  auto acting_player = env_.CurrentPlayer();
+  if (replay_buffer_ != nullptr){
+    transition_buffer_.PushObsAndReply(acting_player, last_obs_, reply);
+  }
+  env_.Step(reply);
+  if (env_.Terminated() && replay_buffer_!= nullptr){
+    std::vector<float> rewards = env_.Returns();
+    std::vector<float> normalized_rewards(kNumPlayers);
+    for(int i=0; i<kNumPlayers;++i){
+      normalized_rewards[i] = rewards[i] / static_cast<float>(bridge::kMaxScore);
+    }
+    transition_buffer_.PushToReplayBuffer(replay_buffer_, normalized_rewards);
+    transition_buffer_.Clear();
+  }
+}
+
 bool BridgeVecEnv::Reset() {
 //  std::vector<TensorDict> batch_obs;
 //  for (size_t i = 0; i < envs_.size(); ++i) {
@@ -123,7 +149,7 @@ bool BridgeVecEnv::Reset() {
 }
 
 void BridgeVecEnv::Step(const TensorDict &reply) {
-  std::vector<TensorDict> obs_vector;
+//  std::vector<TensorDict> obs_vector;
 //  torch::Tensor batch_reward = torch::zeros(envs_.size(), {torch::kFloat});
 //  torch::Tensor batch_terminal = torch::zeros(envs_.size(), {torch::kBool});
   for (size_t i = 0; i < envs_.size(); ++i) {
@@ -131,7 +157,6 @@ void BridgeVecEnv::Step(const TensorDict &reply) {
       auto rep = tensor_dict::Index(reply, i);
       envs_[i]->Step(rep);
     }
-//  return std::make_tuple(tensor_dict::Stack(obs_vector, 0), batch_reward, batch_terminal);
   }
 }
 
@@ -161,7 +186,55 @@ void BridgeVecEnv::Step(const TensorDict &reply) {
     }
     return ret;
   }
-TensorDict BridgeVecEnv::GetFeatures() const {
+TensorDict BridgeVecEnv::GetFeature() const {
+  std::vector<TensorDict> obs_vec;
+  for(size_t i=0; i<static_cast<int>(envs_.size()); ++i){
+    if(!envs_[i]->Terminated()) {
+      obs_vec.emplace_back(envs_[i]->GetFeature());
+    }else{
+      obs_vec.emplace_back(MakeTerminalObs(1));
+    }
+  }
+  return tensor_dict::Stack(obs_vec, 0);
+}
+
+bool BridgeWrapperVecEnv::Reset() {
+  for (size_t i = 0; i < envs_.size(); ++i) {
+    if (envs_[i]->Terminated()) {
+      envs_[i]->Reset();
+    }
+  }
+  return true;
+}
+
+void BridgeWrapperVecEnv::Step(const TensorDict &reply) {
+  for (size_t i = 0; i < envs_.size(); ++i) {
+    if (!envs_[i]->Terminated()) {
+      auto rep = tensor_dict::Index(reply, i);
+      envs_[i]->Step(rep);
+    }
+  }
+}
+
+bool BridgeWrapperVecEnv::AnyTerminated() const {
+  for (size_t i = 0; i < envs_.size(); i++) {
+    if (envs_[i]->Terminated()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool BridgeWrapperVecEnv::AllTerminated() const {
+  for (size_t i = 0; i < envs_.size(); i++) {
+    if (!envs_[i]->Terminated()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+TensorDict BridgeWrapperVecEnv::GetFeature() const {
   std::vector<TensorDict> obs_vec;
   for(size_t i=0; i<static_cast<int>(envs_.size()); ++i){
     if(!envs_[i]->Terminated()) {

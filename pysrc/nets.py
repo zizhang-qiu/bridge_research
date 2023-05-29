@@ -32,6 +32,7 @@ class PolicyNet(nn.Module):
         policy = F.log_softmax(out, -1)
         return policy
 
+
 class PolicyNet2(nn.Module):
     def __init__(self):
         """
@@ -39,15 +40,15 @@ class PolicyNet2(nn.Module):
         """
         super(PolicyNet2, self).__init__()
         self.net = nn.Sequential(
-            nn.Linear(571, 2048),
+            nn.Linear(480 + 38, 1024),
             nn.GELU(),
-            nn.Linear(2048, 2048),
+            nn.Linear(1024, 1024),
             nn.GELU(),
-            nn.Linear(2048, 2048),
+            nn.Linear(1024, 1024),
             nn.GELU(),
-            nn.Linear(2048, 2048),
+            nn.Linear(1024, 1024),
             nn.GELU(),
-            nn.Linear(2048, 38)
+            nn.Linear(1024, 38)
         )
 
     def forward(self, state: torch.Tensor):

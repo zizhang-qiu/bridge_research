@@ -9,7 +9,7 @@ import copy
 import os
 import pickle
 import time
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Union
 
 import numpy as np
 import torch
@@ -17,7 +17,7 @@ import torch
 import rl_cpp
 from agent_for_cpp import VecEnvAgent, SingleEnvAgent
 from global_vars import DEFAULT_RL_DATASET_DIR, RLDataset
-from nets import PolicyNet
+from nets import PolicyNet, PolicyNet2
 import common_utils
 
 
@@ -54,6 +54,13 @@ def sl_net(checkpoint_path: str = r"models/il_net_checkpoint.pth", device: str =
         The net.
     """
     net = PolicyNet()
+    net.load_state_dict(torch.load(checkpoint_path)["model_state_dict"])
+    net.to(device)
+    return net
+
+
+def sl_net2(checkpoint_path: str = r"models/il2.pth", device="cuda"):
+    net = PolicyNet2()
     net.load_state_dict(torch.load(checkpoint_path)["model_state_dict"])
     net.to(device)
     return net
@@ -198,8 +205,8 @@ class Evaluator:
             self.vec_env0_list.append(vec_env_0)
             self.vec_env1_list.append(vec_env_1)
 
-    def evaluate(self, train_net: PolicyNet, oppo_net: PolicyNet) -> Tuple[float, float, float,
-    List[rl_cpp.BridgeVecEnv], List[rl_cpp.BridgeVecEnv]]:
+    def evaluate(self, train_net: Union[PolicyNet, PolicyNet2], oppo_net: Union[PolicyNet, PolicyNet2]) -> Tuple[
+            float, float, float, List[rl_cpp.BridgeVecEnv], List[rl_cpp.BridgeVecEnv]]:
         """
         Evaluate between trained net and opponent net
         Args:

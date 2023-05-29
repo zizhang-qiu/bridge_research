@@ -9,12 +9,12 @@ import torch
 import torchmetrics
 from adan import Adan
 from matplotlib import pyplot as plt
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
-from nets import PolicyNet
+from nets import PolicyNet, PolicyNet2
 from common_utils.logger import Logger
 from common_utils.other_utils import set_random_seeds, mkdir_with_time
-from common_utils.torch_utils import initialize_fc
+from common_utils.torch_utils import initialize_fc, focal_loss
 from common_utils.value_stats import MultiStats
 from bridge_vars import NUM_CALLS
 import common_utils
@@ -31,14 +31,26 @@ class BiddingDataset(Dataset):
             obs_path: The path of obs.
             label_path: The path of labels.
         """
-        self.s: torch.Tensor = torch.load(obs_path)["s"]
+        dataset = torch.load(obs_path)
+        self.s = dataset["s"]
+        # self.s: torch.Tensor = torch.hstack([dataset["s"], dataset["legal_actions"]])
         self.label: torch.Tensor = torch.load(label_path)
+        self.weights = self._compute_weights()
 
     def __len__(self):
         return len(self.label)
 
     def __getitem__(self, index):
         return self.s[index], self.label[index]
+
+    def get_label_count(self) -> torch.Tensor:
+        return torch.bincount(self.label)
+
+    def _compute_weights(self) -> torch.Tensor:
+        label_counts = self.get_label_count()
+        class_weights = 1.0 / label_counts
+        weights = class_weights[self.label]
+        return weights
 
 
 def parse_args():
@@ -56,7 +68,7 @@ def parse_args():
                         default=None)
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--max_mini_batches", type=int, default=500000)
-    parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--batch_size", type=int, default=512)
     parser.add_argument("--eval_freq", type=int, default=1000)
     parser.add_argument("--eval_batch_size", type=int, default=10000)
@@ -104,8 +116,10 @@ def main():
                                    label_path=os.path.join(args.dataset_dir, "train_label.p"))
     valid_dataset = BiddingDataset(obs_path=os.path.join(args.dataset_dir, "valid_obs.p"),
                                    label_path=os.path.join(args.dataset_dir, "valid_label.p"))
+    sampler = WeightedRandomSampler(train_dataset.weights, len(train_dataset))
+    # alpha = 1.0 / label_count
 
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler)
     valid_loader = DataLoader(valid_dataset, batch_size=args.eval_batch_size, shuffle=False)
     print("load dataset successfully!")
 
@@ -117,8 +131,8 @@ def main():
     net = PolicyNet()
     initialize_fc(net)
     net.to(args.device)
-    # opt = torch.optim.Adam(params=net.parameters(), lr=args.lr)
-    opt = Adan(params=net.parameters(), lr=args.lr, fused=True)
+    opt = torch.optim.Adam(params=net.parameters(), lr=args.lr, fused=True)
+    # opt = Adan(params=net.parameters(), lr=args.lr, fused=True)
     if args.trained_checkpoint:
         checkpoint = torch.load(args.trained_checkpoint)
         net.load_state_dict(checkpoint["model_state_dict"])
@@ -130,7 +144,7 @@ def main():
     logger = Logger(os.path.join(save_dir, "log.txt"), verbose=True, auto_line_feed=True)
     logger.write(pprint.pformat(args))
     num_mini_batches = 0
-
+    # focal_loss_func = focal_loss(alpha=None, gamma=1.0, device="cuda")
     #
 
     def train_epoch():
@@ -145,8 +159,9 @@ def main():
                 label = label.to(args.device)
                 log_prob = net(s)
                 loss = cross_entropy(log_prob, label, NUM_ACTIONS)
+                # loss = focal_loss_func(log_prob, label)
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(parameters=net.parameters(), max_norm=args.grad_clip)
+                # torch.nn.utils.clip_grad_norm_(parameters=net.parameters(), max_norm=args.grad_clip)
                 opt.step()
                 # loss_list.append(loss.item())
                 # eval

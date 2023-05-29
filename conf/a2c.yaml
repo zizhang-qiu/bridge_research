@@ -4,8 +4,8 @@ checkpoint_path: null
 # optimization and training device
 policy_lr: !!float 1e-5
 value_lr: !!float 1e-4
-entropy_ratio: !!float 0.01
-clip_eps: !!float 0.2
+entropy_ratio: !!float 0.0
+clip_eps: !!float 0.05
 max_grad_norm : !!float 40
 train_device: "cuda"
 
@@ -24,10 +24,10 @@ sample_batch_size: 512
 num_threads: 6
 num_games_per_thread: 100
 num_epochs: 10000
-epoch_len: 1000
+epoch_len: 100
 
 # actor settings
-sync_freq: 50
+sync_freq: 10
 act_device: "cuda"
 
 # eval settings

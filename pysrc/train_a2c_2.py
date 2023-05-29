@@ -13,7 +13,7 @@ import common_utils
 import yaml
 
 from bridge_vars import NUM_CALLS, PLUS_MINUS_SYMBOL
-from utils import sl_net, load_rl_dataset, Evaluator, sl_net2
+from utils import sl_net, load_rl_dataset, Evaluator
 from agent_for_cpp import VecEnvAgent
 
 
@@ -30,12 +30,12 @@ def main():
     stats = common_utils.MultiStats()
     logger = common_utils.Logger(os.path.join(save_dir, "log.txt"), verbose=True, auto_line_feed=True)
     logger.write(pprint.pformat(cfg))
-    saver = common_utils.TopKSaver(save_dir, top_k)
+    saver = common_utils.TopKSaver(top_k, save_dir, "checkpoint")
     stopwatch = common_utils.Stopwatch()
 
     checkpoint_path = cfg["checkpoint_path"]
-    net = sl_net2()
-    supervised_net = sl_net2()
+    net = sl_net()
+    supervised_net = sl_net()
     checkpoint: Optional[Dict] = None
     if checkpoint_path:
         checkpoint = torch.load(checkpoint_path)
@@ -54,9 +54,9 @@ def main():
     # v_opt = torch.optim.AdamW(params=agent.v_net.parameters(), lr=v_lr)
     p_opt = Adan(params=agent.p_net.parameters(), lr=p_lr, fused=True)
     v_opt = Adan(params=agent.v_net.parameters(), lr=v_lr, fused=True)
-    # if checkpoint_path:
-    #     p_opt.load_state_dict(checkpoint["opt_state_dict"]["policy"])
-    #     v_opt.load_state_dict(checkpoint["opt_state_dict"]["value"])
+    if checkpoint_path:
+        p_opt.load_state_dict(checkpoint["opt_state_dict"]["policy"])
+        v_opt.load_state_dict(checkpoint["opt_state_dict"]["value"])
 
     # p_lr_scheduler = torch.optim.lr_scheduler.StepLR(p_opt, step_size=200 * 1000, gamma=0.1)
     # v_lr_scheduler = torch.optim.lr_scheduler.StepLR(v_opt, step_size=200 * 1000, gamma=0.1)
@@ -81,14 +81,14 @@ def main():
     context = rl_cpp.Context()
     for _ in trange(num_threads):
         # vec_env = rl_cpp.BridgeVecEnv()
-        vec_env = rl_cpp.ImpVecEnv()
+        vec_env = rl_cpp.BridgeWrapperVecEnv()
         for i_env in range(num_games_per_thread):
             # env = rl_cpp.BridgeBiddingEnv(deal_manager, [0, 0, 0, 0], replay_buffer, True, False)
             # vec_env.push(env)
-            env = rl_cpp.ImpEnvWrapper(deal_manager, [0, 0, 0, 0], replay_buffer)
+            env = rl_cpp.BridgeBiddingEnvWrapper(deal_manager, [0, 0, 0, 0], replay_buffer)
             vec_env.push(env)
         # t = rl_cpp.BridgeThreadLoop(vec_env, train_actor)
-        t = rl_cpp.ImpThreadLoop(vec_env, train_actor)
+        t = rl_cpp.BridgeVecEnvThreadLoop(vec_env, train_actor)
         context.push_thread_loop(t)
 
     max_grad_norm = cfg["max_grad_norm"]
@@ -126,7 +126,7 @@ def main():
 
             batch, weights = replay_buffer.sample(sample_batch_size, train_device)
             # print(weights)
-            # print(batch_reward)
+            print(batch.reward)
             stopwatch.time("sample data")
 
             p_loss, v_loss, priority = agent.compute_loss_and_priority(batch, clip_eps, entropy_ratio)
