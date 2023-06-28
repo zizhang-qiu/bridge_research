@@ -31,14 +31,6 @@ class ModelLocker:
         ...
 
 
-class RandomActor:
-    def __init__(self):
-        ...
-
-    def act(self, obs: torch.Tensor) -> torch.Tensor:
-        ...
-
-
 class SingleEnvActor:
     def __init__(self, model_locker: ModelLocker):
         """
@@ -173,15 +165,27 @@ class BridgeDeal:
         self.ddt: Optional[DDTLike] = ...
         self.par_score: Optional[int] = ...
 
+class DealManager:
+    ...
 
-class BridgeDealManager:
-    def __init__(self, cards: CardsLike, ddts: DDTLike, par_scores: Union[List, np.ndarray]):
+class BridgeDealManager(DealManager):
+    def __init__(self, cards: CardsLike, ddts: DDTLike, par_scores: Union[List, np.ndarray], max_size: int):
+        """
+        A manager stores deals.
+        Args:
+            cards: A list or ndarray of cards.
+            ddts: A list or ndarray of ddts.
+            par_scores: A list or ndarray of par_scores.(not used.)
+            max_size: Optional.
+        """
         ...
 
     def size(self) -> int:
+        """Get the size og manager."""
         ...
 
     def next(self) -> BridgeDeal:
+        """Get next deal of manager."""
         ...
 
 
@@ -331,9 +335,6 @@ class BridgeBiddingState:
     def observation_tensor(self, player: Optional[Player]) -> List[float]:
         ...
 
-    def observation_tensor2(self) -> List[float]:
-        ...
-
     def hidden_observation_tensor(self) -> List[float]:
         ...
 
@@ -373,21 +374,38 @@ class BridgeBiddingState:
     def observation_tensor_with_legal_actions(self) -> List[float]:
         ...
 
+    def get_partner_cards(self) -> List[int]:
+        ...
+
+    def cards_tensor(self) -> List[float]:
+        ...
+
+    def final_observation_tensor(self) -> List[float]:
+        ...
+
+    def score_for_contracts(self, player: Player, contracts: List[int]) -> List[int]:
+        ...
+
+    def get_player_cards(self, player: Player) -> List[int]:
+        """
+        Get a player's cards.
+        Args:
+            player: The player.
+
+        Returns:
+            The cards of the player.
+        """
+        ...
+
 
 class BridgeBiddingEnv:
     def __init__(self, deal_manager: BridgeDealManager,
-                 greedy: List[int],
-                 replay_buffer: Optional[ReplayBuffer],
-                 use_par_score: bool,
-                 eval_: bool):
+                 greedy: List[int]):
         """
         A Bridge Bidding Environment.
         Args:
             deal_manager: The deal manager stores deals.
             greedy: Whether greedy for four players. e.g. [1,1,1,1] means all the players are greedy.
-            replay_buffer: The replay buffer, could be None.
-            use_par_score: Whether use par score as baseline. If this is true, the par scores should be provided in deal manager.
-            eval_: Whether to push data to replay buffer.
         """
         ...
 
@@ -399,14 +417,11 @@ class BridgeBiddingEnv:
         """
         ...
 
-    def step(self, reply: TensorDict) -> Tuple[TensorDict, float, bool]:
+    def step(self, reply: TensorDict):
         """
         Make one step in environment and get next obs, reward and terminal signal.
         Args:
             reply: The reply from actor.
-
-        Returns:
-            next obs, reward and terminal.
         """
         ...
 
@@ -445,20 +460,25 @@ class BridgeBiddingEnv:
     def get_feature_size(self) -> int:
         ...
 
+    def get_feature(self) -> TensorDict:
+        ...
+
     def __repr__(self) -> str:
         ...
 
 
 class BridgeBiddingEnvWrapper:
-    def __init__(self, deal_manager:BridgeDealManager, greedy:List[int], replay:Replay):
+    def __init__(self, deal_manager: BridgeDealManager, greedy: List[int], replay: Replay):
         ...
+
 
 class BridgeWrapperVecEnv:
     def __init__(self):
         ...
 
-    def push(self, env:BridgeBiddingEnvWrapper):
+    def push(self, env: BridgeBiddingEnvWrapper):
         ...
+
 
 class BridgeVecEnv:
     def __init__(self):
@@ -654,38 +674,6 @@ class ThreadLoop:
     ...
 
 
-class BridgeThreadLoop(ThreadLoop):
-    def __init__(self,
-                 env: BridgeVecEnv,
-                 actor: VecEnvActor):
-        """
-        A thread loop to play games between actors infinitely.
-        Args:
-            env: The vectorized env
-            actor: The actor
-        """
-        ...
-
-    def main_loop(self):
-        ...
-
-
-class ImpEnvThreadLoop(ThreadLoop):
-    def __init__(self, actors: List[SingleEnvActor], imp_env: ImpEnv, buffer: ReplayBuffer, verbose: bool):
-        """
-        A thread loop plays between actors infinitely. Should be used with Context.
-        Args:
-            actors: A list of actors. actors[0] and actors[2] should be trained actors.
-            imp_env: The imp env.
-            buffer: The replay buffer.
-            verbose: Whether to print some message.
-        """
-        ...
-
-    def main_loop(self):
-        ...
-
-
 class VecEnvEvalThreadLoop(ThreadLoop):
     def __init__(self,
                  train_actor: VecEnvActor,
@@ -712,12 +700,13 @@ class ImpThreadLoop(ThreadLoop):
         ...
 
 
-class ImpSingleEnvThreadLoop(ThreadLoop):
-    def __init__(self, actor_train: SingleEnvActor, actor_oppo: SingleEnvActor):
+class BridgeVecEnvThreadLoop(ThreadLoop):
+    def __init__(self, env: BridgeWrapperVecEnv, actor: VecEnvActor):
         ...
 
-class BridgeVecEnvThreadLoop(ThreadLoop):
-    def __init__(self, env:BridgeWrapperVecEnv, actor:VecEnvActor):
+
+class DataThreadLoop(ThreadLoop):
+    def __init__(self, deal_manager: BridgeDealManager, seed: int):
         ...
 
 
@@ -842,23 +831,15 @@ def check_prob_not_zero(action: torch.Tensor, log_probs: torch.Tensor):
 
 
 def make_obs_tensor_dict(state: BridgeBiddingState, greedy: int) -> TensorDict:
-    ...
+    """
+    Get a tensor dict as obs for current state.
+    Args:
+        state: The BridgeBiddingState instance.
+        greedy: 1 for greedy, 0 for stochastic.
 
-
-class SearchParams:
-    def __init__(self):
-        self.min_rollouts: int = ...
-        self.max_rollouts: int = ...
-        self.max_particles: int = ...
-        self.temperature: float = ...
-        self.top_k: int = ...
-        self.min_prob: float = ...
-        self.verbose_level: int = ...
-        self.seed: int = ...
-        self.select_highest_rollout_value: bool = ...
-
-
-def search(probs: torch.Tensor, state: BridgeBiddingState, actors: List[SingleEnvActor], params: SearchParams):
+    Returns:
+        TensorDict: The obs.
+    """
     ...
 
 
@@ -869,6 +850,10 @@ class Transition:
     terminal: torch.Tensor = ...
     next_obs: TensorDict = ...
 
+    def __init__(self, obs: TensorDict, reply: TensorDict, reward: torch.Tensor, terminal: torch.Tensor,
+                 next_obs: TensorDict):
+        ...
+
     def to_dict(self) -> TensorDict:
         """
         Convert transition to tensor dict
@@ -878,9 +863,37 @@ class Transition:
         ...
 
 
-class Searcher:
-    def __init__(self, params: SearchParams, actors: List[VecEnvActor], batch_size: int):
+def bid_string(action: Action) -> str:
+    ...
+
+
+class VecEnvAllTerminateThreadLoop(ThreadLoop):
+    def __init__(self, actor: VecEnvActor, env: BridgeVecEnv):
         ...
 
-    def search(self, state: BridgeBiddingState, probs: torch.Tensor):
+
+class ObsBelief:
+    obs: TensorDict
+    belief: TensorDict
+
+
+class ObsBeliefReplay:
+    def __init__(self, capacity: int, seed: int, alpha: float, beta: float, prefetch: int):
+        ...
+
+    def sample(self, batch_size: int, device: str) -> Tuple[ObsBelief, torch.Tensor]:
+        ...
+
+    def update_priority(self, priority: torch.Tensor):
+        ...
+
+    def num_add(self) -> int:
+        ...
+
+    def size(self) -> int:
+        ...
+
+
+class BeliefThreadLoop(ThreadLoop):
+    def __init__(self, actor: VecEnvActor, env: BridgeVecEnv, replay: ObsBeliefReplay):
         ...

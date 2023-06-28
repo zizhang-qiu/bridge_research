@@ -155,3 +155,9 @@ def to_str_list(l: List[Any]) -> List[str]:
     """
     ret = [str(item) for item in l]
     return ret
+
+
+def print_current_time(fmt: str = "%H:%M:%S"):
+    """Print current time."""
+    current_time = datetime.datetime.now().strftime(fmt)
+    print("Current time is:", current_time)

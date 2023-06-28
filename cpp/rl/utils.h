@@ -123,6 +123,16 @@ inline bool IsValueInVector(const std::vector<T> &v, T value) {
   return (it != v.end());
 }
 
+template<typename T>
+inline std::vector<T> Zeros(int size) {
+  assert(size > 0);
+  std::vector<T> ret(size);
+  for(size_t i=0; i<size;++i){
+    ret[i] = T{};
+  }
+  return ret;
+}
+
 inline std::vector<int> Arange(int begin, int end) {
   assert(end > begin);
   std::vector<int> ret(end - begin);
@@ -220,7 +230,7 @@ inline std::vector<int> GetOneHotIndices(const std::vector<float> &tensor) {
   return indices;
 }
 
-inline std::vector<int> GetNonZeroIndices(const std::vector<float> &tensor){
+inline std::vector<int> GetNonZeroIndices(const std::vector<float> &tensor) {
   std::vector<int> indices;
   for (int i = 0; i < tensor.size(); ++i) {
     if (tensor[i] != 0.0) {
@@ -229,8 +239,6 @@ inline std::vector<int> GetNonZeroIndices(const std::vector<float> &tensor){
   }
   return indices;
 }
-
-
 
 inline void PrintProgressBar(int percent) {
   std::string bar;
@@ -286,6 +294,43 @@ inline void PrintProgressBar(int current, int total,
   int seconds = (remaining / 1000) % 60;
   std::cout << hours << "h " << minutes << "m " << seconds << "s remaining"
             << std::endl;
+}
+
+template<typename T>
+void PrintTensor(const torch::Tensor &tensor) {
+  if (tensor.dim() != 1) {
+    std::cerr << "Error: Tensor must be 1D" << std::endl;
+    return;
+  }
+
+  auto accessor = tensor.accessor<T, 1>();
+
+  std::cout << "[";
+  for (int64_t i = 0; i < tensor.size(0); ++i) {
+    std::cout << accessor[i];
+    if (i != tensor.size(0) - 1) {
+      std::cout << ", ";
+    }
+  }
+  std::cout << "]" << std::endl;
+}
+
+template<typename T>
+std::string FormatTensor(const torch::Tensor &tensor) {
+  if (tensor.dim() != 1) {
+    std::cerr << "Error: Tensor must be 1D" << std::endl;
+  }
+
+  auto accessor = tensor.accessor<T, 1>();
+  std::string ret = "[";
+  for (int64_t i = 0; i < tensor.size(0); ++i) {
+    ret += std::to_string(accessor[i]);
+    if (i != tensor.size(0) - 1) {
+      ret += ", ";
+    }
+  }
+  ret += "]";
+  return ret;
 }
 } // namespace rl::utils
 

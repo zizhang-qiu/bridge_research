@@ -1,34 +1,39 @@
-# checkpoint
-checkpoint_path: null
-
 # optimization and training device
-policy_lr: !!float 1e-5
-value_lr: !!float 1e-4
+policy_lr: !!float 1e-6
+value_lr: !!float 1e-6
 entropy_ratio: !!float 0.0
 clip_eps: !!float 0.05
-max_grad_norm : !!float 40
+max_grad_norm: !!float 40
 train_device: "cuda"
+num_gd_steps: 100
 
 # random seed
 seed: !!int 42
 
 # replay buffer settings
 burn_in_frames: !!int 50000
-buffer_capacity: !!int 800000
-alpha : !!float 0.6
-beta : !!float 0.4
-prefetch : !!int 1
-sample_batch_size: 512
+buffer_capacity: !!int 200000
+alpha: !!float 0.0
+beta: !!float 0.4
+prefetch: !!int 0
+sample_batch_size: 100000
 
 # envs and threads
-num_threads: 1
-num_games_per_thread: 100
+num_threads: 8
+num_games_per_thread: 10
 num_epochs: 10000
 epoch_len: 100
 
 # actor settings
-sync_freq: 10
+sync_freq: 1
 act_device: "cuda"
+
+# search
+k: 4
+min_prob: !!float 1e-4
+num_rollouts: 30
+temperature: 300
+
 
 # eval settings
 num_eval_deals: 50000
@@ -37,4 +42,4 @@ eval_device: "cuda"
 
 # save
 save_dir: "a2c"
-top_k : 5
+top_k: 5

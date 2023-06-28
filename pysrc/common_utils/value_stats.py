@@ -130,6 +130,14 @@ class MultiStats:
         self.stat_names: List[str] = []
         self.stats: Dict[str, ValueStats] = {}
 
+    def reset(self):
+        self.stat_names.clear()
+        self.stats.clear()
+
+    def get(self, stat_name: str):
+        assert stat_name in self.stat_names
+        return self.stats[stat_name]
+
     def feed(self, stat_name: str, value: ValueLike):
         """
         Feed a stat with name.

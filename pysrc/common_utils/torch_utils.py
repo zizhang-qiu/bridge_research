@@ -5,7 +5,7 @@
 @file:torch_utils.py
 @time:2023/02/17
 """
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Tuple
 
 import torch
 import torch.multiprocessing as mp
@@ -218,7 +218,7 @@ class FocalLoss(nn.Module):
 
         # compute focal term: (1 - pt)^gamma
         pt = log_pt.exp()
-        focal_term = (1 - pt)**self.gamma
+        focal_term = (1 - pt) ** self.gamma
 
         # the full loss: -alpha * ((1 - pt)^gamma) * log(pt)
         loss = focal_term * ce
@@ -266,3 +266,56 @@ def focal_loss(alpha: Optional[Sequence] = None,
         reduction=reduction,
         ignore_index=ignore_index)
     return fl
+
+
+def calculate_gradient_magnitudes(model: nn.Module) -> Tuple[float, float]:
+    """Get average and max gradient norm"""
+    total_parameters = 0
+    total_gradient_norm = 0.0
+    max_gradient_norm = 0.0
+
+    for name, param in model.named_parameters():
+        if param.grad is not None:
+            parameter_gradient_norm = param.grad.data.norm(2)
+            total_parameters += 1
+            total_gradient_norm += parameter_gradient_norm.item()
+            max_gradient_norm = max(max_gradient_norm, parameter_gradient_norm.item())
+
+    average_gradient_norm = total_gradient_norm / total_parameters if total_parameters > 0 else 0.0
+
+    return average_gradient_norm, max_gradient_norm
+
+
+def multi_hot_1d(indices: torch.Tensor, num_classes: int):
+    """
+    Create a multi-hot encoded tensor from a 1D tensor of indices.
+
+    Args:
+        indices (torch.Tensor): 1D tensor of indices.
+        num_classes (int): Number of classes.
+
+    Returns:
+        torch.Tensor: Multi-hot encoded tensor.
+    """
+    assert indices.max() < num_classes, "Largest index should be smaller than num_classes."
+    one_hot = torch.zeros(num_classes)
+    one_hot[indices] = 1
+    return one_hot
+
+
+def multi_hot_2d(indices: torch.Tensor, num_classes: int):
+    """
+    Create a multi-hot encoded tensor from a 2D tensor of indices.
+
+    Args:
+        indices (torch.Tensor): 2D tensor of indices.
+        num_classes (int): Number of classes.
+
+    Returns:
+        torch.Tensor: Multi-hot encoded tensor.
+    """
+    assert indices.max() < num_classes, "Largest index should be smaller than num_classes."
+    batch_size = indices.size(0)
+    one_hot = torch.zeros(batch_size, num_classes)
+    one_hot.scatter_(1, indices, 1)
+    return one_hot

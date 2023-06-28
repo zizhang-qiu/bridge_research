@@ -22,15 +22,15 @@ else ()
     #    set(CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES /usr/local/cuda-11.8)
     set(CUDA_NVCC_EXECUTABLE /usr/local/cuda-11.6/bin/nvcc)
     set(CMAKE_CUDA_EXTENSIONS ON)
-    set(PYTHON_EXECUTABLE /home/miniconda3/envs/bridge_research/bin/python)
+    set(PYTHON_EXECUTABLE /home/work/miniconda3/envs/bridge_research/bin/python)
 endif ()
 
 
 find_package(PythonInterp REQUIRED)
 find_package(PythonLibs REQUIRED)
 
-add_subdirectory(third_party/pybind11)
-include_directories(third_party/pybind11/include)
+add_subdirectory(cpp/third_party/pybind11)
+include_directories(cpp/third_party/pybind11/include)
 #add_subdirectory(third_party/z3)
 #include_directories(third_party/z3/src/api)
 execute_process(
@@ -54,73 +54,73 @@ include_directories(${TORCH_INCLUDE_DIRS})
 
 find_package(Threads)
 add_library(bridge_double_dummy_solver OBJECT
-        third_party/dds/include/dll.h
-        third_party/dds/include/portab.h
-        third_party/dds/src/ABsearch.cpp
-        third_party/dds/src/ABsearch.h
-        third_party/dds/src/ABstats.cpp
-        third_party/dds/src/ABstats.h
-        third_party/dds/src/CalcTables.cpp
-        third_party/dds/src/CalcTables.h
-        third_party/dds/src/dds.cpp
-        third_party/dds/src/dds.h
-        third_party/dds/src/DealerPar.cpp
-        third_party/dds/src/debug.h
-        third_party/dds/src/dump.cpp
-        third_party/dds/src/dump.h
-        third_party/dds/src/File.cpp
-        third_party/dds/src/File.h
-        third_party/dds/src/Init.cpp
-        third_party/dds/src/Init.h
-        third_party/dds/src/LaterTricks.cpp
-        third_party/dds/src/LaterTricks.h
-        third_party/dds/src/Memory.cpp
-        third_party/dds/src/Memory.h
-        third_party/dds/src/Moves.cpp
-        third_party/dds/src/Moves.h
-        third_party/dds/src/Par.cpp
-        third_party/dds/src/parallel.h
-        third_party/dds/src/PBN.cpp
-        third_party/dds/src/PBN.h
-        third_party/dds/src/PlayAnalyser.cpp
-        third_party/dds/src/PlayAnalyser.h
-        third_party/dds/src/QuickTricks.cpp
-        third_party/dds/src/QuickTricks.h
-        third_party/dds/src/Scheduler.cpp
-        third_party/dds/src/Scheduler.h
-        third_party/dds/src/SolveBoard.cpp
-        third_party/dds/src/SolveBoard.h
-        third_party/dds/src/SolverIF.cpp
-        third_party/dds/src/SolverIF.h
-        third_party/dds/src/System.cpp
-        third_party/dds/src/System.h
-        third_party/dds/src/ThreadMgr.cpp
-        third_party/dds/src/ThreadMgr.h
-        third_party/dds/src/Timer.cpp
-        third_party/dds/src/Timer.h
-        third_party/dds/src/TimerGroup.cpp
-        third_party/dds/src/TimerGroup.h
-        third_party/dds/src/TimerList.cpp
-        third_party/dds/src/TimerList.h
-        third_party/dds/src/TimeStat.cpp
-        third_party/dds/src/TimeStat.h
-        third_party/dds/src/TimeStatList.cpp
-        third_party/dds/src/TimeStatList.h
-        third_party/dds/src/TransTable.h
-        third_party/dds/src/TransTableL.cpp
-        third_party/dds/src/TransTableL.h
-        third_party/dds/src/TransTableS.cpp
-        third_party/dds/src/TransTableS.h
+        cpp/third_party/dds/include/dll.h
+        cpp/third_party/dds/include/portab.h
+        cpp/third_party/dds/src/ABsearch.cpp
+        cpp/third_party/dds/src/ABsearch.h
+        cpp/third_party/dds/src/ABstats.cpp
+        cpp/third_party/dds/src/ABstats.h
+        cpp/third_party/dds/src/CalcTables.cpp
+        cpp/third_party/dds/src/CalcTables.h
+        cpp/third_party/dds/src/dds.cpp
+        cpp/third_party/dds/src/dds.h
+        cpp/third_party/dds/src/DealerPar.cpp
+        cpp/third_party/dds/src/debug.h
+        cpp/third_party/dds/src/dump.cpp
+        cpp/third_party/dds/src/dump.h
+        cpp/third_party/dds/src/File.cpp
+        cpp/third_party/dds/src/File.h
+        cpp/third_party/dds/src/Init.cpp
+        cpp/third_party/dds/src/Init.h
+        cpp/third_party/dds/src/LaterTricks.cpp
+        cpp/third_party/dds/src/LaterTricks.h
+        cpp/third_party/dds/src/Memory.cpp
+        cpp/third_party/dds/src/Memory.h
+        cpp/third_party/dds/src/Moves.cpp
+        cpp/third_party/dds/src/Moves.h
+        cpp/third_party/dds/src/Par.cpp
+        cpp/third_party/dds/src/parallel.h
+        cpp/third_party/dds/src/PBN.cpp
+        cpp/third_party/dds/src/PBN.h
+        cpp/third_party/dds/src/PlayAnalyser.cpp
+        cpp/third_party/dds/src/PlayAnalyser.h
+        cpp/third_party/dds/src/QuickTricks.cpp
+        cpp/third_party/dds/src/QuickTricks.h
+        cpp/third_party/dds/src/Scheduler.cpp
+        cpp/third_party/dds/src/Scheduler.h
+        cpp/third_party/dds/src/SolveBoard.cpp
+        cpp/third_party/dds/src/SolveBoard.h
+        cpp/third_party/dds/src/SolverIF.cpp
+        cpp/third_party/dds/src/SolverIF.h
+        cpp/third_party/dds/src/System.cpp
+        cpp/third_party/dds/src/System.h
+        cpp/third_party/dds/src/ThreadMgr.cpp
+        cpp/third_party/dds/src/ThreadMgr.h
+        cpp/third_party/dds/src/Timer.cpp
+        cpp/third_party/dds/src/Timer.h
+        cpp/third_party/dds/src/TimerGroup.cpp
+        cpp/third_party/dds/src/TimerGroup.h
+        cpp/third_party/dds/src/TimerList.cpp
+        cpp/third_party/dds/src/TimerList.h
+        cpp/third_party/dds/src/TimeStat.cpp
+        cpp/third_party/dds/src/TimeStat.h
+        cpp/third_party/dds/src/TimeStatList.cpp
+        cpp/third_party/dds/src/TimeStatList.h
+        cpp/third_party/dds/src/TransTable.h
+        cpp/third_party/dds/src/TransTableL.cpp
+        cpp/third_party/dds/src/TransTableL.h
+        cpp/third_party/dds/src/TransTableS.cpp
+        cpp/third_party/dds/src/TransTableS.h
         )
-target_include_directories(bridge_double_dummy_solver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(bridge_double_dummy_solver PUBLIC cpp)
 target_compile_features(bridge_double_dummy_solver PRIVATE cxx_std_17)
 
-add_library(_rl rl/model_locker.h rl/logging.h
-        rl/types.h rl/thread_loop.h rl/context.h rl/utils.h
-        rl/tensor_dict.h rl/base.h rl/context.cc rl/span.h rl/str_utils.h
-        rl/thread_loop.cc rl/model_locker.cc rl/str_utils.cc)
-target_include_directories(_rl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rl)
-target_include_directories(_rl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+add_library(_rl cpp/rl/model_locker.h cpp/rl/logging.h
+        cpp/rl/types.h cpp/rl/thread_loop.h cpp/rl/context.h cpp/rl/utils.h
+        cpp/rl/tensor_dict.h cpp/rl/base.h cpp/rl/context.cc cpp/rl/span.h cpp/rl/str_utils.h
+        cpp/rl/thread_loop.cc cpp/rl/model_locker.cc cpp/rl/str_utils.cc cpp/rl/logger.h cpp/rl/logger.cc)
+target_include_directories(_rl PUBLIC cpp/rl)
+target_include_directories(_rl PUBLIC cpp)
 target_include_directories(_rl PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(_rl PUBLIC ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(_rl PUBLIC
@@ -128,14 +128,14 @@ target_link_libraries(_rl PUBLIC
         ${TORCH_PYTHON_LIBRARIES})
 set_target_properties(_rl PROPERTIES CXX_STANDARD 17)
 
-add_library(bridge_lib bridge_state.cc bridge_scoring.cc bluechip_utils.cc bridge_scoring.h bridge_actor.h
-        bridge_envs.h bridge_envs.cc bridge_constants.h replay_buffer.h bridge_actor.cc search.h cards_and_ddts.h
-        imp_env.h imp_env.cc multi_agent_transition_buffer.h multi_agent_transition_buffer.cc replay_buffer.cc
-        search.cc bridge_deal.cc bridge_deal.h bridge_thread_loop.h bridge_thread_loop.cc transition.h transition.cc bridge_state.h dds.h dds.cc sayc_bot.h sayc_bot.cc)
-target_include_directories(bridge_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+add_library(bridge_lib cpp/bridge_state.cc cpp/bridge_scoring.cc cpp/bluechip_utils.cc cpp/bridge_scoring.h cpp/bridge_actor.h
+        cpp/bridge_envs.h cpp/bridge_envs.cc cpp/bridge_constants.h cpp/replay_buffer.h cpp/bridge_actor.cc cpp/cards_and_ddts.h
+        cpp/imp_env.h cpp/imp_env.cc cpp/multi_agent_transition_buffer.h cpp/multi_agent_transition_buffer.cc cpp/replay_buffer.cc
+        cpp/bridge_deal.cc cpp/bridge_deal.h cpp/bridge_thread_loop.h cpp/bridge_thread_loop.cc cpp/transition.h cpp/transition.cc cpp/bridge_state.h cpp/dds.h cpp/dds.cc cpp/sayc_bot.h cpp/sayc_bot.cc cpp/is_mcts.h cpp/bridge_utils.h cpp/bridge_utils.cc cpp/score_predictor.h cpp/search.h cpp/search.cc)
+target_include_directories(bridge_lib PUBLIC cpp)
 target_include_directories(bridge_lib PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(bridge_lib PUBLIC ${PYTHON_INCLUDE_DIRS})
-target_include_directories(bridge_lib PUBLIC "third_party/z3/src/api")
+target_include_directories(bridge_lib PUBLIC "cpp/third_party/z3/src/api")
 
 target_link_libraries(bridge_lib PUBLIC
         _rl
@@ -143,8 +143,8 @@ target_link_libraries(bridge_lib PUBLIC
         bridge_double_dummy_solver)
 target_compile_options(bridge_lib PUBLIC ${Z3_COMPONENT_CXX_FLAGS})
 
-pybind11_add_module(rl_cpp SHARED pybind.cc)
-target_include_directories(rl_cpp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+pybind11_add_module(rl_cpp SHARED cpp/pybind.cc)
+target_include_directories(rl_cpp PUBLIC cpp)
 target_include_directories(rl_cpp PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(rl_cpp PUBLIC ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(rl_cpp PUBLIC
@@ -155,27 +155,27 @@ if (WIN32)
     set(CMAKE_CXX_FLAGS_RELEASE "/MT")
     set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
 
-    add_executable(test test.cc)
+    add_executable(test cpp/test.cc)
     set_target_properties(test PROPERTIES LINKER_LANGUAGE CXX)
 
-    target_include_directories(test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_include_directories(test PUBLIC cpp)
     target_include_directories(test PUBLIC ${TORCH_INCLUDE_DIRS})
     target_include_directories(test PUBLIC ${PYTHON_INCLUDE_DIRS})
-    target_include_directories(bridge_lib PUBLIC "third_party/z3/src/api")
+    target_include_directories(bridge_lib PUBLIC "cpp/third_party/z3/src/api")
     target_link_libraries(test PUBLIC
             bridge_lib
             ${TORCH_LIBRARIES}
             ${PYTHON_LIBRATIES}
             bridge_double_dummy_solver)
 
-    add_subdirectory(third_party/googletest)
+    add_subdirectory(cpp/third_party/googletest)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     include_directories(
             ${gtest_SOURCE_DIR}/include
             ${gtest_SOURCE_DIR}
     )
-    add_executable(bluechip_test tests/bluechip_utils_test.cc)
-    target_include_directories(bluechip_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    add_executable(bluechip_test cpp/tests/bluechip_utils_test.cc)
+    target_include_directories(bluechip_test PUBLIC .)
     target_include_directories(bluechip_test PUBLIC ${TORCH_INCLUDE_DIRS})
     target_include_directories(bluechip_test PUBLIC ${PYTHON_INCLUDE_DIRS})
     target_link_libraries(bluechip_test PUBLIC
@@ -184,8 +184,8 @@ if (WIN32)
     include(GoogleTest)
     gtest_discover_tests(bluechip_test)
 
-    add_executable(bridge_scoring_test tests/bridge_scoring_test.cc)
-    target_include_directories(bridge_scoring_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    add_executable(bridge_scoring_test cpp/tests/bridge_scoring_test.cc)
+    target_include_directories(bridge_scoring_test PUBLIC .)
     target_include_directories(bridge_scoring_test PUBLIC ${TORCH_INCLUDE_DIRS})
     target_include_directories(bridge_scoring_test PUBLIC ${PYTHON_INCLUDE_DIRS})
     target_link_libraries(bridge_scoring_test PUBLIC
@@ -194,8 +194,8 @@ if (WIN32)
     include(GoogleTest)
     gtest_discover_tests(bridge_scoring_test)
 
-    add_executable(bridge_state_test tests/bridge_state_test.cc)
-    target_include_directories(bridge_state_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    add_executable(bridge_state_test cpp/tests/bridge_state_test.cc)
+    target_include_directories(bridge_state_test PUBLIC .)
     target_include_directories(bridge_state_test PUBLIC ${TORCH_INCLUDE_DIRS})
     target_include_directories(bridge_state_test PUBLIC ${PYTHON_INCLUDE_DIRS})
     target_link_libraries(bridge_state_test PUBLIC
@@ -204,8 +204,8 @@ if (WIN32)
     include(GoogleTest)
     gtest_discover_tests(bridge_state_test)
 
-    add_executable(concurrent_queue_test tests/concurrent_queue_test.cc)
-    target_include_directories(concurrent_queue_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    add_executable(concurrent_queue_test cpp/tests/concurrent_queue_test.cc)
+    target_include_directories(concurrent_queue_test PUBLIC .)
     target_include_directories(concurrent_queue_test PUBLIC ${TORCH_INCLUDE_DIRS})
     target_include_directories(concurrent_queue_test PUBLIC ${PYTHON_INCLUDE_DIRS})
     target_link_libraries(concurrent_queue_test PUBLIC
@@ -214,8 +214,8 @@ if (WIN32)
     include(GoogleTest)
     gtest_discover_tests(concurrent_queue_test)
 
-    add_executable(str_utils_test tests/str_utils_test.cc)
-    target_include_directories(str_utils_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    add_executable(str_utils_test cpp/tests/str_utils_test.cc)
+    target_include_directories(str_utils_test PUBLIC .)
     target_include_directories(str_utils_test PUBLIC ${TORCH_INCLUDE_DIRS})
     target_include_directories(str_utils_test PUBLIC ${PYTHON_INCLUDE_DIRS})
     target_link_libraries(str_utils_test PUBLIC
@@ -224,8 +224,8 @@ if (WIN32)
     include(GoogleTest)
     gtest_discover_tests(str_utils_test)
 
-    add_executable(dds_test tests/dds_test.cc)
-    target_include_directories(dds_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    add_executable(dds_test cpp/tests/dds_test.cc)
+    target_include_directories(dds_test PUBLIC .)
     target_include_directories(dds_test PUBLIC ${TORCH_INCLUDE_DIRS})
     target_include_directories(dds_test PUBLIC ${PYTHON_INCLUDE_DIRS})
     target_link_libraries(dds_test PUBLIC

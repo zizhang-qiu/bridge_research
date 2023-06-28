@@ -7,7 +7,7 @@ import common_utils
 import torch
 import rl_cpp
 
-from bridge_vars import Denomination, NUM_DENOMINATIONS, NUM_CARDS
+from bridge_consts import Denomination, NUM_DENOMINATIONS, NUM_CARDS
 
 
 def get_bid(level: int, trump: Denomination) -> int:
@@ -39,8 +39,8 @@ def main():
         cards[i] = np.random.permutation(NUM_CARDS)
 
     ddt, par_scores = dds.calc_all_tables(cards)
-    for i in range(1000):
-        dds.get_par_score_and_contract_from_par_results(par_scores[i], 0)
+    par_scores_list, par_contracts_list = dds.get_par_scores_and_contracts_from_pres_list(par_scores)
+    print(par_scores_list, par_contracts_list)
 
 
 if __name__ == '__main__':

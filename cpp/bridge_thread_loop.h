@@ -4,6 +4,7 @@
 
 #ifndef BRIDGE_RESEARCH_CPP_BRIDGE_THREAD_LOOP_H_
 #define BRIDGE_RESEARCH_CPP_BRIDGE_THREAD_LOOP_H_
+#include <utility>
 #include "rl/thread_loop.h"
 namespace rl::bridge {
 class VecEnvEvalThreadLoop : public ThreadLoop {
@@ -64,6 +65,47 @@ class BridgeVecEnvThreadLoop : public ThreadLoop {
  private:
   std::shared_ptr<BridgeWrapperVecEnv> env_;
   std::shared_ptr<VecEnvActor> actor_;
+};
+
+class DataThreadLoop : public ThreadLoop {
+ public:
+  DataThreadLoop(std::shared_ptr<BridgeDealManager> deal_manager,
+                 int seed)
+      : deal_manager_(std::move(deal_manager)),
+        rng_(seed) {}
+
+  void MainLoop() override;
+ private:
+  std::shared_ptr<BridgeDealManager> deal_manager_;
+  std::mt19937 rng_;
+};
+
+class VecEnvAllTerminateThreadLoop : public ThreadLoop {
+ public:
+  VecEnvAllTerminateThreadLoop(std::shared_ptr<VecEnvActor> actor,
+                               std::shared_ptr<BridgeVecEnv> env)
+      : actor_(std::move(actor)),
+        env_(std::move(env)) {}
+
+  void MainLoop() override;
+ private:
+  std::shared_ptr<VecEnvActor> actor_;
+  std::shared_ptr<BridgeVecEnv> env_;
+};
+
+class BeliefThreadLoop : public ThreadLoop {
+ public:
+  BeliefThreadLoop(std::shared_ptr<VecEnvActor> actor,
+                   std::shared_ptr<BridgeVecEnv> env,
+                   std::shared_ptr<ObsBeliefReplay> replay)
+      : actor_(std::move(actor)),
+        env_(std::move(env)),
+        replay_(std::move(replay)) {}
+  void MainLoop() override;
+ private:
+  std::shared_ptr<VecEnvActor> actor_;
+  std::shared_ptr<BridgeVecEnv> env_;
+  std::shared_ptr<ObsBeliefReplay> replay_;
 };
 }
 #endif //BRIDGE_RESEARCH_CPP_BRIDGE_THREAD_LOOP_H_

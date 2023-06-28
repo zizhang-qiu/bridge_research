@@ -1,3 +1,4 @@
+import argparse
 import copy
 import os.path
 import pickle
@@ -10,13 +11,13 @@ from tqdm import tqdm, trange
 
 import rl_cpp
 import common_utils
-from bridge_vars import NUM_CARDS
+from bridge_consts import NUM_CARDS
 from nets import PolicyNet2
 from bridge_bidding_imitation_learning import cross_entropy, compute_accuracy
 
-OBSERVATION_TENSOR_SIZE = 480 + 38
+OBSERVATION_TENSOR_SIZE = 900
 
-dataset_dir = "dataset/expert"
+dataset_dir = "expert"
 
 
 def make_sample(dataset: List[List[int]]) -> Generator:
@@ -42,7 +43,7 @@ def make_sample(dataset: List[List[int]]) -> Generator:
             state = rl_cpp.BridgeBiddingState(deal)
             for action in trajectory[NUM_CARDS:action_index]:
                 state.apply_action(action - 52)
-            observation_tensor = torch.tensor(state.observation_tensor_with_legal_actions())
+            observation_tensor = torch.tensor(state.observation_tensor2())
             yield observation_tensor, trajectory[action_index] - 52
 
 
@@ -78,7 +79,7 @@ def make_all_samples(dataset: List[List[int]], device: str) -> Tuple[torch.Tenso
         deal.ddt = np.zeros(20, dtype=int)
         state = rl_cpp.BridgeBiddingState(deal)
         for action in trajectory[NUM_CARDS:]:
-            observation_tensor = torch.tensor(state.observation_tensor_with_legal_actions())
+            observation_tensor = torch.tensor(state.observation_tensor2())
             label = action - 52
             observations.append(observation_tensor)
             labels.append(label)
@@ -86,19 +87,25 @@ def make_all_samples(dataset: List[List[int]], device: str) -> Tuple[torch.Tenso
     return torch.vstack(observations).to(device), torch.tensor(labels).to(device)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument("--eval_freq", type=int, default=10000)
+    parser.add_argument("--num_iterations", type=int, default=500000)
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
     common_utils.set_random_seeds(42)
-    train_batch_size = 16
-    num_iterations = 500000
-    lr = 3e-4
-    eval_freq = 10000
     device = "cuda"
     net = PolicyNet2()
     common_utils.initialize_fc(net)
     net.to(device)
-    opt = Adan(params=net.parameters(), lr=lr, fused=True)
+    opt = torch.optim.Adam(params=net.parameters(), lr=args.lr, fused=True)
     save_dir = common_utils.mkdir_with_increment("imitation_learning")
-    saver = common_utils.TopKSaver(10, save_dir, "checkpoint")
+    saver = common_utils.TopKSaver(save_dir, 10)
 
     with open(os.path.join(dataset_dir, "valid.pkl"), "rb") as fp:
         valid_data = pickle.load(fp)
@@ -108,16 +115,16 @@ def main():
     with open(os.path.join(dataset_dir, "train.pkl"), "rb") as fp:
         train_data = pickle.load(fp)
     # print(len(train_data))
-    train_generator = make_batch(make_sample(train_data), train_batch_size, device)
+    train_generator = make_batch(make_sample(train_data), args.batch_size, device)
 
-    for i_iter in trange(num_iterations):
+    for i_iter in trange(args.num_iterations):
         opt.zero_grad()
         train_observation, train_labels = next(train_generator)
         log_probs = net(train_observation)
         loss = cross_entropy(log_probs, train_labels, 38)
         loss.backward()
         opt.step()
-        if (i_iter + 1) % eval_freq == 0:
+        if (i_iter + 1) % args.eval_freq == 0:
             with torch.no_grad():
                 log_probs = net(valid_observation)
                 valid_loss = cross_entropy(log_probs, valid_labels, 38)

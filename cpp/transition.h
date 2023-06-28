@@ -28,11 +28,49 @@ class Transition {
 
   [[nodiscard]] TensorDict ToDict() const;
 
+  [[nodiscard]] Transition SampleIllegalTransitions(float illegal_reward) const;
+
+  // "s", "perfect_s", "legal_actions", "greedy"
   TensorDict obs;
+  // "a", "log_probs", "values", "raw_probs"
   TensorDict reply;
   torch::Tensor reward;
   torch::Tensor terminal;
   TensorDict next_obs;
+};
+
+class SearchTransition {
+ public:
+  SearchTransition() = default;
+
+  SearchTransition(TensorDict &obs,
+                   torch::Tensor &policy_posterior,
+                   torch::Tensor &value)
+      : obs(obs),
+        policy_posterior(policy_posterior),
+        value(value) {}
+
+  static SearchTransition MakeBatch(const std::vector<SearchTransition> &transitions, const std::string &device);
+
+  TensorDict ToDict() const;
+
+  TensorDict obs;
+  torch::Tensor policy_posterior;
+  torch::Tensor value;
+};
+
+class ObsBelief {
+ public:
+  ObsBelief() = default;
+
+  ObsBelief(TensorDict &obs, TensorDict &belief)
+      : obs(obs), belief(belief) {}
+
+  [[nodiscard]] ObsBelief Index(int i) const;
+
+  static ObsBelief MakeBatch(const std::vector<ObsBelief>& obs_beliefs, const std::string &device);
+  TensorDict obs;
+  TensorDict belief;
 };
 }
 #endif //BRIDGE_RESEARCH_CPP_TRANSITION_H_

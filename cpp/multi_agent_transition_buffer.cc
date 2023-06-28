@@ -37,7 +37,6 @@ std::tuple<std::vector<Transition>, torch::Tensor> BridgeTransitionBuffer::PopTr
     if (i == size - 1) {
       t.terminal = torch::tensor(1, torch::kBool);
       t.next_obs = tensor_dict::ZerosLike(t.obs);
-
     } else {
       t.terminal = torch::tensor(0, torch::kBool);
       t.next_obs = obs_history_[i + 1];

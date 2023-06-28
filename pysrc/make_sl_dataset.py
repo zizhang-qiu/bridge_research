@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 
 import rl_cpp
-from bridge_vars import NUM_CARDS
+from bridge_consts import NUM_CARDS
 
 parser = argparse.ArgumentParser()
 # dataset path

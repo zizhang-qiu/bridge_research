@@ -77,35 +77,21 @@ TensorDict ImpEnv::GetFeature() const {
 }
 
 bool ImpVecEnv::Reset() {
-//  std::vector<TensorDict> batch_obs;
   for (size_t i = 0; i < envs_.size(); ++i) {
     if (envs_[i]->Terminated()) {
-//      batch_obs.emplace_back(tensor_dict::Index(obs, i));
       envs_[i]->Reset();
-//      batch_obs.emplace_back(env_obs);
     }
   }
-//  return tensor_dict::Stack(batch_obs, 0);
   return true;
 }
 
 void ImpVecEnv::Step(const TensorDict &reply) {
-//  std::vector<TensorDict> obs_vector;
-//  torch::Tensor batch_reward = torch::zeros(envs_.size(), {torch::kFloat});
-//  torch::Tensor batch_terminal = torch::zeros(envs_.size(), {torch::kBool});
-//  TensorDict obs;
-//  float reward;
-//  bool terminal;
   for (size_t i = 0; i < envs_.size(); ++i) {
     if (!envs_[i]->Terminated()) {
       auto rep = tensor_dict::Index(reply, i);
       envs_[i]->Step(rep);
     }
-//    obs_vector.emplace_back(obs);
-//    batch_reward[i] = reward;
-//    batch_terminal[i] = terminal;
   }
-//  return std::make_tuple(tensor_dict::Stack(obs_vector, 0), batch_reward, batch_terminal);
 }
 
 bool ImpVecEnv::AnyTerminated() const {
@@ -134,4 +120,22 @@ TensorDict ImpVecEnv::GetFeature() const {
   return tensor_dict::Stack(obs_vec, 0);
 }
 
+void ImpEnvWrapper::Step(const TensorDict &reply) {
+  auto acting_player = env_.GetActingPlayer();
+  transition_buffer_.PushObsAndReply(acting_player, last_obs_, reply);
+//  if(add_random_illegal_transitions_ && torch::rand(1).item<float>() > 0.5){
+//    auto illegal_reply = SampleIllegalAction(last_obs_, reply);
+//  }
+  env_.Step(reply);
+  if (env_.Terminated()) {
+    std::vector<float> rewards = env_.Returns();
+    std::vector<float> normalized_rewards(kNumPlayers);
+    for (int i = 0; i < kNumPlayers; ++i) {
+      normalized_rewards[i] = rewards[i] / static_cast<float>(bridge::kMaxImp);
+    }
+
+    transition_buffer_.PushToReplayBuffer(replay_buffer_, normalized_rewards);
+    transition_buffer_.Clear();
+  }
+}
 } // namespace rl::bridge

@@ -2,6 +2,7 @@
 // Created by qzz on 2023/5/3.
 //
 #include "bridge_thread_loop.h"
+#include "dds.h"
 
 namespace rl::bridge {
 void VecEnvEvalThreadLoop::MainLoop() {
@@ -108,6 +109,59 @@ void BridgeVecEnvThreadLoop::MainLoop() {
       reply = actor_->Act(obs);
       env_->Step(reply);
       obs = env_->GetFeature();
+    }
+  }
+  terminated_ = true;
+}
+
+void DataThreadLoop::MainLoop() {
+  while (!Terminated()) {
+    if (Terminated()) {
+      break;
+    }
+    if (pause_signal) {
+      paused_ = true;
+      WaitUntilResume();
+    }
+    auto [gen_cards, gen_ddt] = GenerateOneDeal(rng_);
+    deal_manager_->Add(gen_cards, gen_ddt, 0);
+//    std::cout << "size: " << deal_manager_->Size() << std::endl;
+  }
+  terminated_ = true;
+}
+
+void VecEnvAllTerminateThreadLoop::MainLoop() {
+  TensorDict obs = {};
+  TensorDict reply;
+  env_->Reset();
+  while (!env_->AllTerminated()) {
+    obs = env_->GetFeature();
+    reply = actor_->Act(obs);
+    env_->Step(reply);
+  }
+
+  terminated_ = true;
+}
+
+void BeliefThreadLoop::MainLoop() {
+  TensorDict obs;
+  TensorDict reply;
+  TensorDict belief;
+  while (!Terminated()) {
+    if (Terminated()) {
+      break;
+    }
+    if (pause_signal) {
+      paused_ = true;
+      WaitUntilResume();
+    }
+    env_->Reset();
+    while (!env_->AnyTerminated()) {
+      obs = env_->GetFeature();
+      belief = env_->GetBeliefFeature();
+      replay_->Add({obs, belief}, torch::ones(env_->Size()));
+      reply = actor_->Act(obs);
+      env_->Step(reply);
     }
   }
   terminated_ = true;

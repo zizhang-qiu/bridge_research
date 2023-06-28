@@ -12,14 +12,14 @@ import rl_cpp
 import common_utils
 import yaml
 
-from bridge_vars import NUM_CALLS, PLUS_MINUS_SYMBOL
+from bridge_consts import NUM_CALLS, PLUS_MINUS_SYMBOL
 from utils import sl_net, load_rl_dataset, Evaluator
 from agent_for_cpp import VecEnvAgent
 
 
 def main():
     torch.set_printoptions(threshold=100000)
-    with open("conf/a2c.yaml") as f:
+    with open("conf/a2c_2.yaml") as f:
         cfg = yaml.safe_load(f)
     print(cfg)
 
@@ -30,22 +30,15 @@ def main():
     stats = common_utils.MultiStats()
     logger = common_utils.Logger(os.path.join(save_dir, "log.txt"), verbose=True, auto_line_feed=True)
     logger.write(pprint.pformat(cfg))
-    saver = common_utils.TopKSaver(top_k, save_dir, "checkpoint")
+    saver = common_utils.TopKSaver(save_dir, top_k)
     stopwatch = common_utils.Stopwatch()
-
-    checkpoint_path = cfg["checkpoint_path"]
     net = sl_net()
     supervised_net = sl_net()
-    checkpoint: Optional[Dict] = None
-    if checkpoint_path:
-        checkpoint = torch.load(checkpoint_path)
-        net.load_state_dict(checkpoint["model_state_dict"]["policy"])
     p_lr = cfg["policy_lr"]
     v_lr = cfg["value_lr"]
     train_device = cfg["train_device"]
     agent = VecEnvAgent(net).to(train_device)
-    if checkpoint_path:
-        agent.v_net.load_state_dict(checkpoint["model_state_dict"]["value"])
+    agent.v_net.load_state_dict(torch.load("models/value.pth"))
     act_device = cfg["act_device"]
 
     train_locker = rl_cpp.ModelLocker([torch.jit.script(copy.deepcopy(agent)).to(act_device)], act_device)
@@ -54,9 +47,6 @@ def main():
     # v_opt = torch.optim.AdamW(params=agent.v_net.parameters(), lr=v_lr)
     p_opt = Adan(params=agent.p_net.parameters(), lr=p_lr, fused=True)
     v_opt = Adan(params=agent.v_net.parameters(), lr=v_lr, fused=True)
-    if checkpoint_path:
-        p_opt.load_state_dict(checkpoint["opt_state_dict"]["policy"])
-        v_opt.load_state_dict(checkpoint["opt_state_dict"]["value"])
 
     # p_lr_scheduler = torch.optim.lr_scheduler.StepLR(p_opt, step_size=200 * 1000, gamma=0.1)
     # v_lr_scheduler = torch.optim.lr_scheduler.StepLR(v_opt, step_size=200 * 1000, gamma=0.1)
@@ -70,24 +60,19 @@ def main():
     # envs
     num_threads = cfg["num_threads"]
     num_games_per_thread = cfg["num_games_per_thread"]
-    dataset = load_rl_dataset("train")
+    dataset = load_rl_dataset("train3")
     deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
     buffer_capacity = cfg["buffer_capacity"]
     alpha = cfg["alpha"]
     beta = cfg["beta"]
     prefetch = cfg["prefetch"]
-    # replay_buffer = rl_cpp.ReplayBuffer(480, NUM_CALLS, buffer_capacity, 0.6, 1e-15, 0.5)
     replay_buffer = rl_cpp.Replay(buffer_capacity, cfg["seed"], alpha, beta, prefetch)
     context = rl_cpp.Context()
     for _ in trange(num_threads):
-        # vec_env = rl_cpp.BridgeVecEnv()
         vec_env = rl_cpp.BridgeWrapperVecEnv()
         for i_env in range(num_games_per_thread):
-            # env = rl_cpp.BridgeBiddingEnv(deal_manager, [0, 0, 0, 0], replay_buffer, True, False)
-            # vec_env.push(env)
             env = rl_cpp.BridgeBiddingEnvWrapper(deal_manager, [0, 0, 0, 0], replay_buffer)
             vec_env.push(env)
-        # t = rl_cpp.BridgeThreadLoop(vec_env, train_actor)
         t = rl_cpp.BridgeVecEnvThreadLoop(vec_env, train_actor)
         context.push_thread_loop(t)
 
@@ -126,7 +111,6 @@ def main():
 
             batch, weights = replay_buffer.sample(sample_batch_size, train_device)
             # print(weights)
-            print(batch.reward)
             stopwatch.time("sample data")
 
             p_loss, v_loss, priority = agent.compute_loss_and_priority(batch, clip_eps, entropy_ratio)
@@ -171,12 +155,7 @@ def main():
             "model_state_dict": {
                 "policy": copy.deepcopy(agent.p_net.state_dict()),
                 "value": copy.deepcopy(agent.v_net.state_dict())
-            },
-            "opt_state_dict": {
-                "policy": copy.deepcopy(p_opt.state_dict()),
-                "value": copy.deepcopy(v_opt.state_dict())
             }
-
         }
         saver.save(checkpoint, avg, True)
         stats.save_all(save_dir, True)

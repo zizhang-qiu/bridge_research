@@ -12,8 +12,8 @@ import rl_cpp
 import common_utils
 import yaml
 
-from bridge_vars import NUM_CALLS, PLUS_MINUS_SYMBOL
-from utils import sl_net, load_rl_dataset, Evaluator, sl_net2
+from bridge_consts import NUM_CALLS, PLUS_MINUS_SYMBOL
+from utils import sl_net, load_rl_dataset, Evaluator
 from agent_for_cpp import VecEnvAgent
 
 
@@ -34,8 +34,8 @@ def main():
     stopwatch = common_utils.Stopwatch()
 
     checkpoint_path = cfg["checkpoint_path"]
-    net = sl_net2()
-    supervised_net = sl_net2()
+    net = sl_net()
+    supervised_net = sl_net()
     checkpoint: Optional[Dict] = None
     if checkpoint_path:
         checkpoint = torch.load(checkpoint_path)
@@ -70,15 +70,18 @@ def main():
     # envs
     num_threads = cfg["num_threads"]
     num_games_per_thread = cfg["num_games_per_thread"]
-    dataset = load_rl_dataset("train")
-    deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
+    dataset = load_rl_dataset("train3")
+    deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"],
+                                            dataset["par_scores"], dataset["cards"].shape[0] + 10)
     buffer_capacity = cfg["buffer_capacity"]
     alpha = cfg["alpha"]
     beta = cfg["beta"]
     prefetch = cfg["prefetch"]
-    # replay_buffer = rl_cpp.ReplayBuffer(480, NUM_CALLS, buffer_capacity, 0.6, 1e-15, 0.5)
+
     replay_buffer = rl_cpp.Replay(buffer_capacity, cfg["seed"], alpha, beta, prefetch)
     context = rl_cpp.Context()
+    # data_loop = rl_cpp.DataThreadLoop(deal_manager, cfg["seed"])
+    # context.push_thread_loop(data_loop)
     for _ in trange(num_threads):
         # vec_env = rl_cpp.BridgeVecEnv()
         vec_env = rl_cpp.ImpVecEnv()
@@ -136,13 +139,14 @@ def main():
 
             # stats.feed("p_loss", p_loss.item())
             stats.feed("v_loss", v_loss.mean().item())
-
             weighted_loss = ((p_loss + v_loss) * weights).mean()
             torch.cuda.synchronize()
             stats.feed("weighted_loss", weighted_loss.item())
             stopwatch.time("calculating loss")
             # print(weighted_loss)
             weighted_loss.backward()
+            # avg, m = common_utils.calculate_gradient_magnitudes(agent.p_net)
+            # print(avg, m)
             torch.nn.utils.clip_grad_norm_(agent.p_net.parameters(), max_grad_norm)
             p_opt.step()
             v_opt.step()
@@ -162,7 +166,8 @@ def main():
         while not context.all_paused():
             time.sleep(0.5)
 
-        avg, sem, elapsed_time, _, _ = evaluator.evaluate(agent.p_net, supervised_net)
+        avg, sem, elapsed_time, *_ = evaluator.evaluate(agent.p_net, supervised_net)
+
         stats.feed("avg_imp", avg)
         stats.feed("sem_imp", sem)
         msg = f"Epoch {i_ep}, result: {avg}{PLUS_MINUS_SYMBOL}{sem:.4f}, elapsed time: {elapsed_time:.2f}."
@@ -171,17 +176,16 @@ def main():
             "model_state_dict": {
                 "policy": copy.deepcopy(agent.p_net.state_dict()),
                 "value": copy.deepcopy(agent.v_net.state_dict())
-            },
-            "opt_state_dict": {
-                "policy": copy.deepcopy(p_opt.state_dict()),
-                "value": copy.deepcopy(v_opt.state_dict())
             }
-
         }
-        saver.save(checkpoint, avg, True)
+        force_save_name = None
+        if (i_ep + 1) % 100 == 0:
+            force_save_name = f"model_epoch{i_ep + 1}"
+        saver.save(checkpoint, avg, True, force_save_name=force_save_name)
         stats.save_all(save_dir, True)
         ed = time.perf_counter()
         print(f"Epoch {i_ep}, total time: {ed - st:.2f}")
+
         context.resume()
 
     context.terminate()

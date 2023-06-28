@@ -13,7 +13,7 @@ import numpy as np
 from tqdm import trange
 
 from dds import calc_all_tables, get_par_score_and_contract_from_par_results
-from bridge_vars import NUM_CARDS, RANK_STR, NUM_CARDS_PER_HAND, NUM_PLAYERS
+from bridge_consts import NUM_CARDS, RANK_STR, NUM_CARDS_PER_HAND, NUM_PLAYERS
 from pbn import get_card
 
 db_dir = r"D:\RL\rlul\pyrlul\bridge\dataset\rl_data"

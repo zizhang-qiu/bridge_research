@@ -24,9 +24,9 @@ inline constexpr int kNumDoubleStates = 3;
 inline constexpr int kNumPlayers = 4;
 constexpr char kPlayerChar[] = "NESW";
 
-inline constexpr int kNumSuits = 4; //C,D,H,S
-inline constexpr int kNumCardsPerSuit = 13; //2,3,4,5,6,7,8,9,T,K,A
-inline constexpr int kNumPartnerships = 2; //NS, EW
+inline constexpr int kNumSuits = 4; // C,D,H,S
+inline constexpr int kNumCardsPerSuit = 13; // 2,3,4,5,6,7,8,9,T,K,A
+inline constexpr int kNumPartnerships = 2; // NS, EW
 inline constexpr int kNumBidLevels = 7;   // Bids can be from 7 to 13 tricks.
 inline constexpr int kNumOtherCalls = 3;  // Pass, Double, Redouble
 inline constexpr int kNumVulnerabilities = 2;  // Vulnerable or non-vulnerable.
@@ -57,21 +57,18 @@ inline constexpr int kAuctionTensorSize =
         kNumCards // Our hand
         + kNumVulnerabilities * kNumPartnerships;
 
-inline constexpr int kAuctionComplicateTensorSize =
-    kAuctionTensorSize
-    + 1 // Is it the opening bid?
-    + kNumSuits // High card points for each suit
-    + 1 // Total high card points
-    + kNumSuits // Length for each suit
-    + (1 + kNumBids) // current contract (pass + 35 contracts)
-    + kNumPlayers // Which player bid the current contract?
-    + kNumPlayers // Who declarer is?
-    + kNumDoubleStates // Is the contract undoubled, doubled or redoubled?
-    + kNumCalls; // Available calls
-
 // 52 * 3
 inline constexpr int kHiddenInfoTensorSize = kNumCards * (kNumPlayers - 1);
 inline constexpr int kPerfectInfoTensorSize = kHiddenInfoTensorSize + kAuctionTensorSize;
+inline constexpr int kCardsTensorSize = kNumPlayers * kNumCards;
+inline constexpr int kFinalTensorSize =
+    kNumPlayers * kNumCards // Each player's hand
+        + kNumBidLevels             // What the contract is
+        + kNumDenominations         // What trumps are
+        + kNumDoubleStates          // Undoubled / doubled / redoubled
+        + kNumPlayers              // Who declarer is
+        + kNumVulnerabilities;     // Vulnerability of the declaring side
+
 // eventually, kPublicInfoTensorSize= 480 - 52+ 4 = 432
 inline constexpr int kPublicInfoTensorSize =
     kAuctionTensorSize // The auction

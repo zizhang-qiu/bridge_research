@@ -5,6 +5,7 @@
 #include "bridge_actor.h"
 #include "bridge_envs.h"
 #include "bridge_scoring.h"
+#include "bridge_utils.h"
 #include "multi_agent_transition_buffer.h"
 #include "bridge_state.h"
 #include "bridge_thread_loop.h"
@@ -111,20 +112,28 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("hidden_observation_tensor", &BridgeBiddingState::HiddenObservationTensor)
       .def("observation_tensor_with_hand_evaluation", &BridgeBiddingState::ObservationTensorWithHandEvaluation)
       .def("observation_tensor_with_legal_actions", &BridgeBiddingState::ObservationTensorWithLegalActions)
-      .def("observation_tensor2", &BridgeBiddingState::ObservationTensor2)
+      .def("cards_tensor", &BridgeBiddingState::CardsTensor)
+      .def("final_observation_tensor", py::overload_cast<>(&BridgeBiddingState::FinalObservationTensor, py::const_))
+      .def("final_observation_tensor",
+           py::overload_cast<Player>(&BridgeBiddingState::FinalObservationTensor, py::const_))
       .def("terminate", &BridgeBiddingState::Terminate)
       .def("legal_actions", &BridgeBiddingState::LegalActions)
       .def("clone", &BridgeBiddingState::Clone)
+      .def("get_player_cards", &BridgeBiddingState::GetPlayerCards)
+      .def("get_partner_cards", &BridgeBiddingState::GetPartnerCards)
       .def("get_double_dummy_table", &BridgeBiddingState::GetDoubleDummyTable)
       .def("get_hand_evaluation", &BridgeBiddingState::GetHandEvaluation)
+      .def("score_for_contracts", &BridgeBiddingState::ScoreForContracts)
       .def("__repr__", &BridgeBiddingState::ToString);
 
   py::class_<Transition, std::shared_ptr<Transition>>(m, "Transition")
+      .def(py::init<>())
       .def_readwrite("obs", &Transition::obs)
       .def_readwrite("reply", &Transition::reply)
       .def_readwrite("reward", &Transition::reward)
       .def_readwrite("terminal", &Transition::terminal)
       .def_readwrite("next_obs", &Transition::next_obs)
+      .def("sample_illegal_transitions", &Transition::SampleIllegalTransitions)
       .def("to_dict", &Transition::ToDict);
 
   py::class_<BridgeTransitionBuffer, std::shared_ptr<BridgeTransitionBuffer>>(m, "BridgeTransitionBuffer")
@@ -136,20 +145,29 @@ PYBIND11_MODULE(rl_cpp, m) {
 
   py::class_<MultiAgentTransitionBuffer, std::shared_ptr<MultiAgentTransitionBuffer>>(m, "MultiAgentTransitionBuffer")
       .def(py::init<int>())
-      .def("push_obs_and_reply", &MultiAgentTransitionBuffer::PushObsAndReply)
-      .def("push_to_replay_buffer", &MultiAgentTransitionBuffer::PushToReplayBuffer);
+      .def("push_obs_and_reply", &MultiAgentTransitionBuffer::PushObsAndReply);
 
-  py::class_<BridgeDealManager, std::shared_ptr<BridgeDealManager>>(m, "BridgeDealManager")
+  py::class_<DealManager, std::shared_ptr<DealManager>>(m, "DealManager");
+
+  py::class_<BridgeDealManager, DealManager, std::shared_ptr<BridgeDealManager>>(m, "BridgeDealManager")
+      .def(py::init<const std::vector<Cards>,
+                    const std::vector<DDT>,
+                    const std::vector<int>,
+                    int>())
       .def(py::init<const std::vector<Cards>,
                     const std::vector<DDT>,
                     const std::vector<int>>())
       .def("size", &BridgeDealManager::Size)
       .def("next", &BridgeDealManager::Next);
 
+  py::class_<RandomDealManager, DealManager, std::shared_ptr<RandomDealManager>>(m, "RandomDealManager")
+      .def(py::init<int>())
+      .def("next", &RandomDealManager::Next);
+
   py::class_<BridgeBiddingEnv, std::shared_ptr<BridgeBiddingEnv>>(m, "BridgeBiddingEnv")
-      .def(py::init<std::shared_ptr<BridgeDealManager>,
-                    std::vector<int>
-      >())
+      .def(py::init<
+          std::shared_ptr<DealManager>,
+          std::vector<int>>())
       .def("reset", &BridgeBiddingEnv::Reset)
       .def("step", &BridgeBiddingEnv::Step)
       .def("returns", &BridgeBiddingEnv::Returns)
@@ -170,19 +188,24 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("get_envs", &BridgeVecEnv::GetEnvs)
       .def("get_returns", &BridgeVecEnv::GetReturns)
       .def("get_feature", &BridgeVecEnv::GetFeature)
+      .def("get_histories", &BridgeVecEnv::GetHistories)
       .def("any_terminated", &BridgeVecEnv::AnyTerminated)
       .def("all_terminated", &BridgeVecEnv::AllTerminated);
 
   py::class_<BridgeBiddingEnvWrapper, std::shared_ptr<BridgeBiddingEnvWrapper>>(m, "BridgeBiddingEnvWrapper")
-      .def(py::init<std::shared_ptr<BridgeDealManager>, std::vector<int>, std::shared_ptr<Replay>>());
+      .def(py::init<
+          std::shared_ptr<BridgeDealManager>,
+          std::vector<int>,
+          std::shared_ptr<Replay>>());
 
   py::class_<BridgeWrapperVecEnv, std::shared_ptr<BridgeWrapperVecEnv>>(m, "BridgeWrapperVecEnv")
       .def(py::init<>())
       .def("push", &BridgeWrapperVecEnv::Push, py::keep_alive<1, 2>());
 
   py::class_<ImpEnv, std::shared_ptr<ImpEnv>>(m, "ImpEnv")
-      .def(py::init<std::shared_ptr<BridgeDealManager>,
-                    std::vector<int>>())
+      .def(py::init<
+          std::shared_ptr<BridgeDealManager>,
+          std::vector<int>>())
       .def("reset", &ImpEnv::Reset)
       .def("step", &ImpEnv::Step)
       .def("terminated", &ImpEnv::Terminated)
@@ -205,15 +228,22 @@ PYBIND11_MODULE(rl_cpp, m) {
 
   py::class_<ImpEnvWrapper, std::shared_ptr<ImpEnvWrapper>>(m, "ImpEnvWrapper")
       .def(py::init<
-          std::shared_ptr<BridgeDealManager>,
-          const std::vector<int>,
-          std::shared_ptr<Replay>
-      >())
+               std::shared_ptr<BridgeDealManager>,
+               const std::vector<int>,
+               std::shared_ptr<Replay>>(), py::arg("deal_manager"), py::arg("greedy"),
+           py::arg("replay_buffer"))
       .def("get_feature", &ImpEnvWrapper::GetFeature)
       .def("step", &ImpEnvWrapper::Step)
       .def("terminated", &ImpEnvWrapper::Terminated)
       .def("__repr__", &ImpEnvWrapper::ToString)
       .def("reset", &ImpEnvWrapper::Reset);
+
+  py::class_<PVReplay, std::shared_ptr<PVReplay>>(m, "PVReplay")
+      .def(py::init<int, int, float, float, int>())
+      .def("sample", &PVReplay::Sample)
+      .def("num_add", &PVReplay::NumAdd)
+      .def("update_priority", &PVReplay::UpdatePriority)
+      .def("size", &PVReplay::Size);
 
   py::class_<Context, std::shared_ptr<Context>>(m, "Context")
       .def(py::init<>())
@@ -247,6 +277,14 @@ PYBIND11_MODULE(rl_cpp, m) {
   py::class_<BridgeVecEnvThreadLoop, ThreadLoop, std::shared_ptr<BridgeVecEnvThreadLoop>>(m, "BridgeVecEnvThreadLoop")
       .def(py::init<std::shared_ptr<BridgeWrapperVecEnv>, std::shared_ptr<VecEnvActor>>());
 
+  py::class_<DataThreadLoop, ThreadLoop, std::shared_ptr<DataThreadLoop>>(m, "DataThreadLoop")
+      .def(py::init<std::shared_ptr<BridgeDealManager>, int>(),
+           py::arg("deal_manager"), py::arg("seed"));
+
+  py::class_<VecEnvAllTerminateThreadLoop, ThreadLoop, std::shared_ptr<VecEnvAllTerminateThreadLoop>>
+      (m, "VecEnvAllTerminateThreadLoop")
+      .def(py::init<std::shared_ptr<VecEnvActor>, std::shared_ptr<BridgeVecEnv>>());
+
   m.def("make_obs_tensor_dict", &bridge::MakeObsTensorDict);
   m.def("check_prob_not_zero", &rl::utils::CheckProbNotZero);
 
@@ -254,31 +292,71 @@ PYBIND11_MODULE(rl_cpp, m) {
   m.def("bid_action_to_str", &bluechip::BidActionToStr);
   m.def("get_hand_string", &bluechip::GetHandString);
 
-  py::class_<SearchParams>(m, "SearchParams")
-      .def(py::init<>())
-      .def_readwrite("min_rollouts", &SearchParams::min_rollouts)
-      .def_readwrite("max_rollouts", &SearchParams::max_rollouts)
-      .def_readwrite("max_particles", &SearchParams::max_particles)
-      .def_readwrite("temperature", &SearchParams::temperature)
-      .def_readwrite("top_k", &SearchParams::top_k)
-      .def_readwrite("min_prob", &SearchParams::min_prob)
-      .def_readwrite("verbose_level", &SearchParams::verbose_level)
-      .def_readwrite("seed", &SearchParams::seed)
-      .def_readwrite("select_highest_rollout_value", &SearchParams::select_highest_rollout_value);
-
-  m.def("search", &rl::bridge::Search);
+  py::class_<std::mt19937>(m, "RNG")
+      .def(py::init<unsigned int>());
 
   py::class_<Replay, std::shared_ptr<Replay>>(m, "Replay")
-      .def(py::init<int, int, float, float, int>())
+      .def(py::init<
+               int,
+               int,
+               float,
+               float,
+               int>(),
+           py::arg("capacity"),
+           py::arg("seed"),
+           py::arg("alpha"),
+           py::arg("beta"),
+           py::arg("prefetch"))
       .def("sample", &Replay::Sample)
       .def("num_add", &Replay::NumAdd)
       .def("update_priority", &Replay::UpdatePriority)
       .def("size", &Replay::Size);
 
-  py::class_<Searcher, std::shared_ptr<Searcher>>(m, "Searcher")
-      .def(py::init<SearchParams,
-                    std::vector<std::shared_ptr<VecEnvActor>>,
-                    int>())
+  py::class_<ObsBelief, std::shared_ptr<ObsBelief>>(m, "ObsBelief")
+      .def(py::init<>())
+      .def_readwrite("obs", &ObsBelief::obs)
+      .def_readwrite("belief", &ObsBelief::belief);
+
+  py::class_<ObsBeliefReplay, std::shared_ptr<ObsBeliefReplay>>(m, "ObsBeliefReplay")
+      .def(py::init<
+               int,
+               int,
+               float,
+               float,
+               int>(),
+           py::arg("capacity"),
+           py::arg("seed"),
+           py::arg("alpha"),
+           py::arg("beta"),
+           py::arg("prefetch"))
+      .def("sample", &ObsBeliefReplay::Sample)
+      .def("num_add", &ObsBeliefReplay::NumAdd)
+      .def("update_priority", &ObsBeliefReplay::UpdatePriority)
+      .def("size", &ObsBeliefReplay::Size);
+
+  py::class_<BeliefThreadLoop, ThreadLoop, std::shared_ptr<BeliefThreadLoop>>(m, "BeliefThreadLoop")
+      .def(py::init<std::shared_ptr<VecEnvActor>,
+                    std::shared_ptr<BridgeVecEnv>,
+                    std::shared_ptr<ObsBeliefReplay>>());
+
+  py::class_<SearchTransition, std::shared_ptr<SearchTransition>>(m, "SearchTransition")
+      .def_readwrite("obs", &SearchTransition::obs)
+      .def_readwrite("policy_posterior", &SearchTransition::policy_posterior)
+      .def_readwrite("value", &SearchTransition::value);
+
+  py::class_<BeliefModel, std::shared_ptr<BeliefModel>>(m, "BeliefModel")
+      .def(py::init<std::shared_ptr<ModelLocker>>());
+
+  py::class_<SearchParams>(m, "SearchParams")
+      .def(py::init<>())
+      .def_readwrite("num_particles", &SearchParams::num_particles)
+      .def_readwrite("temperature", &SearchParams::temperature)
+      .def_readwrite("top_k", &SearchParams::top_k)
+      .def_readwrite("min_prob", &SearchParams::min_prob)
+      .def_readwrite("verbose", &SearchParams::verbose);
+
+  py::class_<Searcher>(m, "Searcher")
+      .def(py::init<SearchParams, std::shared_ptr<BeliefModel>, std::shared_ptr<VecEnvActor>>())
       .def("search", &Searcher::Search);
 
   m.def("accessor_test", &AccessorTest);

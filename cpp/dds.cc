@@ -28,7 +28,7 @@ ddTableDeal Holder2ddTableDeal(const std::vector<Player> &holder) {
 
 ddTablesRes CalcBatchDDTs(const std::vector<std::vector<Action>> &cards_vector, int mode) {
   int batch_size = static_cast<int>(cards_vector.size());
-  std::cout << batch_size << std::endl;
+//  std::cout << batch_size << std::endl;
   RL_CHECK_LE(batch_size, kMaxDDSBatchSize);
   ddTableDeals dealsp{};
   dealsp.noOfTables = batch_size;
@@ -70,4 +70,42 @@ std::vector<ddTableResults> CalcDDTs(const std::vector<std::vector<Action>> &car
   RL_CHECK_EQ(results.size(), num_deals);
   return results;
 }
+
+ddTableResults CalcOneDeal(const std::vector<Action> &cards) {
+  auto holder = GetHolder(cards);
+  ddTableDeal deal = Holder2ddTableDeal(holder);
+  ddTableResults double_dummy_results{};
+  SetMaxThreads(1);
+  const int return_code = CalcDDtable(deal, &double_dummy_results);
+  if (return_code != RETURN_NO_FAULT) {
+    char error_message[80];
+    ErrorMessage(return_code, error_message);
+    std::cerr << utils::StrCat("double_dummy_solver:", error_message)
+              << std::endl;
+  }
+  return double_dummy_results;
+}
+
+std::vector<int> ddTableResults2ddt(const ddTableResults double_dummy_results) {
+  auto res_table = double_dummy_results.resTable;
+  std::vector<int> ddt(kDoubleDummyResultSize);
+  for (auto denomination : {kClubs, kDiamonds, kHearts, kSpades, kNoTrump}) {
+    for (auto player : {kNorth, kEast, kSouth, kWest}) {
+      ddt[denomination * kNumPlayers + player] =
+          res_table[DenominationToDDSStrain(denomination)][player];
+    }
+  }
+  return ddt;
+}
+
+std::tuple<std::vector<Action>, std::vector<int>> GenerateOneDeal(std::mt19937 &rng) {
+  std::vector<Action> cards = utils::Permutation(0, kNumCards, rng);
+  auto holder = GetHolder(cards);
+  ddTableResults double_dummy_results = CalcOneDeal(cards);
+  auto ddt = ddTableResults2ddt(double_dummy_results);
+  return std::make_tuple(cards, ddt);
+}
+
+
+
 }

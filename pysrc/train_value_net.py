@@ -9,15 +9,15 @@ import torch
 from adan import Adan
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm, trange
-from nets import PerfectValueNet
+from nets import PerfectValueNet, ValueNet
 import rl_cpp
-from pysrc import common_utils
+import common_utils
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--train_batch_size", type=int, default=128)
+    parser.add_argument("--train_batch_size", type=int, default=512)
     # parser.add_argument("--valid_batch_size", type=int, default=10000)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--save_dir", type=str, default="value_sl")
@@ -97,14 +97,14 @@ def main():
     common_utils.set_random_seeds(1)
     save_dir = common_utils.mkdir_with_increment(args.save_dir)
     logger = common_utils.Logger(os.path.join(save_dir, "log.txt"), auto_line_feed=True)
-    saver = common_utils.TopKSaver(5, save_dir, "value")
+    saver = common_utils.TopKSaver(save_dir, 10)
     net = PerfectValueNet()
     net.to(args.device)
-    valid_dataset = ValueDataset("dataset/expert/perfect_valid.p", args.device)
-    train_dataset = ValueDataset("dataset/expert/perfect_train.p", args.device)
+    valid_dataset = ValueDataset("expert/perfect_valid.p", args.device)
+    train_dataset = ValueDataset("expert/perfect_train.p", args.device)
 
     train_dataloader = DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True)
-    valid_dataloader = DataLoader(valid_dataset, batch_size=len(valid_dataset), shuffle=True)
+    valid_dataloader = DataLoader(valid_dataset, batch_size=len(valid_dataset), shuffle=False)
     num_mini_batches = 0
     opt = torch.optim.Adam(net.parameters(), lr=args.lr, fused=True)
 
@@ -114,7 +114,7 @@ def main():
                 pred = net(valid_perfect_obs).squeeze()
                 valid_loss = torch.nn.functional.mse_loss(pred, valid_labels)
         msg = f"checkpoint {num_mini_batches // args.eval_freq}, valid loss: {valid_loss}."
-        saver.save(copy.deepcopy(net.state_dict()), -valid_loss.item(), True)
+        saver.save(net.state_dict(), -valid_loss.item(), True)
         logger.write(msg)
 
     def train():
@@ -138,16 +138,17 @@ def main():
 def test():
     torch.set_printoptions(threshold=1000000, sci_mode=False)
     net = PerfectValueNet()
-    net.load_state_dict(torch.load("../value_sl/folder_3/value_0.pth"))
-    net.to("cuda")
-    test_dataset = ValueDataset("../expert/perfect_test.p", "cuda")
-    test_loader = DataLoader(test_dataset, batch_size=len(test_dataset))
-    with torch.no_grad():
-        for perfect_obs, labels in test_loader:
-            pred = net(perfect_obs).squeeze()
-            test_loss = torch.nn.functional.mse_loss(pred, labels, reduction="mean")
-            print(test_loss)
-            print(pred * 7600, labels * 7600)
+    for i in range(1):
+        net.load_state_dict(torch.load(f"value_sl/folder_7/model{8}.pth"))
+        net.to("cuda")
+        test_dataset = ValueDataset("expert/perfect_test.p", "cuda")
+        test_loader = DataLoader(test_dataset, batch_size=len(test_dataset))
+        with torch.no_grad():
+            for perfect_obs, labels in test_loader:
+                pred = net(perfect_obs).squeeze()
+                test_loss = torch.nn.functional.mse_loss(pred, labels, reduction="mean")
+                print(test_loss.item())
+                print(pred * 7600, labels * 7600)
             # for p, l in zip(pred, labels):
             #     print(p, l)
 

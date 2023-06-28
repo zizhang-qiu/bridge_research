@@ -249,7 +249,7 @@ class PrioritizedReplay {
     std::vector<DataType> vec;
     int n = static_cast<int>(priority.size(0));
     for (int i = 0; i < n; ++i) {
-      vec.push_back(sample.index(i));
+      vec.push_back(sample.Index(i));
     }
     Add(vec, priority);
   }
@@ -410,5 +410,7 @@ class PrioritizedReplay {
 };
 
 using Replay = PrioritizedReplay<Transition>;
+using PVReplay = PrioritizedReplay<SearchTransition>;
+using ObsBeliefReplay = PrioritizedReplay<ObsBelief>;
 }
 #endif //BRIDGE_RESEARCH_REPLAY_BUFFER_H

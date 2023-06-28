@@ -43,7 +43,7 @@ def load_rl_dataset(usage: str, dataset_dir: str = DEFAULT_RL_DATASET_DIR) \
     return dataset
 
 
-def sl_net(checkpoint_path: str = r"models/il_net_checkpoint.pth", device: str = "cuda"):
+def sl_net(checkpoint_path: str = r"models/il_net.pth", device: str = "cuda"):
     """
     Get a supervised learning policy net.
     Args:
@@ -53,8 +53,8 @@ def sl_net(checkpoint_path: str = r"models/il_net_checkpoint.pth", device: str =
     Returns:
         The net.
     """
-    net = PolicyNet()
-    net.load_state_dict(torch.load(checkpoint_path)["model_state_dict"])
+    net = PolicyNet2()
+    net.load_state_dict(torch.load(checkpoint_path))
     net.to(device)
     return net
 
@@ -206,7 +206,7 @@ class Evaluator:
             self.vec_env1_list.append(vec_env_1)
 
     def evaluate(self, train_net: Union[PolicyNet, PolicyNet2], oppo_net: Union[PolicyNet, PolicyNet2]) -> Tuple[
-            float, float, float, List[rl_cpp.BridgeVecEnv], List[rl_cpp.BridgeVecEnv]]:
+            float, float, float, List[rl_cpp.BridgeVecEnv], List[rl_cpp.BridgeVecEnv], List[int]]:
         """
         Evaluate between trained net and opponent net
         Args:
@@ -241,4 +241,4 @@ class Evaluator:
         imps = [rl_cpp.get_imp(score_ns, score_ew) for score_ns, score_ew in zip(scores_ns, scores_ew)]
         ed = time.perf_counter()
         avg, sem = common_utils.get_avg_and_sem(imps)
-        return avg, sem, ed - st, self.vec_env0_list, self.vec_env1_list
+        return avg, sem, ed - st, self.vec_env0_list, self.vec_env1_list, imps

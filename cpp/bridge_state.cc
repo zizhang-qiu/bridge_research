@@ -41,7 +41,6 @@ int Partnership(Player player) { return player & 1; }
 
 int Partner(Player player) { return player ^ 2; }
 
-
 int RelativePlayer(Player me, Player target) {
   return (target >= me ? target : target + kNumPlayers) - me;
 }
@@ -78,15 +77,6 @@ void BridgeBiddingState::InitVulStrs() {
     vul_strs[1][0] = "E/W";
     vul_strs[0][1] = "N/S";
   }
-}
-
-std::vector<Action> BridgeBiddingState::History() const {
-  std::vector<Action> history;
-  history.reserve(history_.size());
-  for (const auto player_action : history_) {
-    history.emplace_back(player_action.action);
-  }
-  return history;
 }
 
 std::vector<Action> BridgeBiddingState::BidHistory() const {
@@ -193,6 +183,25 @@ std::vector<float> BridgeBiddingState::LegalActionsMask() const {
   return legal_actions_mask;
 }
 
+std::vector<float> BridgeBiddingState::CardsTensor() const {
+  std::vector<float> cards_tensor(kCardsTensorSize);
+  auto values = utils::Span<float>(cards_tensor);
+  std::fill(values.begin(), values.end(), 0.0);
+  auto ptr = values.begin();
+
+  for (const Player player : {kNorth, kEast, kSouth, kWest}) {
+    for (int i = 0; i < kNumCards; ++i) {
+      if (holder_[i] == player) {
+        ptr[i] = 1.0;
+      }
+    }
+    ptr += kNumCards;
+  }
+  RL_CHECK_EQ(std::distance(values.begin(), ptr), kCardsTensorSize);
+  RL_CHECK_LE(std::distance(values.begin(), ptr), values.size());
+  return cards_tensor;
+}
+
 void BridgeBiddingState::WriteObservationTensor(Player player, utils::Span<float> values) const {
   std::fill(values.begin(), values.end(), 0.0);
   int partnership = Partnership(player);
@@ -281,6 +290,58 @@ std::vector<float> BridgeBiddingState::HiddenObservationTensor() const {
   }
   RL_CHECK_EQ(std::distance(values.begin(), ptr), kHiddenInfoTensorSize);
   return hidden_observation_tensor;
+}
+
+std::vector<float> BridgeBiddingState::FinalObservationTensor() const {
+  return FinalObservationTensor(contract_.Index());
+}
+
+std::vector<float> BridgeBiddingState::FinalObservationTensor(int contract_index) const {
+  RL_CHECK_GE(contract_index, 0);
+  RL_CHECK_LT(contract_index, kNumContracts);
+  const Contract contract = kAllContracts[contract_index];
+  std::vector<float> final_observation_tensor(kFinalTensorSize);
+  auto values = utils::Span<float>(final_observation_tensor);
+  std::fill(values.begin(), values.end(), 0.0);
+  auto ptr = values.begin();
+  // Level of the contract (0-6)
+  int level = contract.level;
+  // Should call for a passed out contract.
+  RL_CHECK_GE(level, 1);
+  ptr[level - 1] = 1;
+  ptr += kNumBidLevels;
+
+  // Trump suit (7-11)
+  ptr[contract.trumps] = 1;
+  ptr += kNumDenominations;
+
+  // Double status (12-14)
+  int double_idx = double_status_map.at(contract.double_status);
+  ptr[double_idx] += 1;
+  ptr += kNumDoubleStates;
+
+  // Who declarer is (15-18)
+  Player declarer = contract.declarer;
+  ptr[declarer] = 1;
+  ptr += kNumPlayers;
+
+  // Vulnerability of the declaring side (19-20)
+  ptr[is_vulnerable_[Partnership(declarer)]] = 1.0;
+  ptr += kNumVulnerabilities;
+
+  // All players' hand (21-228)
+  for (const Player player : {kNorth, kEast, kSouth, kWest}) {
+    for (int i = 0; i < kNumCards; ++i) {
+      if (holder_[i] == player) {
+        ptr[i] = 1;
+      }
+    }
+    ptr += kNumCards;
+  }
+  RL_CHECK_EQ(std::distance(values.begin(), ptr), kFinalTensorSize);
+  RL_CHECK_LE(std::distance(values.begin(), ptr), values.size());
+  return final_observation_tensor;
+
 }
 
 std::vector<int> BridgeBiddingState::GetDoubleDummyTable() {
@@ -749,86 +810,18 @@ int BridgeBiddingState::GetDeclarerTricks() const {
   }
 }
 
-std::vector<float> BridgeBiddingState::ObservationTensor2() const {
-  auto obs_tensor = ObservationTensor();
-  obs_tensor.resize(kAuctionComplicateTensorSize);
-  auto values = utils::Span<float>(obs_tensor);
-  auto ptr = values.begin() + kAuctionTensorSize;
-
-  // Is the bid opening bid? (480)
-  ptr[0] = contract_.level == 0;
-  ptr += 1;
-
-  const HandEvaluation hand_evaluation = GetHandEvaluation()[current_player_];
-  // High card points for each suit. (481 - 484)
-  for (int i = 0; i < kNumSuits; ++i) {
-    ptr[i] = static_cast<float>(hand_evaluation.hcp_per_suit[i]);
+std::vector<Action> BridgeBiddingState::GetPartnerCards() const {
+  std::vector<Action> ret;
+  Player partner = Partner(current_player_);
+  for (int i = 0; i < kNumCards; ++i) {
+    if (holder_[i] == partner) {
+      ret.push_back(i);
+    }
   }
-  ptr += kNumSuits;
-
-  // Total hcp. (485)
-  ptr[0] = static_cast<float>(hand_evaluation.high_card_points);
-  ptr += 1;
-
-  // Length for each suit. (486-489)
-  for (int i = 0; i < kNumSuits; ++i) {
-    ptr[i] = static_cast<float>(hand_evaluation.length_per_suit[i]);
-  }
-  ptr += kNumSuits;
-
-  // Current contract. (490 - 525)
-  int bid;
-  if (contract_.level == 0) {
-    bid = 0;
-  } else {
-    bid = (contract_.level - 1) * kNumDenominations + contract_.trumps + 1;
-  }
-  ptr[bid] = 1;
-  ptr += 1 + kNumBids;
-
-  // Which player bid current contract? (526 - 529)
-  Player relative_bidder = -1;
-  Action last_bid;
-  int contract_bidder = contract_.bidder;
-//  for (int i=kNumCards; i<history_.size(); ++i) {
-//    if (history_[i].action>=kFirstBid){
-//      last_bid = history_[i].action;
-//      int this_call_bidder = (i-kNumCards) % kNumPlayers;
-//      relative_bidder = (this_call_bidder >= current_player_ ? this_call_bidder
-//                                                    : this_call_bidder + kNumPlayers) - current_player_;
-//    }
-//  }
-  if (contract_bidder != -1) {
-    relative_bidder = (contract_bidder >= current_player_ ? contract_bidder
-                                                          : contract_bidder + kNumPlayers) - current_player_;
-    ptr[relative_bidder] = 1;
-  }
-  ptr += kNumPlayers;
-
-  // Who declarer is? (530 - 533)
-  int declarer = -1;
-  if (bid != 0) {
-    declarer = contract_.declarer;
-  }
-  if (declarer != -1) {
-    int relative_player = RelativePlayer(current_player_, declarer);
-    ptr[relative_player] = 1;
-  }
-  ptr += kNumPlayers;
-
-  // Double status (534- 536)
-  ptr[double_status_map.at(contract_.double_status)] = 1;
-  ptr += kNumDoubleStates;
-
-  // Available calls (537 - 574)
-  auto legal_actions = LegalActionsMask();
-  for (int i = 0; i < kNumCalls; ++i) {
-    ptr[i] = legal_actions[i];
-  }
-  ptr += kNumCalls;
-  RL_CHECK_EQ(std::distance(values.begin(), ptr), kAuctionComplicateTensorSize);
-  return obs_tensor;
+  RL_CHECK_EQ(ret.size(), kNumCardsPerHand);
+  return ret;
 }
+
 
 std::string HandEvaluation::ToString() const {
   std::string

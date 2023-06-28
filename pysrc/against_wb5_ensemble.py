@@ -6,78 +6,34 @@
 """
 import os
 import pprint
-import re
 import socket
-import subprocess
 import time
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 import numpy as np
 import torch
 import torch.multiprocessing as mp
 import yaml
+from torch import nn
 
 import common_utils
 import rl_cpp
-from agent_for_cpp import SingleEnvAgent
+from pysrc.against_wb5 import _WBridge5Client
+from agent_for_cpp import EnsembleAgent
 from bluechip_bridge import BlueChipBridgeBot
 from bridge_consts import NUM_PLAYERS, PLUS_MINUS_SYMBOL
-from nets import PolicyNet, PolicyNet2
-from pysrc.bluechip_bridge import Controller
-from utils import load_rl_dataset, tensor_dict_to_device, sl_net
+from nets import PolicyNet2
+from utils import load_rl_dataset, tensor_dict_to_device
 
 
-class _WBridge5Client(Controller):
-    """Manages the connection to a WBridge5 bot."""
-
-    def __init__(self, command, port: int):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.bind(("", 0))
-        self.port = self.sock.getsockname()[1]
-        self.sock.listen(1)
-        self.process = None
-        self.command = command.format(port=self.port)
-
-    def start(self):
-        """
-        Open the external bot and connect with it
-        """
-        if self.process is not None:
-            self.process.kill()
-        self.process = subprocess.Popen(self.command.split(" "))
-        self.conn, self.addr = self.sock.accept()
-
-    def read_line(self) -> str:
-        """
-        Read message from wb5
-        Returns:
-            str: the message
-        """
-        line = ""
-        while True:
-            self.conn.settimeout(120)
-            data = self.conn.recv(2048)
-            if not data:
-                raise EOFError("Connection closed")
-            line += data.decode("ascii")
-            if line.endswith("\n"):
-                return re.sub(r"\s+", " ", line).strip()
-
-    def send_line(self, line: str):
-        """
-        Send message to wbridge5
-        Args:
-            line(str):the message to send
-        """
-        self.conn.send((line + "\r\n").encode("ascii"))
-
-    def terminate(self):
-        """
-        Terminate process
-        """
-        self.process.kill()
-        self.process = None
-        self.sock.close()
+def load_models_from_directory(directory: str) -> List[nn.Module]:
+    model_paths = common_utils.find_files_in_dir(directory, "model", 0)
+    models = []
+    for path in model_paths:
+        net = PolicyNet2()
+        net.load_state_dict(torch.load(path)["model_state_dict"]["policy"])
+        models.append(net)
+    return models
 
 
 def controller_factory(port: int):
@@ -89,7 +45,7 @@ def controller_factory(port: int):
 
 class AgainstWb5Worker(mp.Process):
     def __init__(self, process_id: int, num_deals: int, port: int, cards: np.ndarray, ddts: np.ndarray,
-                 shared_dict: Dict, device: str, save_dir: Optional[str] = None):
+                 models_dir: str, device: str, save_dir: Optional[str] = None):
         """
         A worker to play against Wbridge5.
         Args:
@@ -98,7 +54,7 @@ class AgainstWb5Worker(mp.Process):
             port: The port number to connect with Wbridge5
             cards: The cards array.
             ddts: The ddts array.
-            shared_dict: The shared dict of policy network.
+            models_dir: The directory of models.
             device: The device of the agent.
             save_dir: The directory to save results.
         """
@@ -111,15 +67,13 @@ class AgainstWb5Worker(mp.Process):
         self._ddts = ddts
         self._port = port
         self._device = device
-        self._shared_dict = shared_dict.copy()
+        self._models_dir = models_dir
         self.logger: Optional[common_utils.Logger] = None
         self.save_dir = save_dir
 
     def run(self) -> None:
-        net = PolicyNet2()
-        net.load_state_dict(self._shared_dict)
-        net.to(self._device)
-        agent = SingleEnvAgent(net).to(self._device)
+        models = load_models_from_directory(self._models_dir)
+        agent = EnsembleAgent(models).to(self._device)
         i_deal = 0
         _imps = []
         bots = [BlueChipBridgeBot(i, controller_factory, self._port + i) for i in range(NUM_PLAYERS)]
@@ -138,7 +92,7 @@ class AgainstWb5Worker(mp.Process):
                     if current_player % 2 == 0:
                         obs = rl_cpp.make_obs_tensor_dict(state_0, 1)
                         obs = tensor_dict_to_device(obs, self._device)
-                        reply = agent.simple_act(obs)
+                        reply = agent.act(obs)
                         action = reply["a"].item()
                         # print(action)
                     else:
@@ -154,7 +108,7 @@ class AgainstWb5Worker(mp.Process):
                     if current_player % 2 == 1:
                         obs = rl_cpp.make_obs_tensor_dict(state_1, 1)
                         obs = tensor_dict_to_device(obs, self._device)
-                        reply = agent.simple_act(obs)
+                        reply = agent.act(obs)
                         action = reply["a"].item()
                         # print(action)
                     else:
@@ -176,7 +130,7 @@ class AgainstWb5Worker(mp.Process):
                 np.save(os.path.join(self.save_dir, f"imps_{self._process_id}.npy"), _imps_np)
                 i_deal += 1
                 print(f"Process {self._process_id}, {i_deal}/{self._num_deals}, imp:{imp}")
-            except Exception as e:
+            except socket.timeout as e:
                 print(f"Process {self._process_id} meet exception: {e}.")
                 continue
         for bot in bots:
@@ -185,20 +139,15 @@ class AgainstWb5Worker(mp.Process):
 
 def main():
     # cards, ddts = load_rl_dataset("vs_wb5_fb", flatten=True)
-    with open("conf/against_wb5.yaml", "r") as fp:
+    with open("conf/against_wb5_ensemble.yaml", "r") as fp:
         config: Dict = yaml.safe_load(fp)
     dataset = load_rl_dataset(f"vs_wb5_{config['dataset']}")
     cards = dataset["cards"]
     ddts = dataset["ddts"]
 
-    net = PolicyNet2()
-    net.load_state_dict(torch.load(config["checkpoint_path"])["model_state_dict"]["policy"])
-    # net.load_state_dict(torch.load(config["checkpoint_path"])["model_state_dict"])
-    net.to("cuda")
     num_processes = config["num_processes"]
     num_deals = min(cards.shape[0], config["num_deals"])
     num_deals_per_process = common_utils.allocate_tasks_uniformly(num_processes, num_deals)
-    shared_dict = common_utils.create_shared_dict(net)
     save_dir = common_utils.mkdir_with_increment(config["save_dir"])
     logger = common_utils.Logger(os.path.join(save_dir, "log.txt"), auto_line_feed=True, verbose=False)
     logger.write(pprint.pformat(config))
@@ -209,7 +158,6 @@ def main():
     #                      save_dir)
     # w.run()
     # print(time.perf_counter() - st)
-
     workers = []
     for i in range(num_processes):
         num_deals = num_deals_per_process[i]
@@ -217,7 +165,7 @@ def main():
                              base_port + 20 * i,
                              cards[start + num_deals * i:start + num_deals * (i + 1)],
                              ddts[start + num_deals * i:start + num_deals * (i + 1)],
-                             shared_dict, "cuda", save_dir)
+                             config["models_dir"], "cuda", save_dir)
         workers.append(w)
     for w in workers:
         w.start()

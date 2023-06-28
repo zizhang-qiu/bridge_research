@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 """
 @author:qzz
-@file:bridge_vars.py
+@file:bridge_consts.py
 @time:2023/02/16
 """
 from enum import IntEnum
@@ -123,4 +123,3 @@ PBN_TEMPLATE = """[Event ""]
 
 PLUS_MINUS_SYMBOL = "\u00B1"
 SECONDS_PER_MINUTE = 60
-OBS_TENSOR_SIZE = 519

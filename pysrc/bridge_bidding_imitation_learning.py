@@ -11,12 +11,12 @@ from adan import Adan
 from matplotlib import pyplot as plt
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
-from nets import PolicyNet, PolicyNet2
+from nets import PolicyNet, PolicyNet2, PolicyNetRelu
 from common_utils.logger import Logger
 from common_utils.other_utils import set_random_seeds, mkdir_with_time
 from common_utils.torch_utils import initialize_fc, focal_loss
 from common_utils.value_stats import MultiStats
-from bridge_vars import NUM_CALLS
+from bridge_consts import NUM_CALLS
 import common_utils
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -35,7 +35,6 @@ class BiddingDataset(Dataset):
         self.s = dataset["s"]
         # self.s: torch.Tensor = torch.hstack([dataset["s"], dataset["legal_actions"]])
         self.label: torch.Tensor = torch.load(label_path)
-        self.weights = self._compute_weights()
 
     def __len__(self):
         return len(self.label)
@@ -58,10 +57,10 @@ def parse_args():
 
     # dataset path
     parser.add_argument("--dataset_dir", type=str,
-                        default=r"D:\RL\rlul\pyrlul\bridge\dataset\expert\sl_data")
+                        default=r"expert\sl_data")
 
     # save settings
-    parser.add_argument("--save_dir", type=str, default="imitation_learning")
+    parser.add_argument("--save_dir", type=str, default="imitation_learning/relu")
 
     # train settings
     parser.add_argument("--trained_checkpoint", type=str,
@@ -116,19 +115,19 @@ def main():
                                    label_path=os.path.join(args.dataset_dir, "train_label.p"))
     valid_dataset = BiddingDataset(obs_path=os.path.join(args.dataset_dir, "valid_obs.p"),
                                    label_path=os.path.join(args.dataset_dir, "valid_label.p"))
-    sampler = WeightedRandomSampler(train_dataset.weights, len(train_dataset))
+    # sampler = WeightedRandomSampler(train_dataset.weights, len(train_dataset))
     # alpha = 1.0 / label_count
 
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     valid_loader = DataLoader(valid_dataset, batch_size=args.eval_batch_size, shuffle=False)
     print("load dataset successfully!")
 
     # create save_dir
     save_dir = common_utils.mkdir_with_increment(args.save_dir)
-    saver = common_utils.TopKSaver(10, save_dir, "checkpoint")
+    saver = common_utils.TopKSaver(save_dir, 10)
 
     # initialize network, optimizer and criterion
-    net = PolicyNet()
+    net = PolicyNetRelu()
     initialize_fc(net)
     net.to(args.device)
     opt = torch.optim.Adam(params=net.parameters(), lr=args.lr, fused=True)
@@ -174,8 +173,7 @@ def main():
                     msg = f"checkpoint {(num_mini_batches + 1) // args.eval_freq}, eval loss={eval_loss}, accuracy={acc}"
                     logger.write(msg)
                     # save params
-                    check_point = {'model_state_dict': copy.deepcopy(net.state_dict())}
-                    saver.save(check_point, acc)
+                    saver.save(net.state_dict(), acc)
                     # torch.save(check_point,
                     #            os.path.join(save_dir, f"checkpoint{num_mini_batches // args.eval_freq}.pth"))
                 if num_mini_batches == args.max_mini_batches:

@@ -4,21 +4,22 @@
 @date:2023/2/23
 @encoding:utf-8
 """
-from typing import Optional, Tuple, Dict, List, Union
+from typing import Tuple, Dict, Union, List
 
 import torch
 from torch import nn
+
 import rl_cpp
-from nets import PolicyNet, ValueNet, PerfectValueNet, PolicyNet2
+from nets import PolicyNet, PerfectValueNet, PolicyNet2, ScorePredictor
 
 
 class SingleEnvAgent(nn.Module):
     """An agent implementation which can be used in c++ by torch.jit.script"""
 
-    def __init__(self, p_net: PolicyNet, v_net: Optional[ValueNet] = None):
+    def __init__(self, p_net: nn.Module):
         super().__init__()
         self.p_net = p_net
-        self.v_net = v_net if v_net is not None else ValueNet()
+        self.perfect_v_net = PerfectValueNet()
 
     @torch.jit.export
     def get_probs(self, s: torch.Tensor) -> torch.Tensor:
@@ -48,9 +49,11 @@ class SingleEnvAgent(nn.Module):
         greedy = obs["greedy"].item()
         legal_actions = obs["legal_actions"]
         s = obs["s"]
+        perfect_s = obs["perfect_s"]
         log_probs = self.get_log_probs(s.unsqueeze(0)).squeeze()
-        probs = torch.exp(log_probs) * legal_actions
-        value = self.v_net(s).squeeze()
+        probs = torch.exp(log_probs)
+        probs = probs * legal_actions
+        value = self.perfect_v_net(perfect_s.unsqueeze(0)).squeeze()
         # print(probs)
         if greedy:
             action = torch.argmax(probs)
@@ -60,7 +63,8 @@ class SingleEnvAgent(nn.Module):
                 action = torch.multinomial(legal_actions, 1).squeeze()
             else:
                 action = torch.multinomial(probs, 1).squeeze()
-        return {"a": action.detach().cpu(), "log_probs": log_probs.detach().cpu(), "values": value}
+        return {"a": action.detach().cpu(), "log_probs": log_probs.detach().cpu(),
+                "values": value.detach().cpu(), "raw_probs": probs.detach().cpu()}
 
     @torch.jit.export
     def get_log_probs(self, s: torch.Tensor) -> torch.Tensor:
@@ -110,9 +114,10 @@ class SingleEnvAgent(nn.Module):
     def simple_act(self, obs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         legal_actions = obs["legal_actions"]
         s = obs["s"]
-        log_probs = self.get_log_probs(s.unsqueeze(0)).squeeze()
-        raw_probs = torch.exp(log_probs)
-        probs = raw_probs * legal_actions
+        with torch.no_grad():
+            log_probs = self.get_log_probs(s.unsqueeze(0)).squeeze()
+            raw_probs = torch.exp(log_probs)
+            probs = raw_probs * legal_actions
         action = torch.argmax(probs)
         return {"a": action.detach().cpu(), "probs": probs.detach().cpu(), "raw_probs": raw_probs.detach().cpu()}
 
@@ -143,7 +148,7 @@ class SingleEnvAgent(nn.Module):
         surr1 = ratio * (advantage.detach())
         surr2 = torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * (advantage.detach())
         current_probs = torch.exp(current_log_probs)
-        entropy = -torch.sum(current_probs * current_log_probs, dim=-1)
+        entropy = -torch.sum(current_probs * current_log_probs, dim=1)
 
         policy_loss = -torch.min(surr1, surr2) - entropy * entropy_ratio
         return policy_loss.mean()
@@ -263,10 +268,10 @@ class VecEnvAgent(nn.Module):
         """
         Get actions for given obs
         Args:
-            obs (torch.Tensor): The obs tensor, should be 2-dimensional
+            obs (Dict[str, torch.Tensor]): The obs tensordict
 
         Returns:
-            torch.Tensor: The action
+            Dict[str, torch.Tensor]: The reply contains action, values and probs
 
         """
         # vec env obs is always 2d
@@ -275,28 +280,38 @@ class VecEnvAgent(nn.Module):
         legal_actions = obs["legal_actions"]
         log_probs = self.get_log_probs(s)
         probs = torch.exp(log_probs)
-        topk_values, topk_indices = probs.topk(4, dim=1)
-        mask = torch.zeros_like(probs)
-        mask.scatter_(1, topk_indices, 1)
+        # topk_values, topk_indices = probs.topk(4, dim=1)
+        # mask = torch.zeros_like(probs)
+        # mask.scatter_(1, topk_indices, 1)
         legal_probs = probs * legal_actions
         all_zeros = torch.all(legal_probs == 0, dim=1)
         zero_indices = torch.nonzero(all_zeros).squeeze()
         if zero_indices.numel() > 0:
-            print("warning.")
             legal_probs[zero_indices] = legal_actions[zero_indices]
         greedy = obs["greedy"]
 
         greedy_action = torch.argmax(legal_probs, 1)
         # print("greedy actions",  greedy_action)
-        random_actions = torch.multinomial(legal_probs, 1).squeeze()
+        random_actions = torch.multinomial(legal_probs, 1).squeeze(1)
 
         # print("random actions", random_actions)
         action = greedy * greedy_action + (1 - greedy) * random_actions
         values = self.v_net(perfect_s).squeeze()
-        return {"a": action.detach().cpu(), "log_probs": log_probs.detach().cpu(), "values": values.detach().cpu()}
+        return {"a": action.detach().cpu(), "log_probs": log_probs.detach().cpu(),
+                "values": values.detach().cpu(), "raw_probs": probs.detach().cpu()}
 
     def compute_loss_and_priority(self, batch: rl_cpp.Transition, clip_eps: float, entropy_ratio: float) \
             -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Get the a2c loss and priority for replay
+        Args:
+            batch: The transitions.
+            clip_eps: The epsilon in PPO paper.
+            entropy_ratio: The beta in A3C paper.
+
+        Returns:
+            tuple: A tuple containing three values: policy loss, value loss and priority.
+        """
         current_log_probs = self.get_log_probs(batch.obs["s"])
         current_action_log_probs = current_log_probs.gather(1, batch.reply["a"].long().unsqueeze(1)).squeeze(1)
         old_action_log_probs = batch.reply["log_probs"].gather(1, batch.reply["a"].long().unsqueeze(1)).squeeze(1)
@@ -321,24 +336,59 @@ class VecEnvAgent(nn.Module):
         td_err = rewards - values
         return policy_loss, value_loss, torch.abs(td_err).detach().cpu()
 
-    def pg_loss(self, batch_state: torch.Tensor, batch_action: torch.Tensor,
-                batch_reward: torch.Tensor, batch_log_probs: torch.Tensor,
-                clip_eps: float, entropy_ratio: float):
-        current_log_probs = self.get_log_probs(batch_state)
-        current_action_log_probs = current_log_probs.gather(1, batch_action.long().unsqueeze(1)).squeeze(1)
-        old_action_log_probs = batch_log_probs.gather(1, batch_action.long().unsqueeze(1)).squeeze(1)
+    def search_loss(self, batch: rl_cpp.SearchTransition):
+        current_log_probs = self.get_log_probs(batch.obs["s"])
+        cross_entropy_loss = - batch.policy_posterior * current_log_probs
+        return cross_entropy_loss
 
-        ratio = torch.exp(current_action_log_probs - old_action_log_probs)
-        # advantage = (batch_reward - batch_reward.mean()) / (batch_reward.std() + 1e-5)
-        # advantage = batch_reward
 
-        surr1 = ratio * (batch_reward.detach())
-        surr2 = torch.clamp(ratio, 1 - clip_eps, 1 + clip_eps) * (batch_reward.detach())
-        current_probs = torch.exp(current_log_probs)
-        entropy = -torch.sum(current_probs * current_log_probs, dim=-1)
+class EnsembleAgent(nn.Module):
+    def __init__(self, models: List[nn.Module]):
+        super().__init__()
+        self._models = nn.ModuleList(models)
+        self._num_models = len(self._models)
 
-        policy_loss = -torch.min(surr1, surr2) - entropy * entropy_ratio
-        return policy_loss.mean()
+    def act(self, obs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        """
+        Get an action for given obs
+        Args:
+            obs (torch.Tensor): The obs tensor, should be 1-dimensional
+
+        Returns:
+            torch.Tensor: The action
+
+        """
+        # single env obs is always 1d
+        greedy = obs["greedy"].item()
+        legal_actions = obs["legal_actions"]
+        s = obs["s"].unsqueeze(0)
+        probs_list = []
+        with torch.no_grad():
+            for model in self._models:
+                probs = torch.exp(model(s).squeeze()) * legal_actions
+                probs /= torch.sum(probs)
+                probs_list.append(probs)
+        final_probs = torch.vstack(probs_list)
+        action_chosen_count = torch.bincount(final_probs.argmax(dim=1), minlength=38)
+        average_probabilities = torch.mean(final_probs, dim=0)
+        final_prediction = average_probabilities.argmax()
+        return {"a": final_prediction.detach().cpu(), "probs": average_probabilities.detach().cpu(),
+                "raw_probs": final_probs, "action_chosen_count": action_chosen_count}
+
+
+class ScorePredictorAgent(nn.Module):
+    def __init__(self, predictor: ScorePredictor):
+        super().__init__()
+        self.predictor = predictor
+
+    @torch.jit.export
+    def predict(self, final_obs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        not_pass_contract_mask = final_obs["not_pass_contract_mask"]
+        final_obs = final_obs["final_obs"]
+        # shape [batch size, 4]
+        pred = self.predictor(final_obs)
+        pred *= not_pass_contract_mask.repeat(4, 1).T
+        return {"scores": pred.detach().cpu()}
 
 
 def random_vec_agent(device: str = "cuda") -> VecEnvAgent:

@@ -14,7 +14,7 @@ from typing import Tuple, List
 import numpy as np
 from tqdm import tqdm
 
-from bridge_vars import NUM_CARDS, NUM_SUITS, NUM_CARDS_PER_SUIT, NUM_PLAYERS
+from bridge_consts import NUM_CARDS, NUM_SUITS, NUM_CARDS_PER_SUIT, NUM_PLAYERS
 from common_utils.assert_utils import assert_eq, assert_lteq
 
 MAXNOOFBOARDS = 200
@@ -270,7 +270,7 @@ def get_ddts_from_dd_table_res_list(dd_table_res_list: List[DDTableRes]):
         for j in range(num_boards):
             dd_table_results = dd_table_res.results[j]
             res.append(dd_table_results_to_ddt(dd_table_results))
-    return np.array(res)
+    return np.array(res, dtype=int)
 
 
 def get_par_score_and_contract_from_par_results(par_results: ParResults) -> Tuple[List[int], List[str]]:
@@ -304,7 +304,7 @@ def get_par_scores_and_contracts_from_pres_list(pres_list: List[AllParResults]) 
             if not par_results.parScore[0].value.decode("utf-8"):
                 break
             par_scores, par_contracts = get_par_score_and_contract_from_par_results(par_results)
-            print(par_scores, par_contracts)
+            # print(par_scores, par_contracts)
             par_scores_list.append(par_scores)
             par_contracts_list.append(par_contracts)
     return par_scores_list, par_contracts_list

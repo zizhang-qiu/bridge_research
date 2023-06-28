@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 from matplotlib import pyplot as plt
 
-from bridge_vars import NUM_DENOMINATIONS, NUM_BIDS, DENOMINATIONS
+from bridge_consts import NUM_DENOMINATIONS, NUM_BIDS, DENOMINATIONS
 
 all_contract_str = [str(level) + trump for level in range(1, 8) for trump in DENOMINATIONS]
 

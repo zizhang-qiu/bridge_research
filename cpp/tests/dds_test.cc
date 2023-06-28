@@ -23,3 +23,11 @@ TEST(DDSTest, CalcDDTsTest){
   }
   EXPECT_EQ(calc_ddts, ddts);
 }
+
+TEST(DDSTest, CalcOneDealTest){
+  for(size_t i=0; i<cards.size(); ++i){
+    auto double_dummy_results = CalcOneDeal(cards[i]);
+    auto ddt = ddTableResults2ddt(double_dummy_results);
+    EXPECT_EQ(ddt, ddts[i]);
+  }
+}

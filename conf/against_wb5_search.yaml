@@ -1,15 +1,16 @@
 num_deals : 10000
 num_processes : 8
-checkpoint_path : "a2c_fetch/2/folder_12/checkpoint_0.pth"
+checkpoint_path : "a2c_fetch/4/folder_10/model2.pth"
 save_dir : "vs_wbridge5"
 start : 0
 
 search:
-  use_sl_net_as_opponent : true
+  use_sl_net_as_opponent : false
   min_rollouts : 100
-  max_rollouts : 1000
+  max_rollouts : 10000
   max_particles : 100000
-  top_k : 4
+  top_k : 10
   min_prob : !!float 1e-4
   verbose_level : 0
   seed : 42
+  temperature : !!float 500

@@ -9,7 +9,7 @@ import re
 from typing import Callable, Optional, List
 
 import rl_cpp
-from bridge_vars import NUM_PLAYERS, NUM_CARDS
+from bridge_consts import NUM_PLAYERS, NUM_CARDS
 from common_utils.assert_utils import assert_in_range
 
 # Copyright 2019 DeepMind Technologies Limited

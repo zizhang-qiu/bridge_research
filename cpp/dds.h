@@ -22,6 +22,12 @@ ddTableDeal Holder2ddTableDeal(const std::vector<Player> &holder);
 std::vector<ddTableResults> CalcDDTs(const std::vector<std::vector<Action>> &cards_vector,
                                      int mode,
                                      int num_threads = 1);
+
+ddTableResults CalcOneDeal(const std::vector<Action> &cards);
+
+std::vector<int> ddTableResults2ddt(ddTableResults double_dummy_results);
+
+std::tuple<std::vector<Action>, std::vector<int>> GenerateOneDeal(std::mt19937& rng);
 }
 
 #endif //BRIDGE_RESEARCH_CPP_DDS_H_

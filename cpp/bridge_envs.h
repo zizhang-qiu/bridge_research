@@ -23,7 +23,7 @@ TensorDict MakeTerminalObs(int greedy);
 
 class BridgeBiddingEnv : public Env {
  public:
-  BridgeBiddingEnv(std::shared_ptr<BridgeDealManager> deal_manager,
+  BridgeBiddingEnv(std::shared_ptr<DealManager> deal_manager,
                    const std::vector<int> &greedy);
 
   [[nodiscard]] bool Terminated() const override;
@@ -34,13 +34,14 @@ class BridgeBiddingEnv : public Env {
   [[nodiscard]] std::vector<float> Returns() const override;
   [[nodiscard]] std::string ToString() const;
   [[nodiscard]] std::shared_ptr<BridgeBiddingState> GetState() const;
+  [[nodiscard]] TensorDict GetBeliefFeature() const;
   static int GetFeatureSize() { return kAuctionTensorSize; }
   [[nodiscard]] int GetNumDeals() const { return num_deals_played_; }
 
  private:
   BridgeDeal current_deal_;
   std::shared_ptr<BridgeBiddingState> state_ = nullptr;
-  std::shared_ptr<BridgeDealManager> deal_manager_;
+  std::shared_ptr<DealManager> deal_manager_;
   const std::vector<int> greedy_;
   int num_deals_played_ = -1;
 };
@@ -85,10 +86,12 @@ class BridgeVecEnv {
   [[nodiscard]] bool AnyTerminated() const;
   [[nodiscard]] bool AllTerminated() const;
   [[nodiscard]] TensorDict GetFeature() const;
+  [[nodiscard]] TensorDict GetBeliefFeature() const;
   [[nodiscard]] std::vector<std::shared_ptr<BridgeBiddingEnv>> GetEnvs() const {
     return envs_;
   }
   std::vector<int> GetReturns(Player player);
+  std::vector<std::vector<int>> GetHistories() const;
 
  private:
   std::vector<std::shared_ptr<BridgeBiddingEnv>> envs_;

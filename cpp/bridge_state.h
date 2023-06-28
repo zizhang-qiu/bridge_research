@@ -12,6 +12,7 @@
 #include "third_party/dds/include/dll.h"
 #include "rl/types.h"
 #include "rl/utils.h"
+#include "base.h"
 #include <array>
 #include <sstream>
 #include <string>
@@ -62,7 +63,7 @@ struct HandEvaluation {
   [[nodiscard]] std::string ToString() const;
 };
 
-class BridgeBiddingState {
+class BridgeBiddingState : public State {
  public:
   explicit BridgeBiddingState(const BridgeDeal &deal)
       : is_vulnerable_{deal.is_dealer_vulnerable, deal.is_non_dealer_vulnerable} {
@@ -95,26 +96,27 @@ class BridgeBiddingState {
 //    ConvertDoubleDummyResults(double_dummy_table);
 //  }
 
-  Player CurrentPlayer() const { return current_player_; }
+  Player CurrentPlayer() const override { return current_player_; }
   int CurrentPhase() const { return phase_; }
   bool Terminated() const { return phase_ == kGameOver; }
   void Terminate() { phase_ = Phase::kGameOver; }
   void InitVulStrs();
-  std::vector<Action> History() const;
   std::vector<PlayerAction> FullHistory() const { return history_; }
   std::vector<Action> BidHistory() const;
-  void ApplyAction(Action action);
+  void ApplyAction(Action action) override;
   std::string BidStr() const;
   std::vector<std::string> BidStrHistory() const;
   std::vector<float> Returns() const;
   std::string ContractString() const { return contract_.ToString(); }
   std::string ObservationString(Player player) const;
-  std::string ToString() const;
+  std::string ToString() const override;
   std::vector<float> ObservationTensor(Player player) const;
   std::vector<float> ObservationTensor() const;
   // return a vector contains other player's cards.
   std::vector<float> HiddenObservationTensor() const;
-  std::vector<Action> LegalActions() const;
+  std::vector<float> FinalObservationTensor() const;
+  std::vector<float> FinalObservationTensor(int contract_index) const;
+  std::vector<Action> LegalActions() const override;
   std::vector<float> LegalActionsMask() const;
   std::shared_ptr<BridgeBiddingState> Clone() const;
 
@@ -126,13 +128,15 @@ class BridgeBiddingState {
 
   std::vector<float> ObservationTensorWithLegalActions() const;
 
-  std::vector<float> ObservationTensor2() const;
+  std::vector<float> CardsTensor() const;
 
   std::vector<int> GetDoubleDummyTable();
   // use dds to compute double dummy result
   void ComputeDoubleDummyResult();
 
   std::vector<HandEvaluation> GetHandEvaluation() const;
+
+  std::vector<Action> GetPartnerCards() const;
 
   std::vector<int> GetActualTrickAndDDTrick() {
     if (!double_dummy_results_.has_value()) {
@@ -171,7 +175,7 @@ class BridgeBiddingState {
   int num_passes_ = 0; // Number of consecutive passes since the last non-pass.
   int num_declarer_tricks_ = 0;
   std::vector<float> returns_ = std::vector<float>(kNumPlayers);
-  std::vector<PlayerAction> history_;
+//  std::vector<PlayerAction> history_;
   bool is_vulnerable_[kNumPartnerships]{};
   Phase phase_ = Phase::kAuction;
   Contract contract_{0};

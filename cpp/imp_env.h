@@ -11,6 +11,7 @@
 #include "bridge_envs.h"
 
 namespace rl::bridge {
+
 class ImpEnv : public Env {
  public:
   ImpEnv(std::shared_ptr<BridgeDealManager> deal_manager,
@@ -44,26 +45,14 @@ class ImpEnvWrapper {
                 std::shared_ptr<Replay> replay_buffer)
       : env_(std::move(deal_manager), greedy),
         replay_buffer_(std::move(replay_buffer)),
-        transition_buffer_(bridge::kNumPlayers) {}
+        transition_buffer_(bridge::kNumPlayers){}
+
   bool Reset() {
     env_.Reset();
     return true;
   }
 
-  void Step(const TensorDict &reply) {
-    auto acting_player = env_.GetActingPlayer();
-    transition_buffer_.PushObsAndReply(acting_player, last_obs_, reply);
-    env_.Step(reply);
-    if (env_.Terminated()) {
-      std::vector<float> rewards = env_.Returns();
-      std::vector<float> normalized_rewards(kNumPlayers);
-      for(int i=0; i<kNumPlayers;++i){
-        normalized_rewards[i] = rewards[i] / static_cast<float>(bridge::kMaxImp);
-      }
-      transition_buffer_.PushToReplayBuffer(replay_buffer_, normalized_rewards);
-      transition_buffer_.Clear();
-    }
-  }
+  void Step(const TensorDict &reply);
 
   [[nodiscard]] TensorDict GetFeature() {
     auto obs = env_.GetFeature();
@@ -75,7 +64,7 @@ class ImpEnvWrapper {
     return env_.Terminated();
   }
 
-  [[nodiscard]] std::string ToString() const{
+  [[nodiscard]] std::string ToString() const {
     return env_.ToString();
   }
 
@@ -104,7 +93,7 @@ class ImpVecEnv {
 
   [[nodiscard]] TensorDict GetFeature() const;
 
-  [[nodiscard]] std::vector<std::shared_ptr<ImpEnvWrapper>> GetEnvs() const{
+  [[nodiscard]] std::vector<std::shared_ptr<ImpEnvWrapper>> GetEnvs() const {
     return envs_;
   }
 
