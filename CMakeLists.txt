@@ -131,7 +131,7 @@ set_target_properties(_rl PROPERTIES CXX_STANDARD 17)
 add_library(bridge_lib cpp/bridge_lib/bridge_state.cc cpp/bridge_lib/bridge_scoring.cc cpp/bridge_lib/bluechip_utils.cc cpp/bridge_lib/bridge_scoring.h cpp/bridge_actor.h
         cpp/bridge_envs.h cpp/bridge_envs.cc cpp/bridge_lib/bridge_constants.h cpp/replay_buffer.h cpp/bridge_actor.cc cpp/bridge_lib/cards_and_ddts.h
         cpp/imp_env.h cpp/imp_env.cc cpp/multi_agent_transition_buffer.h cpp/multi_agent_transition_buffer.cc cpp/replay_buffer.cc
-        cpp/bridge_lib/bridge_deal.cc cpp/bridge_lib/bridge_deal.h cpp/bridge_thread_loop.h cpp/bridge_thread_loop.cc cpp/transition.h cpp/transition.cc cpp/bridge_lib/bridge_state.h cpp/bridge_lib/dds_call.h cpp/bridge_lib/dds_call.cc cpp/sayc_bot.h cpp/sayc_bot.cc cpp/is_mcts.h cpp/bridge_lib/bridge_utils.h cpp/bridge_lib/bridge_utils.cc cpp/score_predictor.h cpp/search.h cpp/search.cc cpp/bridge_lib/encoder.h cpp/bridge_lib/encoder.cc cpp/bridge_lib/bridge_game.h cpp/bridge_lib/game_parameters.h cpp/bridge_lib/game_parameters.cc cpp/bridge_lib/bridge_card.h cpp/bridge_lib/bridge_move.h cpp/bridge_lib/bridge_card.cc cpp/bridge_lib/bridge_move.cc cpp/bridge_lib/bridge_call.cc cpp/bridge_lib/bridge_call.cc cpp/bridge_lib/bridge_call.h
+        cpp/bridge_lib/bridge_deal.cc cpp/bridge_lib/bridge_deal.h cpp/bridge_thread_loop.h cpp/bridge_thread_loop.cc cpp/transition.h cpp/transition.cc cpp/bridge_lib/bridge_state.h cpp/bridge_lib/dds_call.h cpp/bridge_lib/dds_call.cc cpp/sayc_bot.h cpp/sayc_bot.cc cpp/bridge_lib/bridge_utils.h cpp/bridge_lib/bridge_utils.cc cpp/score_predictor.h cpp/search.h cpp/search.cc
         cpp/test_belief_thread_loop.cc
         cpp/test_belief_thread_loop.h
 )

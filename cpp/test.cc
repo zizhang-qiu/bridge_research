@@ -8,15 +8,15 @@
 #include "rl/tensor_dict.h"
 #include "bridge_lib/bridge_state.h"
 #include "bridge_lib/cards_and_ddts.h"
-#include "bridge_lib/bridge_card.h"
 #include "sayc_bot.h"
 #include "bridge_lib/dds_call.h"
 #include "rl/context.h"
 #include "bridge_thread_loop.h"
 #include "rl/logger.h"
-#include "bridge_lib/encoder.h"
+
 using namespace rl;
 using namespace rl::bridge;
+
 struct Timer1 {
   std::chrono::time_point<std::chrono::system_clock> start =
       std::chrono::system_clock::now();
@@ -73,11 +73,5 @@ int main() {
 //  auto history_encoding = encoder.EncodeHistory(state);
 //  rl::utils::PrintVector(history_encoding);
 //  rl::utils::PrintVector(rl::utils::GetNonZeroIndices(history_encoding));
-  for(int rank=0; rank<13; ++rank){
-    for(const Suit suit:kAllSuits){
-      const BridgeCard card_value(suit, rank);
-      std::cout << card_value.ToString() << ", " << card_value.Index() << std::endl;
-    }
-  }
   return 0;
 }
