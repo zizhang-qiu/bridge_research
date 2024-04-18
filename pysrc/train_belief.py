@@ -45,7 +45,7 @@ def create_context(args: argparse.Namespace) -> Tuple[rl_cpp.Context, rl_cpp.Obs
     for i in range(args.num_threads):
         vec_env = rl_cpp.BridgeVecEnv()
         for j in range(args.num_envs_per_thread):
-            env = rl_cpp.BridgeBiddingEnv(deal_manager, [1, 1, 1, 1])
+            env = rl_cpp.BridgeBiddingEnv(deal_manager, [0, 0, 0, 0])
             vec_env.push(env)
         t = rl_cpp.BeliefThreadLoop(v_actor, vec_env, replay)
         context.push_thread_loop(t)

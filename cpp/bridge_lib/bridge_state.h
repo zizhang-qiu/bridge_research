@@ -20,6 +20,7 @@
 namespace rl::bridge {
 
 inline constexpr int kFirstBid = kRedouble + 1;
+inline constexpr int kUnknownTricks = -1;
 
 int SuitToDDSStrain(Suit suit);
 
@@ -49,7 +50,7 @@ int Partnership(Player player);
 
 int Partner(Player player);
 
-int RelativePlayer(Player me, Player target);
+int RelativePlayer(Player player, Player target);
 
 struct HandEvaluation {
   int high_card_points = 0;
@@ -66,13 +67,13 @@ struct HandEvaluation {
 class BridgeBiddingState : public State {
  public:
   explicit BridgeBiddingState(const BridgeDeal &deal)
-      : is_vulnerable_{deal.is_dealer_vulnerable, deal.is_non_dealer_vulnerable} {
+      : is_vulnerable_{deal.is_dealer_vulnerable, deal.is_non_dealer_vulnerable},
+        current_player_(deal.dealer),
+        dealer_(deal.dealer) {
     RL_CHECK_EQ(deal.cards.size(), kNumCards);
     RL_CHECK_LT(deal.dealer, kNumPlayers);
     RL_CHECK_GE(deal.dealer, 0);
     auto cards = deal.cards;
-    dealer_ = deal.dealer;
-    current_player_ = deal.dealer;
     InitVulStrs();
     GetHolder(cards);
     if (deal.ddt.has_value()) {
@@ -95,7 +96,8 @@ class BridgeBiddingState : public State {
 //    GetHolder(cards);
 //    ConvertDoubleDummyResults(double_dummy_table);
 //  }
-
+  int NumDeclarerTricks() const { return num_declarer_tricks_; }
+  int ContractIndex() const { return contract_.Index(); }
   Player CurrentPlayer() const override { return current_player_; }
   int CurrentPhase() const { return phase_; }
   bool Terminated() const { return phase_ == kGameOver; }
@@ -106,7 +108,7 @@ class BridgeBiddingState : public State {
   void ApplyAction(Action action) override;
   std::string BidStr() const;
   std::vector<std::string> BidStrHistory() const;
-  std::vector<float> Returns() const;
+  std::vector<float> Returns();
   std::string ContractString() const { return contract_.ToString(); }
   std::string ObservationString(Player player) const;
   std::string ToString() const override;
@@ -118,7 +120,9 @@ class BridgeBiddingState : public State {
   std::vector<float> FinalObservationTensor(int contract_index) const;
   std::vector<Action> LegalActions() const override;
   std::vector<float> LegalActionsMask() const;
+  std::array<std::optional<Player>, kNumCards> GetHolder() const { return holder_; }
   std::shared_ptr<BridgeBiddingState> Clone() const;
+  std::tuple<Action, HandEvaluation, Player> OpeningBidAndHandEvaluation();
 
   std::shared_ptr<BridgeBiddingState> Child(Action action) const;
 
@@ -138,16 +142,6 @@ class BridgeBiddingState : public State {
 
   std::vector<Action> GetPartnerCards() const;
 
-  std::vector<int> GetActualTrickAndDDTrick() {
-    if (!double_dummy_results_.has_value()) {
-      ComputeDoubleDummyResult();
-    }
-    auto level = contract_.level;
-    int actual_trick = level + 6;
-    std::vector<int> ret = {actual_trick, num_declarer_tricks_};
-    return ret;
-  }
-
   int GetDeclarerTricks() const;
 
   std::vector<int> ScoreForContracts(int player, const std::vector<int> &contracts) const;
@@ -165,15 +159,15 @@ class BridgeBiddingState : public State {
   }
 
   friend std::ostream &
-  operator<<(std::ostream &os,
+  operator<<(std::ostream &ost,
              const std::shared_ptr<BridgeBiddingState> &state) {
-    return os << state->ToString();
+    return ost << state->ToString();
   }
 
  private:
   enum Phase { kAuction = 0, kGameOver = 1 };
   int num_passes_ = 0; // Number of consecutive passes since the last non-pass.
-  int num_declarer_tricks_ = 0;
+  int num_declarer_tricks_ = kUnknownTricks;
   std::vector<float> returns_ = std::vector<float>(kNumPlayers);
 //  std::vector<PlayerAction> history_;
   bool is_vulnerable_[kNumPartnerships]{};

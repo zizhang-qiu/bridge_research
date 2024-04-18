@@ -224,7 +224,7 @@ int STDCALL DealerPar(
       if (sac_found)
       {
         /* Declarer will never get a higher sacrifice by bidding
-           less, so we can stop looking for sacrifices. But it
+           less, so we can Stop looking for sacrifices. But it
            can't be a worthwhile contract to bid, either. */
         type[n] = -1;
       }

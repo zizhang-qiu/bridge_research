@@ -21,6 +21,19 @@
 
 namespace rl::utils {
 
+template <typename T>
+inline std::vector<T> Slice(const std::vector<T>& vec, size_t start, size_t end) {
+  if (end > vec.size()) {
+    end = vec.size();
+  }
+
+  if (start >= end) {
+    return std::vector<T>();  // Return an empty vector if start is greater than or equal to end
+  }
+
+  return std::vector<T>(vec.begin() + start, vec.begin() + end);
+}
+
 template<typename T, std::size_t N>
 inline std::vector<T> GetTopKElements(const std::array<T, N> &arr, int k) {
   std::vector<T> copy(arr.begin(), arr.end());

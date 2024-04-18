@@ -2,7 +2,7 @@
 // Created by qzz on 2023/2/25.
 //
 #include <iostream>
-#include "bridge_scoring.h"
+#include "cpp/bridge_lib/bridge_scoring.h"
 #include "gtest/gtest.h"
 using namespace rl::bridge;
 TEST(BridgeScoringTest, ContractMadeNotVulTest) {

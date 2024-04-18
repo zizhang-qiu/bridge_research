@@ -2,8 +2,8 @@
 // Created by qzz on 2023/5/21.
 //
 
-#ifndef BRIDGE_RESEARCH_CPP_DDS_H_
-#define BRIDGE_RESEARCH_CPP_DDS_H_
+#ifndef BRIDGE_RESEARCH_CPP_DDS_CALL_H_
+#define BRIDGE_RESEARCH_CPP_DDS_CALL_H_
 #include "third_party/dds/include/dll.h"
 #include "logging.h"
 #include "types.h"
@@ -30,4 +30,4 @@ std::vector<int> ddTableResults2ddt(ddTableResults double_dummy_results);
 std::tuple<std::vector<Action>, std::vector<int>> GenerateOneDeal(std::mt19937& rng);
 }
 
-#endif //BRIDGE_RESEARCH_CPP_DDS_H_
+#endif //BRIDGE_RESEARCH_CPP_DDS_CALL_H_

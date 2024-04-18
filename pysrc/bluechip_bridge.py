@@ -9,8 +9,7 @@ import re
 from typing import Callable, Optional, List
 
 import rl_cpp
-from bridge_consts import NUM_PLAYERS, NUM_CARDS
-from common_utils.assert_utils import assert_in_range
+from bridge_consts import NUM_CARDS
 
 # Copyright 2019 DeepMind Technologies Limited
 #
@@ -186,10 +185,10 @@ class BlueChipBridgeBot:
             player_id(int):the bot's seat, 0 for north
             controller_factory: the function to create controller
         """
-        assert_in_range(player_id, 0, NUM_PLAYERS)
+        assert 4 > player_id >= 0
         self._player_id = player_id
         self._controller_factory = controller_factory
-        self._seat = _SEATS[player_id]
+        self._seat: str = _SEATS[player_id]
         self._num_actions = NUM_CARDS
         self._board = 0
         self._port = port
@@ -303,12 +302,3 @@ class BlueChipBridgeBot:
     def terminate(self):
         self._controller.terminate()
         self._controller = None
-
-
-if __name__ == '__main__':
-    # print(rl_cpp.bid_action_to_str(0))
-    # print(rl_cpp.bid_str_to_action("1NT"))
-    # s = "EAST bids 1C"
-    # match = re.match(_PLAYER_ACTION, s)
-    # print(match.groupdict())
-    pass

@@ -21,16 +21,18 @@ import common_utils
 import rl_cpp
 from agent_for_cpp import SingleEnvAgent
 from bluechip_bridge import BlueChipBridgeBot
+from bluechip_bridge import Controller
 from bridge_consts import NUM_PLAYERS, PLUS_MINUS_SYMBOL
-from nets import PolicyNet, PolicyNet2
-from pysrc.bluechip_bridge import Controller
-from utils import load_rl_dataset, tensor_dict_to_device, sl_net
+from nets import PolicyNet2
+from utils import load_rl_dataset, tensor_dict_to_device
 
 
 class _WBridge5Client(Controller):
     """Manages the connection to a WBridge5 bot."""
 
     def __init__(self, command, port: int):
+        self.addr = None
+        self.conn = None
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind(("", 0))
         self.port = self.sock.getsockname()[1]
@@ -112,7 +114,6 @@ class AgainstWb5Worker(mp.Process):
         self._port = port
         self._device = device
         self._shared_dict = shared_dict.copy()
-        self.logger: Optional[common_utils.Logger] = None
         self.save_dir = save_dir
 
     def run(self) -> None:

@@ -21,8 +21,7 @@ from nets import PolicyNet, PolicyNet2
 import common_utils
 
 
-def load_rl_dataset(usage: str, dataset_dir: str = DEFAULT_RL_DATASET_DIR) \
-        -> RLDataset:
+def load_rl_dataset(usage: str, dataset_dir: str = DEFAULT_RL_DATASET_DIR) -> RLDataset:
     """
     Load dataset.
     Args:
@@ -66,8 +65,11 @@ def sl_net2(checkpoint_path: str = r"models/il2.pth", device="cuda"):
     return net
 
 
-def sl_single_env_agent(checkpoint_path: str = r"models/il_net_checkpoint.pth", device: str = "cuda",
-                        jit=False):
+def sl_single_env_agent(
+    checkpoint_path: str = r"models/il_net_checkpoint.pth",
+    device: str = "cuda",
+    jit=False,
+):
     """
     Get a supervised learning single env agent.
     Args:
@@ -78,15 +80,18 @@ def sl_single_env_agent(checkpoint_path: str = r"models/il_net_checkpoint.pth", 
     Returns:
 
     """
-    net = sl_net(checkpoint_path, device)
+    net = sl_net2(checkpoint_path, device)
     agent = SingleEnvAgent(net).to(device)
     if jit:
         agent = torch.jit.script(agent).to(device)
     return agent
 
 
-def sl_vec_env_agent(checkpoint_path: str = r"models/il_net_checkpoint.pth", device: str = "cuda",
-                     jit=False):
+def sl_vec_env_agent(
+    checkpoint_path: str = r"models/il_net_checkpoint.pth",
+    device: str = "cuda",
+    jit=False,
+):
     """
     Get a supervised learning single env agent.
     Args:
@@ -106,20 +111,30 @@ def sl_vec_env_agent(checkpoint_path: str = r"models/il_net_checkpoint.pth", dev
 
 def simple_env():
     dataset = load_rl_dataset("valid")
-    deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
+    deal_manager = rl_cpp.BridgeDealManager(
+        dataset["cards"], dataset["ddts"], dataset["par_scores"]
+    )
     env = rl_cpp.BridgeBiddingEnv(deal_manager, [1, 1, 1, 1], None, False, True)
     return env
 
 
-def simple_vec_env(num_envs: int = 10, use_par_score: bool = False, replay_buffer: rl_cpp.ReplayBuffer = None):
+def simple_vec_env(
+    num_envs: int = 10,
+    use_par_score: bool = False,
+    replay_buffer: rl_cpp.ReplayBuffer = None,
+):
     dataset = load_rl_dataset("valid")
-    deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
+    deal_manager = rl_cpp.BridgeDealManager(
+        dataset["cards"], dataset["ddts"], dataset["par_scores"]
+    )
     eval_ = True
     if replay_buffer is not None:
         eval_ = False
     vec_env = rl_cpp.BridgeVecEnv()
     for i in range(num_envs):
-        env = rl_cpp.BridgeBiddingEnv(deal_manager, [1, 1, 1, 1], replay_buffer, use_par_score, eval_)
+        env = rl_cpp.BridgeBiddingEnv(
+            deal_manager, [1, 1, 1, 1], replay_buffer, use_par_score, eval_
+        )
         vec_env.push(env)
     return vec_env
 
@@ -137,7 +152,9 @@ def analyze(net: PolicyNet, device: str = "cuda"):
     actor = rl_cpp.VecEnvActor(model_locker)
     dataset = load_rl_dataset("valid")
     vec_env = rl_cpp.BridgeVecEnv()
-    manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"], dataset["par_scores"])
+    manager = rl_cpp.BridgeDealManager(
+        dataset["cards"], dataset["ddts"], dataset["par_scores"]
+    )
     for i in range(50000):
         env = rl_cpp.BridgeBiddingEnv(manager, [1, 1, 1, 1], None, False, True)
         vec_env.push(env)
@@ -170,7 +187,11 @@ class Evaluator:
         """
         assert num_deals % num_threads == 0
         dataset = load_rl_dataset("valid")
-        _cards, _ddts, _par_scores = dataset["cards"], dataset["ddts"], dataset["par_scores"]
+        _cards, _ddts, _par_scores = (
+            dataset["cards"],
+            dataset["ddts"],
+            dataset["par_scores"],
+        )
         self.cards = _cards[:num_deals]
         self.ddts = _ddts[:num_deals]
         self.par_scores = _par_scores[:num_deals]
@@ -189,13 +210,11 @@ class Evaluator:
             left = i_t * self.num_deals_per_thread
             right = (i_t + 1) * self.num_deals_per_thread
             deal_manager_0 = rl_cpp.BridgeDealManager(
-                self.cards[left: right],
-                self.ddts[left:right],
-                self.par_scores[left:right])
+                self.cards[left:right], self.ddts[left:right]
+            )
             deal_manager_1 = rl_cpp.BridgeDealManager(
-                self.cards[left: right],
-                self.ddts[left:right],
-                self.par_scores[left:right])
+                self.cards[left:right], self.ddts[left:right]
+            )
             for i_env in range(self.num_deals_per_thread):
                 env_0 = rl_cpp.BridgeBiddingEnv(deal_manager_0, self.greedy)
 
@@ -205,8 +224,18 @@ class Evaluator:
             self.vec_env0_list.append(vec_env_0)
             self.vec_env1_list.append(vec_env_1)
 
-    def evaluate(self, train_net: Union[PolicyNet, PolicyNet2], oppo_net: Union[PolicyNet, PolicyNet2]) -> Tuple[
-            float, float, float, List[rl_cpp.BridgeVecEnv], List[rl_cpp.BridgeVecEnv], List[int]]:
+    def evaluate(
+        self,
+        train_net: Union[PolicyNet, PolicyNet2],
+        oppo_net: Union[PolicyNet, PolicyNet2],
+    ) -> Tuple[
+        float,
+        float,
+        float,
+        List[rl_cpp.BridgeVecEnv],
+        List[rl_cpp.BridgeVecEnv],
+        List[int],
+    ]:
         """
         Evaluate between trained net and opponent net
         Args:
@@ -228,17 +257,26 @@ class Evaluator:
         ctx = rl_cpp.Context()
 
         for i_t in range(self.num_threads):
-            eval_thread = rl_cpp.VecEnvEvalThreadLoop(train_actor,
-                                                      oppo_actor,
-                                                      self.vec_env0_list[i_t],
-                                                      self.vec_env1_list[i_t])
+            eval_thread = rl_cpp.VecEnvEvalThreadLoop(
+                train_actor,
+                oppo_actor,
+                self.vec_env0_list[i_t],
+                self.vec_env1_list[i_t],
+            )
             ctx.push_thread_loop(eval_thread)
         ctx.start()
         while not ctx.terminated():
             time.sleep(0.5)
-        scores_ns = np.concatenate([vec_env_ns.get_returns(0) for vec_env_ns in self.vec_env0_list])
-        scores_ew = np.concatenate([vec_env_ew.get_returns(0) for vec_env_ew in self.vec_env1_list])
-        imps = [rl_cpp.get_imp(score_ns, score_ew) for score_ns, score_ew in zip(scores_ns, scores_ew)]
+        scores_ns = np.concatenate(
+            [vec_env_ns.get_returns(0) for vec_env_ns in self.vec_env0_list]
+        )
+        scores_ew = np.concatenate(
+            [vec_env_ew.get_returns(0) for vec_env_ew in self.vec_env1_list]
+        )
+        imps = [
+            rl_cpp.get_imp(score_ns, score_ew)
+            for score_ns, score_ew in zip(scores_ns, scores_ew)
+        ]
         ed = time.perf_counter()
         avg, sem = common_utils.get_avg_and_sem(imps)
         return avg, sem, ed - st, self.vec_env0_list, self.vec_env1_list, imps

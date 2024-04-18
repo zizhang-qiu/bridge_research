@@ -1,13 +1,13 @@
 //
 // Created by qzz on 2023/2/20.
 //
-#include "bluechip_utils.h"
+#include "bridge_lib/bluechip_utils.h"
 #include "bridge_actor.h"
 #include "bridge_envs.h"
-#include "bridge_scoring.h"
-#include "bridge_utils.h"
+#include "bridge_lib/bridge_scoring.h"
+#include "bridge_lib/bridge_utils.h"
 #include "multi_agent_transition_buffer.h"
-#include "bridge_state.h"
+#include "bridge_lib/bridge_state.h"
 #include "bridge_thread_loop.h"
 #include "rl/context.h"
 #include "encode_bridge.h"
@@ -61,7 +61,6 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def(py::init<>())
       .def_readwrite("cards", &BridgeDeal::cards)
       .def_readwrite("ddt", &BridgeDeal::ddt)
-      .def_readwrite("par_score", &BridgeDeal::par_score)
       .def_readwrite("dealer", &BridgeDeal::dealer)
       .def_readwrite("is_dealer_vulnerable", &BridgeDeal::is_dealer_vulnerable)
       .def_readwrite("is_non_dealer_vulnerable", &BridgeDeal::is_non_dealer_vulnerable);
@@ -70,7 +69,8 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def_readonly("level", &Contract::level)
       .def("trumps", [](const Contract &c) { return static_cast<int>(c.trumps); })
       .def("double_status", [](const Contract &c) { return static_cast<int>(c.double_status); })
-      .def_readonly("declarer", &Contract::declarer);
+      .def_readonly("declarer", &Contract::declarer)
+      .def("__repr__", &Contract::ToString);
 
   py::class_<HandEvaluation>(m, "HandEvaluation")
       .def_readonly("high_card_points", &HandEvaluation::high_card_points)
@@ -85,6 +85,7 @@ PYBIND11_MODULE(rl_cpp, m) {
   m.def("get_card", &Card);
   m.def("bid_string", &BidString);
   m.def("get_bid", &Bid);
+  m.def("all_contracts", &AllContracts);
 
   py::class_<BridgeBiddingState, std::shared_ptr<BridgeBiddingState>>(
       m, "BridgeBiddingState")
@@ -94,6 +95,7 @@ PYBIND11_MODULE(rl_cpp, m) {
 //                    bool,                // is dealer vulnerable
 //                    bool,                // is non-dealer vulnerable
 //                    const std::vector<int>>())
+      .def("num_declarer_tricks", &BridgeBiddingState::NumDeclarerTricks)
       .def("history", &BridgeBiddingState::History)
       .def("bid_str", &BridgeBiddingState::BidStr)
       .def("bid_history", &BridgeBiddingState::BidHistory)
@@ -105,8 +107,8 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("observation_str", &BridgeBiddingState::ObservationString)
       .def("current_player", &BridgeBiddingState::CurrentPlayer)
       .def("current_phase", &BridgeBiddingState::CurrentPhase)
-      .def("get_actual_trick_and_dd_trick", &BridgeBiddingState::GetActualTrickAndDDTrick)
       .def("get_contract", &BridgeBiddingState::GetContract)
+      .def("observation_string", &BridgeBiddingState::ObservationString)
       .def("observation_tensor", py::overload_cast<>(&BridgeBiddingState::ObservationTensor, py::const_))
       .def("observation_tensor", py::overload_cast<Player>(&BridgeBiddingState::ObservationTensor, py::const_))
       .def("hidden_observation_tensor", &BridgeBiddingState::HiddenObservationTensor)
@@ -123,7 +125,9 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("get_partner_cards", &BridgeBiddingState::GetPartnerCards)
       .def("get_double_dummy_table", &BridgeBiddingState::GetDoubleDummyTable)
       .def("get_hand_evaluation", &BridgeBiddingState::GetHandEvaluation)
+      .def("contract_index", &BridgeBiddingState::ContractIndex)
       .def("score_for_contracts", &BridgeBiddingState::ScoreForContracts)
+      .def("opening_bid_and_hand_evaluation", &BridgeBiddingState::OpeningBidAndHandEvaluation)
       .def("__repr__", &BridgeBiddingState::ToString);
 
   py::class_<Transition, std::shared_ptr<Transition>>(m, "Transition")
@@ -151,12 +155,9 @@ PYBIND11_MODULE(rl_cpp, m) {
 
   py::class_<BridgeDealManager, DealManager, std::shared_ptr<BridgeDealManager>>(m, "BridgeDealManager")
       .def(py::init<const std::vector<Cards>,
-                    const std::vector<DDT>,
-                    const std::vector<int>,
-                    int>())
-      .def(py::init<const std::vector<Cards>,
-                    const std::vector<DDT>,
-                    const std::vector<int>>())
+                    const std::vector<DDT>>())
+      .def(py::init<>())
+      .def(py::init<const std::vector<Cards>>())
       .def("size", &BridgeDealManager::Size)
       .def("next", &BridgeDealManager::Next);
 
@@ -245,6 +246,17 @@ PYBIND11_MODULE(rl_cpp, m) {
       .def("update_priority", &PVReplay::UpdatePriority)
       .def("size", &PVReplay::Size);
 
+  py::class_<FinalObsScore>(m, "FinalObsScore")
+      .def_readwrite("final_obs", &FinalObsScore::final_obs)
+      .def_readwrite("score", &FinalObsScore::score);
+
+  py::class_<FinalObsScoreReplay, std::shared_ptr<FinalObsScoreReplay>>(m, "FinalObsScoreReplay")
+      .def(py::init<int, int, float, float, int>())
+      .def("sample", &FinalObsScoreReplay::Sample)
+      .def("num_add", &FinalObsScoreReplay::NumAdd)
+      .def("update_priority", &FinalObsScoreReplay::UpdatePriority)
+      .def("size", &FinalObsScoreReplay::Size);
+
   py::class_<Context, std::shared_ptr<Context>>(m, "Context")
       .def(py::init<>())
       .def("push_thread_loop", &Context::PushThreadLoop, py::keep_alive<1, 2>())
@@ -277,13 +289,16 @@ PYBIND11_MODULE(rl_cpp, m) {
   py::class_<BridgeVecEnvThreadLoop, ThreadLoop, std::shared_ptr<BridgeVecEnvThreadLoop>>(m, "BridgeVecEnvThreadLoop")
       .def(py::init<std::shared_ptr<BridgeWrapperVecEnv>, std::shared_ptr<VecEnvActor>>());
 
-  py::class_<DataThreadLoop, ThreadLoop, std::shared_ptr<DataThreadLoop>>(m, "DataThreadLoop")
-      .def(py::init<std::shared_ptr<BridgeDealManager>, int>(),
-           py::arg("deal_manager"), py::arg("seed"));
-
   py::class_<VecEnvAllTerminateThreadLoop, ThreadLoop, std::shared_ptr<VecEnvAllTerminateThreadLoop>>
       (m, "VecEnvAllTerminateThreadLoop")
       .def(py::init<std::shared_ptr<VecEnvActor>, std::shared_ptr<BridgeVecEnv>>());
+
+  py::class_<ContractScoreThreadLoop, ThreadLoop, std::shared_ptr<ContractScoreThreadLoop>>(m,
+                                                                                            "ContractScoreThreadLoop")
+      .def(py::init<std::shared_ptr<BridgeDealManager>,
+                    std::shared_ptr<FinalObsScoreReplay>,
+                    int,
+                    int>());
 
   m.def("make_obs_tensor_dict", &bridge::MakeObsTensorDict);
   m.def("check_prob_not_zero", &rl::utils::CheckProbNotZero);
@@ -315,7 +330,8 @@ PYBIND11_MODULE(rl_cpp, m) {
   py::class_<ObsBelief, std::shared_ptr<ObsBelief>>(m, "ObsBelief")
       .def(py::init<>())
       .def_readwrite("obs", &ObsBelief::obs)
-      .def_readwrite("belief", &ObsBelief::belief);
+      .def_readwrite("belief", &ObsBelief::belief)
+      .def_readwrite("length", &ObsBelief::length);
 
   py::class_<ObsBeliefReplay, std::shared_ptr<ObsBeliefReplay>>(m, "ObsBeliefReplay")
       .def(py::init<
@@ -337,27 +353,55 @@ PYBIND11_MODULE(rl_cpp, m) {
   py::class_<BeliefThreadLoop, ThreadLoop, std::shared_ptr<BeliefThreadLoop>>(m, "BeliefThreadLoop")
       .def(py::init<std::shared_ptr<VecEnvActor>,
                     std::shared_ptr<BridgeVecEnv>,
-                    std::shared_ptr<ObsBeliefReplay>>());
+                    std::shared_ptr<ObsBeliefReplay>>())
+      .def("main_loop", &BeliefThreadLoop::MainLoop);
 
   py::class_<SearchTransition, std::shared_ptr<SearchTransition>>(m, "SearchTransition")
       .def_readwrite("obs", &SearchTransition::obs)
       .def_readwrite("policy_posterior", &SearchTransition::policy_posterior)
       .def_readwrite("value", &SearchTransition::value);
 
+  py::class_<VectorState, std::shared_ptr<VectorState>>(m, "VectorState")
+      .def(py::init<>())
+      .def("push", &VectorState::Push, py::keep_alive<1, 2>())
+      .def("step", py::overload_cast<Action>(&VectorState::Step))
+      .def("step", py::overload_cast<const TensorDict &>(&VectorState::Step))
+      .def("get_feature", &VectorState::GetFeature)
+      .def("get_final_observation", &VectorState::GetFinalObservation)
+      .def("get_returns", &VectorState::GetReturns)
+      .def("show", &VectorState::Show)
+      .def("get_states", &VectorState::GetStates)
+      .def("all_terminated", &VectorState::AllTerminated);
+
   py::class_<BeliefModel, std::shared_ptr<BeliefModel>>(m, "BeliefModel")
-      .def(py::init<std::shared_ptr<ModelLocker>>());
+      .def(py::init<std::shared_ptr<ModelLocker>>())
+      .def("get_belief", &BeliefModel::GetBelief);
+
+  py::class_<ScorePredictor, std::shared_ptr<ScorePredictor>>(m, "ScorePredictor")
+      .def(py::init<std::shared_ptr<ModelLocker>>())
+      .def("predict", &ScorePredictor::Predict);
 
   py::class_<SearchParams>(m, "SearchParams")
       .def(py::init<>())
-      .def_readwrite("num_particles", &SearchParams::num_particles)
+      .def_readwrite("prob_exponent", &SearchParams::prob_exponent)
+      .def_readwrite("max_prob", &SearchParams::max_prob)
+      .def_readwrite("min_rollouts", &SearchParams::min_rollouts)
+      .def_readwrite("max_rollouts", &SearchParams::max_rollouts)
+      .def_readwrite("max_particles", &SearchParams::max_particles)
+      .def_readwrite("filter_batch_size", &SearchParams::filter_batch_size)
+      .def_readwrite("length_exponent", &SearchParams::length_exponent)
       .def_readwrite("temperature", &SearchParams::temperature)
       .def_readwrite("top_k", &SearchParams::top_k)
+      .def_readwrite("max_try", &SearchParams::max_try)
       .def_readwrite("min_prob", &SearchParams::min_prob)
+      .def_readwrite("random_sample", &SearchParams::random_sample)
       .def_readwrite("verbose", &SearchParams::verbose);
 
+  m.def("random_sample", &RandomSample);
   py::class_<Searcher>(m, "Searcher")
       .def(py::init<SearchParams, std::shared_ptr<BeliefModel>, std::shared_ptr<VecEnvActor>>())
       .def("search", &Searcher::Search);
 
   m.def("accessor_test", &AccessorTest);
+  m.def("tensor_dict_stack", &tensor_dict::Stack);
 }

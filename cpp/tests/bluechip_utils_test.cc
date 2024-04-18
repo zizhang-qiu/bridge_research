@@ -5,7 +5,7 @@
 
 #ifndef BRIDGE_RESEARCH_TEST_BLUECHIP_UTILS_H
 #define BRIDGE_RESEARCH_TEST_BLUECHIP_UTILS_H
-#include "bluechip_utils.h"
+#include "bridge_lib/bluechip_utils.h"
 #include "gtest/gtest.h"
 #endif //BRIDGE_RESEARCH_TEST_BLUECHIP_UTILS_H
 namespace rl::bridge::bluechip {

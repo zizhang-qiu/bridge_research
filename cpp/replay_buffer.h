@@ -317,6 +317,10 @@ class PrioritizedReplay {
     return num_add_;
   }
 
+  int Capacity() const{
+    return capacity_;
+  }
+
  private:
   using SampleWeightIds = std::tuple<DataType, torch::Tensor, std::vector<int>>;
 
@@ -412,5 +416,6 @@ class PrioritizedReplay {
 using Replay = PrioritizedReplay<Transition>;
 using PVReplay = PrioritizedReplay<SearchTransition>;
 using ObsBeliefReplay = PrioritizedReplay<ObsBelief>;
+using FinalObsScoreReplay = PrioritizedReplay<FinalObsScore>;
 }
 #endif //BRIDGE_RESEARCH_REPLAY_BUFFER_H

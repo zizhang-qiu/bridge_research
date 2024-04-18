@@ -6,7 +6,7 @@
 #define BRIDGE_RESEARCH_BRIDGE_ENVS_H_
 #include <utility>
 
-#include "bridge_state.h"
+#include "bridge_lib/bridge_state.h"
 #include "multi_agent_transition_buffer.h"
 #include "rl/base.h"
 #include "rl/tensor_dict.h"
@@ -82,6 +82,8 @@ class BridgeVecEnv {
   }
   [[nodiscard]] int Size() const { return static_cast<int>(envs_.size()); }
   bool Reset();
+  // For debugging
+  bool ForceReset();
   void Step(const TensorDict &reply);
   [[nodiscard]] bool AnyTerminated() const;
   [[nodiscard]] bool AllTerminated() const;
@@ -90,14 +92,23 @@ class BridgeVecEnv {
   [[nodiscard]] std::vector<std::shared_ptr<BridgeBiddingEnv>> GetEnvs() const {
     return envs_;
   }
+  void Display(int num_envs) {
+    int num_envs_ = std::min(Size(), num_envs);
+    std::string fmt = "Env %d:\n%s";
+    for (int i = 0; i < num_envs_; ++i) {
+      std::string str = rl::utils::StrFormat(fmt, i, envs_[i]->ToString().c_str());
+      std::cout << str << std::endl;
+    }
+  }
   std::vector<int> GetReturns(Player player);
   std::vector<std::vector<int>> GetHistories() const;
+  std::vector<int> BiddingLengths() const;
 
  private:
   std::vector<std::shared_ptr<BridgeBiddingEnv>> envs_;
 };
 
-class BridgeWrapperVecEnv{
+class BridgeWrapperVecEnv {
  public:
   BridgeWrapperVecEnv() = default;
   void Push(const std::shared_ptr<BridgeBiddingEnvWrapper> &env) {

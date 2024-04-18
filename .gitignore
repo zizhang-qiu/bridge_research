@@ -12,3 +12,11 @@ policy_gradient
 /.idea
 results.md
 /a2c
+/data
+/belief
+/a2c_fetch
+/double_dummy_predictor
+/expert
+/figs
+/score_predictor
+/value_sl

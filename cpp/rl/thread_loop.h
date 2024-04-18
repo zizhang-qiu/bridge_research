@@ -9,7 +9,7 @@
 #include <atomic>
 #include <utility>
 #include "bridge_actor.h"
-#include "bridge_scoring.h"
+#include "bridge_lib/bridge_scoring.h"
 #include "bridge_envs.h"
 #include "replay_buffer.h"
 #include "imp_env.h"

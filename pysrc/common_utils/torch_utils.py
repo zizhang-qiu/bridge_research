@@ -89,7 +89,10 @@ def clone_parameters(net: nn.Module) -> List[torch.Tensor]:
     return cloned_parameters
 
 
-def check_updated(parameters_before_update: List[torch.Tensor], parameters_after_update: List[torch.Tensor]) -> bool:
+def check_updated(
+    parameters_before_update: List[torch.Tensor],
+    parameters_after_update: List[torch.Tensor],
+) -> bool:
     """
     Check whether the network is updated, i.e. parameters changed. Should be used with clone_parameters().
 
@@ -145,7 +148,7 @@ def to_device(*args, device="cuda"):
 
 
 class FocalLoss(nn.Module):
-    """ Focal Loss, as described in https://arxiv.org/abs/1708.02002.
+    """Focal Loss, as described in https://arxiv.org/abs/1708.02002.
 
     It is essentially an enhancement to cross entropy loss and is
     useful for classification tasks when there is a large class imbalance.
@@ -157,11 +160,13 @@ class FocalLoss(nn.Module):
         - y: (batch_size,) or (batch_size, d1, d2, ..., dK), K > 0.
     """
 
-    def __init__(self,
-                 alpha: Optional[torch.Tensor] = None,
-                 gamma: float = 0.,
-                 reduction: str = 'mean',
-                 ignore_index: int = -100):
+    def __init__(
+        self,
+        alpha: Optional[torch.Tensor] = None,
+        gamma: float = 0.0,
+        reduction: str = "mean",
+        ignore_index: int = -100,
+    ):
         """Constructor.
 
         Args:
@@ -173,9 +178,8 @@ class FocalLoss(nn.Module):
             ignore_index (int, optional): class label to ignore.
                 Defaults to -100.
         """
-        if reduction not in ('mean', 'sum', 'none'):
-            raise ValueError(
-                'Reduction must be one of: "mean", "sum", "none".')
+        if reduction not in ("mean", "sum", "none"):
+            raise ValueError('Reduction must be one of: "mean", "sum", "none".')
 
         super().__init__()
         self.alpha = alpha
@@ -184,14 +188,15 @@ class FocalLoss(nn.Module):
         self.reduction = reduction
 
         self.nll_loss = nn.NLLLoss(
-            weight=alpha, reduction='none', ignore_index=ignore_index)
+            weight=alpha, reduction="none", ignore_index=ignore_index
+        )
 
     def __repr__(self):
-        arg_keys = ['alpha', 'gamma', 'ignore_index', 'reduction']
+        arg_keys = ["alpha", "gamma", "ignore_index", "reduction"]
         arg_vals = [self.__dict__[k] for k in arg_keys]
-        arg_strs = [f'{k}={v!r}' for k, v in zip(arg_keys, arg_vals)]
-        arg_str = ', '.join(arg_strs)
-        return f'{type(self).__name__}({arg_str})'
+        arg_strs = [f"{k}={v!r}" for k, v in zip(arg_keys, arg_vals)]
+        arg_str = ", ".join(arg_strs)
+        return f"{type(self).__name__}({arg_str})"
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         if x.ndim > 2:
@@ -204,7 +209,7 @@ class FocalLoss(nn.Module):
         unignored_mask = y != self.ignore_index
         y = y[unignored_mask]
         if len(y) == 0:
-            return torch.tensor(0.)
+            return torch.tensor(0.0)
         x = x[unignored_mask]
 
         # compute weighted cross entropy term: -alpha * log(pt)
@@ -223,20 +228,22 @@ class FocalLoss(nn.Module):
         # the full loss: -alpha * ((1 - pt)^gamma) * log(pt)
         loss = focal_term * ce
 
-        if self.reduction == 'mean':
+        if self.reduction == "mean":
             loss = loss.mean()
-        elif self.reduction == 'sum':
+        elif self.reduction == "sum":
             loss = loss.sum()
 
         return loss
 
 
-def focal_loss(alpha: Optional[Sequence] = None,
-               gamma: float = 0.,
-               reduction: str = 'mean',
-               ignore_index: int = -100,
-               device='cpu',
-               dtype=torch.float32) -> FocalLoss:
+def focal_loss(
+    alpha: Optional[Sequence] = None,
+    gamma: float = 0.0,
+    reduction: str = "mean",
+    ignore_index: int = -100,
+    device="cpu",
+    dtype=torch.float32,
+) -> FocalLoss:
     """Factory function for FocalLoss.
 
     Args:
@@ -261,10 +268,8 @@ def focal_loss(alpha: Optional[Sequence] = None,
         alpha = alpha.to(device=device, dtype=dtype)
 
     fl = FocalLoss(
-        alpha=alpha,
-        gamma=gamma,
-        reduction=reduction,
-        ignore_index=ignore_index)
+        alpha=alpha, gamma=gamma, reduction=reduction, ignore_index=ignore_index
+    )
     return fl
 
 
@@ -281,7 +286,9 @@ def calculate_gradient_magnitudes(model: nn.Module) -> Tuple[float, float]:
             total_gradient_norm += parameter_gradient_norm.item()
             max_gradient_norm = max(max_gradient_norm, parameter_gradient_norm.item())
 
-    average_gradient_norm = total_gradient_norm / total_parameters if total_parameters > 0 else 0.0
+    average_gradient_norm = (
+        total_gradient_norm / total_parameters if total_parameters > 0 else 0.0
+    )
 
     return average_gradient_norm, max_gradient_norm
 
@@ -297,7 +304,9 @@ def multi_hot_1d(indices: torch.Tensor, num_classes: int):
     Returns:
         torch.Tensor: Multi-hot encoded tensor.
     """
-    assert indices.max() < num_classes, "Largest index should be smaller than num_classes."
+    assert (
+        indices.max() < num_classes
+    ), "Largest index should be smaller than num_classes."
     one_hot = torch.zeros(num_classes)
     one_hot[indices] = 1
     return one_hot
@@ -314,8 +323,28 @@ def multi_hot_2d(indices: torch.Tensor, num_classes: int):
     Returns:
         torch.Tensor: Multi-hot encoded tensor.
     """
-    assert indices.max() < num_classes, "Largest index should be smaller than num_classes."
+    assert (
+        indices.max() < num_classes
+    ), "Largest index should be smaller than num_classes."
     batch_size = indices.size(0)
     one_hot = torch.zeros(batch_size, num_classes)
     one_hot.scatter_(1, indices, 1)
     return one_hot
+
+
+def count_model_parameters(model: nn.Module) -> Tuple[int, int]:
+    """
+    Count total and trainable parameters in a nn.Module
+    Args:
+        model (nn.Module): The model to count parameters
+
+    Returns:
+        Numbers of total and trainable parameters
+    """
+    total = 0
+    trainable = 0
+    for p in model.parameters():
+        if p.requires_grad:
+            trainable += p.numel()
+        total += p.numel()
+    return total, trainable

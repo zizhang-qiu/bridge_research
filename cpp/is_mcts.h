@@ -4,7 +4,7 @@
 
 #ifndef BRIDGE_RESEARCH_CPP_IS_MCTS_H_
 #define BRIDGE_RESEARCH_CPP_IS_MCTS_H_
-#include "bridge_state.h"
+#include "bridge_lib/bridge_state.h"
 namespace rl::bridge{
 using ActionsAndProbs = std::vector<std::pair<Action, double>>;
 

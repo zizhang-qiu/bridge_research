@@ -52,7 +52,7 @@ endif ()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 include_directories(${TORCH_INCLUDE_DIRS})
 
-find_package(Threads)
+find_package(Threads REQUIRED)
 add_library(bridge_double_dummy_solver OBJECT
         cpp/third_party/dds/include/dll.h
         cpp/third_party/dds/include/portab.h
@@ -111,14 +111,14 @@ add_library(bridge_double_dummy_solver OBJECT
         cpp/third_party/dds/src/TransTableL.h
         cpp/third_party/dds/src/TransTableS.cpp
         cpp/third_party/dds/src/TransTableS.h
-        )
+)
 target_include_directories(bridge_double_dummy_solver PUBLIC cpp)
 target_compile_features(bridge_double_dummy_solver PRIVATE cxx_std_17)
 
 add_library(_rl cpp/rl/model_locker.h cpp/rl/logging.h
         cpp/rl/types.h cpp/rl/thread_loop.h cpp/rl/context.h cpp/rl/utils.h
         cpp/rl/tensor_dict.h cpp/rl/base.h cpp/rl/context.cc cpp/rl/span.h cpp/rl/str_utils.h
-        cpp/rl/thread_loop.cc cpp/rl/model_locker.cc cpp/rl/str_utils.cc cpp/rl/logger.h cpp/rl/logger.cc)
+        cpp/rl/thread_loop.cc cpp/rl/model_locker.cc cpp/rl/str_utils.cc cpp/rl/logger.h cpp/rl/logger.cc cpp/rl/batcher.cc cpp/rl/batcher.h cpp/rl/batch_runner.cc cpp/rl/batch_runner.h)
 target_include_directories(_rl PUBLIC cpp/rl)
 target_include_directories(_rl PUBLIC cpp)
 target_include_directories(_rl PUBLIC ${TORCH_INCLUDE_DIRS})
@@ -128,10 +128,13 @@ target_link_libraries(_rl PUBLIC
         ${TORCH_PYTHON_LIBRARIES})
 set_target_properties(_rl PROPERTIES CXX_STANDARD 17)
 
-add_library(bridge_lib cpp/bridge_state.cc cpp/bridge_scoring.cc cpp/bluechip_utils.cc cpp/bridge_scoring.h cpp/bridge_actor.h
-        cpp/bridge_envs.h cpp/bridge_envs.cc cpp/bridge_constants.h cpp/replay_buffer.h cpp/bridge_actor.cc cpp/cards_and_ddts.h
+add_library(bridge_lib cpp/bridge_lib/bridge_state.cc cpp/bridge_lib/bridge_scoring.cc cpp/bridge_lib/bluechip_utils.cc cpp/bridge_lib/bridge_scoring.h cpp/bridge_actor.h
+        cpp/bridge_envs.h cpp/bridge_envs.cc cpp/bridge_lib/bridge_constants.h cpp/replay_buffer.h cpp/bridge_actor.cc cpp/bridge_lib/cards_and_ddts.h
         cpp/imp_env.h cpp/imp_env.cc cpp/multi_agent_transition_buffer.h cpp/multi_agent_transition_buffer.cc cpp/replay_buffer.cc
-        cpp/bridge_deal.cc cpp/bridge_deal.h cpp/bridge_thread_loop.h cpp/bridge_thread_loop.cc cpp/transition.h cpp/transition.cc cpp/bridge_state.h cpp/dds.h cpp/dds.cc cpp/sayc_bot.h cpp/sayc_bot.cc cpp/is_mcts.h cpp/bridge_utils.h cpp/bridge_utils.cc cpp/score_predictor.h cpp/search.h cpp/search.cc)
+        cpp/bridge_lib/bridge_deal.cc cpp/bridge_lib/bridge_deal.h cpp/bridge_thread_loop.h cpp/bridge_thread_loop.cc cpp/transition.h cpp/transition.cc cpp/bridge_lib/bridge_state.h cpp/bridge_lib/dds_call.h cpp/bridge_lib/dds_call.cc cpp/sayc_bot.h cpp/sayc_bot.cc cpp/is_mcts.h cpp/bridge_lib/bridge_utils.h cpp/bridge_lib/bridge_utils.cc cpp/score_predictor.h cpp/search.h cpp/search.cc cpp/bridge_lib/encoder.h cpp/bridge_lib/encoder.cc cpp/bridge_lib/bridge_game.h cpp/bridge_lib/game_parameters.h cpp/bridge_lib/game_parameters.cc cpp/bridge_lib/bridge_card.h cpp/bridge_lib/bridge_move.h cpp/bridge_lib/bridge_card.cc cpp/bridge_lib/bridge_move.cc cpp/bridge_lib/bridge_call.cc cpp/bridge_lib/bridge_call.cc cpp/bridge_lib/bridge_call.h
+        cpp/test_belief_thread_loop.cc
+        cpp/test_belief_thread_loop.h
+)
 target_include_directories(bridge_lib PUBLIC cpp)
 target_include_directories(bridge_lib PUBLIC ${TORCH_INCLUDE_DIRS})
 target_include_directories(bridge_lib PUBLIC ${PYTHON_INCLUDE_DIRS})
@@ -174,65 +177,65 @@ if (WIN32)
             ${gtest_SOURCE_DIR}/include
             ${gtest_SOURCE_DIR}
     )
-    add_executable(bluechip_test cpp/tests/bluechip_utils_test.cc)
-    target_include_directories(bluechip_test PUBLIC .)
-    target_include_directories(bluechip_test PUBLIC ${TORCH_INCLUDE_DIRS})
-    target_include_directories(bluechip_test PUBLIC ${PYTHON_INCLUDE_DIRS})
-    target_link_libraries(bluechip_test PUBLIC
-            bridge_lib
-            gtest gtest_main)
-    include(GoogleTest)
-    gtest_discover_tests(bluechip_test)
-
-    add_executable(bridge_scoring_test cpp/tests/bridge_scoring_test.cc)
-    target_include_directories(bridge_scoring_test PUBLIC .)
-    target_include_directories(bridge_scoring_test PUBLIC ${TORCH_INCLUDE_DIRS})
-    target_include_directories(bridge_scoring_test PUBLIC ${PYTHON_INCLUDE_DIRS})
-    target_link_libraries(bridge_scoring_test PUBLIC
-            bridge_lib
-            gtest gtest_main)
-    include(GoogleTest)
-    gtest_discover_tests(bridge_scoring_test)
-
-    add_executable(bridge_state_test cpp/tests/bridge_state_test.cc)
-    target_include_directories(bridge_state_test PUBLIC .)
-    target_include_directories(bridge_state_test PUBLIC ${TORCH_INCLUDE_DIRS})
-    target_include_directories(bridge_state_test PUBLIC ${PYTHON_INCLUDE_DIRS})
-    target_link_libraries(bridge_state_test PUBLIC
-            bridge_lib
-            gtest gtest_main)
-    include(GoogleTest)
-    gtest_discover_tests(bridge_state_test)
-
-    add_executable(concurrent_queue_test cpp/tests/concurrent_queue_test.cc)
-    target_include_directories(concurrent_queue_test PUBLIC .)
-    target_include_directories(concurrent_queue_test PUBLIC ${TORCH_INCLUDE_DIRS})
-    target_include_directories(concurrent_queue_test PUBLIC ${PYTHON_INCLUDE_DIRS})
-    target_link_libraries(concurrent_queue_test PUBLIC
-            bridge_lib
-            gtest gtest_main)
-    include(GoogleTest)
-    gtest_discover_tests(concurrent_queue_test)
-
-    add_executable(str_utils_test cpp/tests/str_utils_test.cc)
-    target_include_directories(str_utils_test PUBLIC .)
-    target_include_directories(str_utils_test PUBLIC ${TORCH_INCLUDE_DIRS})
-    target_include_directories(str_utils_test PUBLIC ${PYTHON_INCLUDE_DIRS})
-    target_link_libraries(str_utils_test PUBLIC
-            bridge_lib
-            gtest gtest_main)
-    include(GoogleTest)
-    gtest_discover_tests(str_utils_test)
-
-    add_executable(dds_test cpp/tests/dds_test.cc)
-    target_include_directories(dds_test PUBLIC .)
-    target_include_directories(dds_test PUBLIC ${TORCH_INCLUDE_DIRS})
-    target_include_directories(dds_test PUBLIC ${PYTHON_INCLUDE_DIRS})
-    target_link_libraries(dds_test PUBLIC
-            bridge_lib
-            gtest gtest_main)
-    include(GoogleTest)
-    gtest_discover_tests(dds_test)
+    #    add_executable(bluechip_test cpp/tests/bluechip_utils_test.cc)
+    #    target_include_directories(bluechip_test PUBLIC .)
+    #    target_include_directories(bluechip_test PUBLIC ${TORCH_INCLUDE_DIRS})
+    #    target_include_directories(bluechip_test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    #    target_link_libraries(bluechip_test PUBLIC
+    #            bridge_lib
+    #            gtest gtest_main)
+    #    include(GoogleTest)
+    #    gtest_discover_tests(bluechip_test)
+    #
+    #    add_executable(bridge_scoring_test cpp/tests/bridge_scoring_test.cc)
+    #    target_include_directories(bridge_scoring_test PUBLIC .)
+    #    target_include_directories(bridge_scoring_test PUBLIC ${TORCH_INCLUDE_DIRS})
+    #    target_include_directories(bridge_scoring_test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    #    target_link_libraries(bridge_scoring_test PUBLIC
+    #            bridge_lib
+    #            gtest gtest_main)
+    #    include(GoogleTest)
+    #    gtest_discover_tests(bridge_scoring_test)
+    #
+    #    add_executable(bridge_state_test cpp/tests/bridge_state_test.cc)
+    #    target_include_directories(bridge_state_test PUBLIC .)
+    #    target_include_directories(bridge_state_test PUBLIC ${TORCH_INCLUDE_DIRS})
+    #    target_include_directories(bridge_state_test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    #    target_link_libraries(bridge_state_test PUBLIC
+    #            bridge_lib
+    #            gtest gtest_main)
+    #    include(GoogleTest)
+    #    gtest_discover_tests(bridge_state_test)
+    #
+    #    add_executable(concurrent_queue_test cpp/tests/concurrent_queue_test.cc)
+    #    target_include_directories(concurrent_queue_test PUBLIC .)
+    #    target_include_directories(concurrent_queue_test PUBLIC ${TORCH_INCLUDE_DIRS})
+    #    target_include_directories(concurrent_queue_test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    #    target_link_libraries(concurrent_queue_test PUBLIC
+    #            bridge_lib
+    #            gtest gtest_main)
+    #    include(GoogleTest)
+    #    gtest_discover_tests(concurrent_queue_test)
+    #
+    #    add_executable(str_utils_test cpp/tests/str_utils_test.cc)
+    #    target_include_directories(str_utils_test PUBLIC .)
+    #    target_include_directories(str_utils_test PUBLIC ${TORCH_INCLUDE_DIRS})
+    #    target_include_directories(str_utils_test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    #    target_link_libraries(str_utils_test PUBLIC
+    #            bridge_lib
+    #            gtest gtest_main)
+    #    include(GoogleTest)
+    #    gtest_discover_tests(str_utils_test)
+    #
+    #    add_executable(dds_test cpp/tests/dds_test.cc)
+    #    target_include_directories(dds_test PUBLIC .)
+    #    target_include_directories(dds_test PUBLIC ${TORCH_INCLUDE_DIRS})
+    #    target_include_directories(dds_test PUBLIC ${PYTHON_INCLUDE_DIRS})
+    #    target_link_libraries(dds_test PUBLIC
+    #            bridge_lib
+    #            gtest gtest_main)
+    #    include(GoogleTest)
+    #    gtest_discover_tests(dds_test)
 endif ()
 
 

@@ -4,7 +4,7 @@
 
 #ifndef BRIDGE_RESEARCH_CPP_SAYC_BOT_H_
 #define BRIDGE_RESEARCH_CPP_SAYC_BOT_H_
-#include "bridge_state.h"
+#include "bridge_lib/bridge_state.h"
 #include "rl/utils.h"
 namespace rl::bridge {
 inline constexpr int kNoAction = -1;

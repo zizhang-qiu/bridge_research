@@ -11,7 +11,7 @@ using Cards = std::vector<Action>;
 using DDT = std::vector<int>;
 
 enum Denomination {
-  kClubs = 0, kDiamonds, kHearts, kSpades, kNoTrump
+  kNoDenomination = -1, kClubs = 0, kDiamonds, kHearts, kSpades, kNoTrump
 };
 inline constexpr int kNumDenominations = 5;
 constexpr char kDenominationChar[] = "CDHSN";
@@ -104,5 +104,8 @@ constexpr char kRankChar[] = "23456789TJQKA";
 constexpr char kSuitChar[] = "CDHS";
 
 constexpr char kLevelChar[] = "-1234567";
+
+const std::vector<Suit> kAllSuits = {Suit::kClubs, Suit::kDiamonds, Suit::kHearts, Suit::kSpades};
+
 }
 #endif // BRIDGE_RESEARCH_CPP_BRIDGE_CONSTANTS_H_

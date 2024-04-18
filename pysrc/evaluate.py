@@ -38,6 +38,11 @@ def analyze_trained_model(model: PolicyNet2):
 
 
 if __name__ == '__main__':
-    net = PolicyNet2()
-    net.load_state_dict(torch.load("a2c_fetch/4/folder_10/model9.pth")["model_state_dict"]["policy"])
-    analyze_trained_model(net)
+    #  net1 = PolicyNet2()
+    # net1.load_state_dict(torch.load("a2c_fetch/4/folder_10/model9.pth")["model_state_dict"]["policy"])
+    # net2 = PolicyNet2()
+    # net2.load_state_dict(torch.load("a2c/folder_5/model1.pth")["model_state_dict"]["policy"])
+    # evaluator = Evaluator(50000, 8, "cuda")
+    # avg, sem, *_ = evaluator.evaluate(net1, net2)
+    # print(avg, sem)
+    evaluate_dir("a2c/folder_7")

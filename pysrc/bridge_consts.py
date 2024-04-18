@@ -121,5 +121,26 @@ PBN_TEMPLATE = """[Event ""]
 [Result ""]
 [BCFlags "1f"]"""
 
+PBN_TEMPLATE_WITH_AUCTION = """[Event ""]
+[Site ""]
+[Date ""]
+[Board ""]
+[West ""]
+[North ""]
+[East ""]
+[South ""]
+[Dealer "{dealer}"]
+[Vulnerable "None"]
+[Deal "{deal}"]
+[Scoring ""]
+[Declarer "{declarer}"]
+[Contract "{contract}"]
+[Result "{results}"]
+{comment}
+[BCFlags "1f"]
+[Score "{score}"]
+[Auction "N"]
+{bidding_history}"""
+
 PLUS_MINUS_SYMBOL = "\u00B1"
 SECONDS_PER_MINUTE = 60

@@ -17,7 +17,6 @@ struct BridgeDeal {
   bool is_dealer_vulnerable = false;
   bool is_non_dealer_vulnerable = false;
   std::optional<DDT> ddt;
-  std::optional<int> par_score;
 };
 
 class DealManager {
@@ -32,40 +31,39 @@ class DealManager {
 // A manager stores deals
 class BridgeDealManager : public DealManager {
  public:
-  BridgeDealManager(const std::vector<Cards> &cards_vector,
-                    const std::vector<DDT> &ddts,
-                    const std::vector<int> &par_scores,
-                    int max_size);
+  BridgeDealManager() = default;
 
-  BridgeDealManager(const std::vector<Cards> &cards_vector,
-                    const std::vector<DDT> &ddts,
-                    const std::vector<int> &par_scores);
+  explicit BridgeDealManager(const std::vector<Cards> &cards_vector);
+
+  BridgeDealManager(const std::vector<Cards> &cards_vector, const std::vector<DDT> &ddts);
 
   BridgeDeal Next() override;
   void Reset();
-  void Add(const std::vector<Action> &cards, const std::vector<int> &ddt, int par_score);
   int Size() const { return size_; };
+  void Update(const std::vector<Cards> &cards_vector,
+              const std::vector<DDT> &ddts);
+
+  void Update(const std::vector<Cards> &cards_vector);
   int Cursor() const { return cursor_.load(); }
-  std::tuple<Cards, DDT, int> Get(int index) {
-    return std::make_tuple(cards_vector_[index], ddts_[index], par_scores_[index]);
-  }
+//  std::tuple<Cards, DDT> Get(int index) const {
+//    RL_CHECK_LT(index, size_);
+//    return std::make_tuple(cards_vector_[index], ddts_[index]);
+//  }
 
  private:
   std::mutex m_;
   std::atomic<int> cursor_ = 0;
-  std::atomic<int> add_cursor_ = 0;
-  int size_;
-  int max_size_;
-  std::vector<Cards> cards_vector_;
-  std::vector<DDT> ddts_;
-  std::vector<int> par_scores_;
+  int size_{};
+  std::vector<BridgeDeal> deals_;
+  void MakeDealsFromCards(const std::vector<Cards> &cards_vector);
+  void MakeDealsFromCardsAndDDT(const std::vector<Cards> &cards_vector, const std::vector<DDT> &ddts);
 };
 
-class RandomDealManager: public DealManager {
+class RandomDealManager : public DealManager {
  public:
-  RandomDealManager(int seed) : rng_(seed) {}
+  explicit RandomDealManager(int seed) : rng_(seed) {}
 
-  BridgeDeal Next() override{
+  BridgeDeal Next() override {
     auto cards = rl::utils::Permutation(0, kNumCards, rng_);
     BridgeDeal deal;
     deal.cards = cards;

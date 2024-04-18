@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "rl/base.h"
-#include "bridge_deal.h"
+#include "bridge_lib/bridge_deal.h"
 #include "bridge_envs.h"
 
 namespace rl::bridge {

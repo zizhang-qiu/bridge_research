@@ -4,6 +4,8 @@
 
 #ifndef BRIDGE_RESEARCH_CPP_TRANSITION_H_
 #define BRIDGE_RESEARCH_CPP_TRANSITION_H_
+#include <utility>
+
 #include "rl/tensor_dict.h"
 namespace rl::bridge {
 class Transition {
@@ -68,9 +70,22 @@ class ObsBelief {
 
   [[nodiscard]] ObsBelief Index(int i) const;
 
-  static ObsBelief MakeBatch(const std::vector<ObsBelief>& obs_beliefs, const std::string &device);
+  static ObsBelief MakeBatch(const std::vector<ObsBelief> &obs_beliefs, const std::string &device);
   TensorDict obs;
   TensorDict belief;
+  torch::Tensor length = torch::tensor(-1);
+};
+
+class FinalObsScore {
+ public:
+  FinalObsScore(TensorDict &final_obs,
+                torch::Tensor score)
+      : final_obs(final_obs), score(std::move(score)) {}
+  FinalObsScore() = default;
+
+  static FinalObsScore MakeBatch(const std::vector<FinalObsScore>& obs_scores, const std::string &device);
+  TensorDict final_obs;
+  torch::Tensor score;
 };
 }
 #endif //BRIDGE_RESEARCH_CPP_TRANSITION_H_

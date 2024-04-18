@@ -1,8 +1,8 @@
 //
 // Created by qzz on 2023/5/21.
 //
-#include "dds.h"
-#include "cards_and_ddts.h"
+#include "cpp/bridge_lib/dds_call.h"
+#include "cpp/bridge_lib/cards_and_ddts.h"
 #include "gtest/gtest.h"
 using namespace rl::bridge;
 

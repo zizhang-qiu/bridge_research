@@ -107,6 +107,15 @@ inline TensorDict Narrow(
   return result;
 }
 
+// Unsqueeze a TensorDict
+inline TensorDict Unsqueeze(const TensorDict &input, int64_t dim){
+  TensorDict result;
+  for(auto &name2tensor: input){
+    result.insert({name2tensor.first, name2tensor.second.unsqueeze(dim)});
+  }
+  return result;
+}
+
 inline TensorDict Clone(const TensorDict &input) {
   TensorDict output;
   for (auto &name2tensor : input) {

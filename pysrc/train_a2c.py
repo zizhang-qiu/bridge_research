@@ -28,7 +28,9 @@ def main():
     top_k = cfg["top_k"]
     common_utils.set_random_seeds(cfg["seed"])
     stats = common_utils.MultiStats()
-    logger = common_utils.Logger(os.path.join(save_dir, "log.txt"), verbose=True, auto_line_feed=True)
+    logger = common_utils.Logger(
+        os.path.join(save_dir, "log.txt"), verbose=True, auto_line_feed=True
+    )
     logger.write(pprint.pformat(cfg))
     saver = common_utils.TopKSaver(save_dir, top_k)
     stopwatch = common_utils.Stopwatch()
@@ -43,12 +45,14 @@ def main():
     p_lr = cfg["policy_lr"]
     v_lr = cfg["value_lr"]
     train_device = cfg["train_device"]
-    agent = VecEnvAgent(net).to(train_device)
+    agent = VecEnvAgent(net, perfect=False).to(train_device)
     if checkpoint_path:
         agent.v_net.load_state_dict(checkpoint["model_state_dict"]["value"])
     act_device = cfg["act_device"]
 
-    train_locker = rl_cpp.ModelLocker([torch.jit.script(copy.deepcopy(agent)).to(act_device)], act_device)
+    train_locker = rl_cpp.ModelLocker(
+        [torch.jit.script(copy.deepcopy(agent)).to(act_device)], act_device
+    )
     train_actor = rl_cpp.VecEnvActor(train_locker)
     # p_opt = torch.optim.AdamW(params=agent.p_net.parameters(), lr=p_lr)
     # v_opt = torch.optim.AdamW(params=agent.v_net.parameters(), lr=v_lr)
@@ -71,8 +75,7 @@ def main():
     num_threads = cfg["num_threads"]
     num_games_per_thread = cfg["num_games_per_thread"]
     dataset = load_rl_dataset("train3")
-    deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"],
-                                            dataset["par_scores"], dataset["cards"].shape[0] + 10)
+    deal_manager = rl_cpp.BridgeDealManager(dataset["cards"], dataset["ddts"])
     buffer_capacity = cfg["buffer_capacity"]
     alpha = cfg["alpha"]
     beta = cfg["beta"]
@@ -97,10 +100,15 @@ def main():
     max_grad_norm = cfg["max_grad_norm"]
     burn_in_frames = cfg["burn_in_frames"]
     context.start()
+    st = time.perf_counter()
     while (size := replay_buffer.size()) < burn_in_frames:
         print(f"\rWarming up replay buffer, {size} / {burn_in_frames}", end="")
         time.sleep(1)
+    ed = time.perf_counter()
     print()
+    print(
+        f"Filling a replay buffer with capacity of {burn_in_frames} takes {ed - st:.2f} seconds."
+    )
 
     # train/eval loop
     num_epochs = cfg["num_epochs"]
@@ -123,7 +131,9 @@ def main():
             v_opt.zero_grad()
 
             if num_update % sync_freq == 0:
-                train_locker.update_model(torch.jit.script(copy.deepcopy(agent)).to(act_device))
+                train_locker.update_model(
+                    torch.jit.script(copy.deepcopy(agent)).to(act_device)
+                )
 
             stopwatch.time("sync and updating")
 
@@ -132,7 +142,9 @@ def main():
             # print(batch_reward)
             stopwatch.time("sample data")
 
-            p_loss, v_loss, priority = agent.compute_loss_and_priority(batch, clip_eps, entropy_ratio)
+            p_loss, v_loss, priority = agent.compute_loss_and_priority(
+                batch, clip_eps, entropy_ratio
+            )
             # print(p_loss, v_loss)
             # print(v_loss.mean())
             torch.cuda.synchronize()
@@ -175,7 +187,7 @@ def main():
         checkpoint = {
             "model_state_dict": {
                 "policy": copy.deepcopy(agent.p_net.state_dict()),
-                "value": copy.deepcopy(agent.v_net.state_dict())
+                "value": copy.deepcopy(agent.v_net.state_dict()),
             }
         }
         force_save_name = None
@@ -191,5 +203,5 @@ def main():
     context.terminate()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

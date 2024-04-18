@@ -11,7 +11,7 @@ from adan import Adan
 from matplotlib import pyplot as plt
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
-from nets import PolicyNet, PolicyNet2, PolicyNetRelu
+from nets import PolicyNet, PolicyNet2, PolicyNetRelu, PolicyNetwork3
 from common_utils.logger import Logger
 from common_utils.other_utils import set_random_seeds, mkdir_with_time
 from common_utils.torch_utils import initialize_fc, focal_loss
@@ -56,16 +56,16 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     # dataset path
-    parser.add_argument("--dataset_dir", type=str,
-                        default=r"expert\sl_data")
+    parser.add_argument("--dataset_dir", type=str, default=r"expert\sl_data")
 
     # save settings
     parser.add_argument("--save_dir", type=str, default="imitation_learning/relu")
 
     # train settings
-    parser.add_argument("--trained_checkpoint", type=str,
-                        default=None)
+    parser.add_argument("--trained_checkpoint", type=str, default=None)
     parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--num_layers", type=int, default=4)
+    parser.add_argument("--num_hidden", type=int, default=2048)
     parser.add_argument("--max_mini_batches", type=int, default=500000)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--batch_size", type=int, default=512)
@@ -78,7 +78,9 @@ def parse_args():
     return args
 
 
-def cross_entropy(log_probs: torch.Tensor, label: torch.Tensor, num_classes: int) -> torch.Tensor:
+def cross_entropy(
+        log_probs: torch.Tensor, label: torch.Tensor, num_classes: int
+) -> torch.Tensor:
     """
     Compute cross entropy loss of given log probs and label.
     Args:
@@ -90,7 +92,9 @@ def cross_entropy(log_probs: torch.Tensor, label: torch.Tensor, num_classes: int
         The cross entropy loss.
     """
     assert label.ndimension() == 1
-    return -torch.mean(torch.nn.functional.one_hot(label.long(), num_classes) * log_probs)
+    return -torch.mean(
+        torch.nn.functional.one_hot(label.long(), num_classes) * log_probs
+    )
 
 
 def compute_accuracy(probs: torch.Tensor, label: torch.Tensor) -> torch.Tensor:
@@ -111,15 +115,22 @@ def compute_accuracy(probs: torch.Tensor, label: torch.Tensor) -> torch.Tensor:
 def main():
     args = parse_args()
     set_random_seeds(args.seed)
-    train_dataset = BiddingDataset(obs_path=os.path.join(args.dataset_dir, "train_obs.p"),
-                                   label_path=os.path.join(args.dataset_dir, "train_label.p"))
-    valid_dataset = BiddingDataset(obs_path=os.path.join(args.dataset_dir, "valid_obs.p"),
-                                   label_path=os.path.join(args.dataset_dir, "valid_label.p"))
+    train_dataset = BiddingDataset(
+        obs_path=os.path.join(args.dataset_dir, "train_obs.p"),
+        label_path=os.path.join(args.dataset_dir, "train_label.p"),
+    )
+    valid_dataset = BiddingDataset(
+        obs_path=os.path.join(args.dataset_dir, "valid_obs.p"),
+        label_path=os.path.join(args.dataset_dir, "valid_label.p"),
+    )
     # sampler = WeightedRandomSampler(train_dataset.weights, len(train_dataset))
     # alpha = 1.0 / label_count
-
+    print(len(train_dataset), len(valid_dataset))
+    exit(1)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=args.eval_batch_size, shuffle=False)
+    valid_loader = DataLoader(
+        valid_dataset, batch_size=args.eval_batch_size, shuffle=False
+    )
     print("load dataset successfully!")
 
     # create save_dir
@@ -127,7 +138,7 @@ def main():
     saver = common_utils.TopKSaver(save_dir, 10)
 
     # initialize network, optimizer and criterion
-    net = PolicyNetRelu()
+    net = PolicyNetwork3(4, 2048, use_layer_norm=True)
     initialize_fc(net)
     net.to(args.device)
     opt = torch.optim.Adam(params=net.parameters(), lr=args.lr, fused=True)
@@ -140,9 +151,12 @@ def main():
     # value stats and logger
     multi_stats = MultiStats()
 
-    logger = Logger(os.path.join(save_dir, "log.txt"), verbose=True, auto_line_feed=True)
+    logger = Logger(
+        os.path.join(save_dir, "log.txt"), verbose=True, auto_line_feed=True
+    )
     logger.write(pprint.pformat(args))
     num_mini_batches = 0
+
     # focal_loss_func = focal_loss(alpha=None, gamma=1.0, device="cuda")
     #
 
@@ -199,9 +213,13 @@ def main():
 
 def test():
     args = parse_args()
-    test_dataset = BiddingDataset(obs_path=os.path.join(args.dataset_dir, "test_obs.p"),
-                                  label_path=os.path.join(args.dataset_dir, "test_label.p"))
-    test_loader = DataLoader(test_dataset, batch_size=args.eval_batch_size, shuffle=False)
+    test_dataset = BiddingDataset(
+        obs_path=os.path.join(args.dataset_dir, "test_obs.p"),
+        label_path=os.path.join(args.dataset_dir, "test_label.p"),
+    )
+    test_loader = DataLoader(
+        test_dataset, batch_size=args.eval_batch_size, shuffle=False
+    )
     net = PolicyNet()
     net.load_state_dict(torch.load(args.trained_checkpoint)["model_state_dict"])
     net.to(args.device)
@@ -224,6 +242,6 @@ def test():
     print(f"test loss:{test_loss}, test accuracy:{test_acc}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # test_and_compute_metrics()
     main()

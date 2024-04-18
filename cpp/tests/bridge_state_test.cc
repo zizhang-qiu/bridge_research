@@ -4,9 +4,9 @@
 
 #ifndef BRIDGE_RESEARCH_CPP_TESTS_BRIDGE_STATE_TEST_CC_
 #define BRIDGE_RESEARCH_CPP_TESTS_BRIDGE_STATE_TEST_CC_
-#include "bridge_state.h"
-#include "bridge_deal.h"
-#include "cards_and_ddts.h"
+#include "cpp/bridge_lib/bridge_state.h"
+#include "cpp/bridge_lib/bridge_deal.h"
+#include "cpp/bridge_lib/cards_and_ddts.h"
 #include "gtest/gtest.h"
 using namespace rl::bridge;
 TEST(BridgeStateTest, DDSTest) {

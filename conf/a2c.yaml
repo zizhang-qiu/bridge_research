@@ -6,18 +6,18 @@ policy_lr: !!float 1e-5
 value_lr: !!float 1e-4
 entropy_ratio: !!float 0.0
 clip_eps: !!float 0.05
-max_grad_norm : !!float 40
+max_grad_norm: !!float 40
 train_device: "cuda"
 
 # random seed
 seed: !!int 42
 
 # replay buffer settings
-burn_in_frames: !!int 50000
+burn_in_frames: !!int 800000
 buffer_capacity: !!int 800000
-alpha : !!float 0.6
-beta : !!float 0.4
-prefetch : !!int 1
+alpha: !!float 0.6
+beta: !!float 0.4
+prefetch: !!int 1
 sample_batch_size: 512
 
 # envs and threads
@@ -37,4 +37,4 @@ eval_device: "cuda"
 
 # save
 save_dir: "a2c"
-top_k : 5
+top_k: 5

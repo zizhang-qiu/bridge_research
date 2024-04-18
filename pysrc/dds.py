@@ -55,6 +55,8 @@ SolveBoardStatus = {
 CALC_ALL_TABLES_BATCH_SIZE = 32
 
 
+
+
 class ReturnCode(IntEnum):
     RETURN_NO_FAULT = 1
     RETURN_UNKNOWN_FAULT = -1
@@ -117,6 +119,8 @@ dll.CalcAllTables.argtypes = (POINTER(DDTableDeals), c_int, c_int * DDS_STRAINS,
 dll.CalcAllTables.restype = c_int
 dll.Par.argtypes = (POINTER(DDTableResults), POINTER(ParResults), c_int)
 dll.Par.restype = c_int
+
+print(dir(dll))
 
 
 def deal_return_code(return_code: int):

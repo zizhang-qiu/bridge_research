@@ -2,7 +2,7 @@
 // Created by qzz on 2023/5/3.
 //
 #include "bridge_thread_loop.h"
-#include "dds.h"
+#include "bridge_lib/dds_call.h"
 
 namespace rl::bridge {
 void VecEnvEvalThreadLoop::MainLoop() {
@@ -114,22 +114,6 @@ void BridgeVecEnvThreadLoop::MainLoop() {
   terminated_ = true;
 }
 
-void DataThreadLoop::MainLoop() {
-  while (!Terminated()) {
-    if (Terminated()) {
-      break;
-    }
-    if (pause_signal) {
-      paused_ = true;
-      WaitUntilResume();
-    }
-    auto [gen_cards, gen_ddt] = GenerateOneDeal(rng_);
-    deal_manager_->Add(gen_cards, gen_ddt, 0);
-//    std::cout << "size: " << deal_manager_->Size() << std::endl;
-  }
-  terminated_ = true;
-}
-
 void VecEnvAllTerminateThreadLoop::MainLoop() {
   TensorDict obs = {};
   TensorDict reply;
@@ -148,7 +132,7 @@ void BeliefThreadLoop::MainLoop() {
   TensorDict reply;
   TensorDict belief;
   while (!Terminated()) {
-    if (Terminated()) {
+    if (Terminated() || replay_->Size()==replay_->Capacity()) {
       break;
     }
     if (pause_signal) {
@@ -159,10 +143,43 @@ void BeliefThreadLoop::MainLoop() {
     while (!env_->AnyTerminated()) {
       obs = env_->GetFeature();
       belief = env_->GetBeliefFeature();
-      replay_->Add({obs, belief}, torch::ones(env_->Size()));
+      auto transition = ObsBelief(obs, belief);
+      transition.length = torch::tensor(env_->BiddingLengths());
+      replay_->Add(transition, torch::ones(env_->Size()));
       reply = actor_->Act(obs);
       env_->Step(reply);
     }
+  }
+  terminated_ = true;
+}
+
+
+void ContractScoreThreadLoop::MainLoop() {
+  int contract_index;
+  BridgeDeal deal;
+
+  std::shared_ptr<BridgeBiddingState> state;
+  std::vector<FinalObsScore> obs_scores;
+  while (!Terminated()) {
+    if (Terminated()) {
+      break;
+    }
+
+    state = std::make_shared<BridgeBiddingState>(deal);
+    deal = deal_manager_->Next();
+    for(int i=0; i < batch_size_; ++i) {
+      contract_index = dis_(rng_);
+      auto final_observation_tensor = state->FinalObservationTensor(contract_index);
+      auto score = state->ScoreForContracts(kNorth, {contract_index})[0];
+      TensorDict final_obs = {
+          {"final_s", torch::tensor(final_observation_tensor)}
+      };
+      torch::Tensor score_tensor = torch::tensor(score, {torch::kFloat32});
+      FinalObsScore f_obs_score(final_obs, score_tensor);
+      obs_scores.push_back(f_obs_score);
+    }
+    replay_->Add(obs_scores, torch::ones(batch_size_, {torch::kFloat32}));
+    obs_scores.clear();
   }
   terminated_ = true;
 }

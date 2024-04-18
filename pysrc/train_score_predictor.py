@@ -17,11 +17,11 @@ from utils import load_rl_dataset
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--eval_freq", type=int, default=1000)
     parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--num_iterations", type=int, default=500000)
+    parser.add_argument("--num_iterations", type=int, default=1000000)
     parser.add_argument("--save_dir", type=str, default="score_predictor")
     return parser.parse_args()
 
@@ -36,7 +36,7 @@ def make_sample(cards: np.ndarray, ddts: np.ndarray):
             deal.cards = trajectory
             deal.ddt = ddts[i]
             state = rl_cpp.BridgeBiddingState(deal)
-            contract = np.random.randint(1, 421)
+            contract = np.random.randint(1, 420)
             score = state.score_for_contracts(0, [contract])[0]
             scores = [score, -score, score, -score]
             final_obs = state.final_observation_tensor(contract)
@@ -55,7 +55,7 @@ def make_batch(sample_generator: Generator, batch_size: int, device: str = "cuda
 
 def main():
     args = parse_args()
-    train_dataset = load_rl_dataset("train")
+    train_dataset = load_rl_dataset("train3")
     valid_dataset = load_rl_dataset("valid")
 
     train_generator = make_batch(make_sample(train_dataset["cards"], train_dataset["ddts"]), args.batch_size,
@@ -99,11 +99,11 @@ def get_all_final_score(dataset: List[List[int]], ddts: np.ndarray):
 
 
 def test_final_score():
-    model_dir = "score_predictor/folder_2"
+    model_dir = "score_predictor/folder_1"
     model_paths = common_utils.find_files_in_dir(model_dir, "model")
-    test_dataset = load_rl_dataset("valid")
+    test_dataset = load_rl_dataset("vs_wb5_open_spiel")
 
-    test_generator = make_batch(make_sample(test_dataset["cards"], test_dataset["ddts"]), 50000,
+    test_generator = make_batch(make_sample(test_dataset["cards"], test_dataset["ddts"]), 10000,
                                 "cuda")
     net = ScorePredictor()
     net.to("cuda")
@@ -115,7 +115,7 @@ def test_final_score():
             pred = net(obs).squeeze()
             loss = torch.nn.functional.mse_loss(pred, scores)
             print(loss)
-            print(pred[:50], scores[:50], sep="\n")
+            # print(pred[:50], scores[:50], sep="\n")
 
 
 if __name__ == '__main__':

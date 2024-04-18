@@ -1,6 +1,6 @@
-dataset : "open_spiel"
-num_deals: 100
+dataset: "open_spiel"
+num_deals: 10000
 num_processes: 8
-checkpoint_path: "a2c_fetch/4/folder_10/model2.pth"
+checkpoint_path: "a2c/folder_7/model2.pth"
 save_dir: "vs_wbridge5"
 start: 0

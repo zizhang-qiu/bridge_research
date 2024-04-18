@@ -204,10 +204,24 @@ std::vector<std::vector<int>> BridgeVecEnv::GetHistories() const {
 
 TensorDict BridgeVecEnv::GetBeliefFeature() const {
   std::vector<TensorDict> belief_vec;
-  for (size_t i = 0; i < static_cast<int>(envs_.size()); ++i){
+  for (size_t i = 0; i < static_cast<int>(envs_.size()); ++i) {
     belief_vec.push_back(envs_[i]->GetBeliefFeature());
   }
   return tensor_dict::Stack(belief_vec, 0);
+}
+bool BridgeVecEnv::ForceReset() {
+  for (size_t i = 0; i < envs_.size(); ++i) {
+    envs_[i]->Reset();
+  }
+  return true;
+}
+std::vector<int> BridgeVecEnv::BiddingLengths() const {
+  std::vector<int> lengths;
+  lengths.reserve(envs_.size());
+  for (const auto &env : envs_) {
+    lengths.push_back(env->GetState()->History().size() - kNumCards);
+  }
+  return lengths;
 }
 
 bool BridgeWrapperVecEnv::Reset() {

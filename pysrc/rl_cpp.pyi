@@ -9,7 +9,6 @@ TensorDict = Dict[str, torch.Tensor]
 CardsLike = Union[np.ndarray, List[Action]]
 DDTLike = Union[np.ndarray, List[Action]]
 
-
 class ModelLocker:
     def __init__(self, py_models: List[torch.jit.ScriptModule], device: str):
         """
@@ -20,7 +19,6 @@ class ModelLocker:
             device: The device the models at, used for actors to move the obs to correct tensor
         """
         ...
-
     def update_model(self, py_model: torch.jit.ScriptModule) -> NoReturn:
         """
         Update the latest model's parameter using a ScriptModule
@@ -30,7 +28,6 @@ class ModelLocker:
         """
         ...
 
-
 class SingleEnvActor:
     def __init__(self, model_locker: ModelLocker):
         """
@@ -39,7 +36,6 @@ class SingleEnvActor:
             model_locker: The model locker saves ScriptModule to call
         """
         ...
-
     def act(self, obs: TensorDict) -> TensorDict:
         """
         Get action for given obs tensor
@@ -50,13 +46,10 @@ class SingleEnvActor:
             The reply
         """
         ...
-
-    def get_top_k_actions_with_min_prob(self, obs: TensorDict, k: int, min_prob: float) -> TensorDict:
-        ...
-
-    def get_prob_for_action(self, obs: TensorDict, action: Action) -> float:
-        ...
-
+    def get_top_k_actions_with_min_prob(
+        self, obs: TensorDict, k: int, min_prob: float
+    ) -> TensorDict: ...
+    def get_prob_for_action(self, obs: TensorDict, action: Action) -> float: ...
 
 class VecEnvActor:
     def __init__(self, model_locker: ModelLocker):
@@ -66,7 +59,6 @@ class VecEnvActor:
             model_locker: The model locker saves ScriptModule to call
         """
         ...
-
     def act(self, obs: TensorDict) -> TensorDict:
         """
         Get action for given obs tensor
@@ -78,9 +70,16 @@ class VecEnvActor:
         """
         ...
 
-
 class ReplayBuffer:
-    def __init__(self, state_size: int, num_actions: int, capacity: int, alpha: float, eps: float, beta: float):
+    def __init__(
+        self,
+        state_size: int,
+        num_actions: int,
+        capacity: int,
+        alpha: float,
+        eps: float,
+        beta: float,
+    ):
         """
         A buffer stores states(obs), actions, rewards and log_probs
         Args:
@@ -89,12 +88,16 @@ class ReplayBuffer:
             capacity: The capacity of the buffer
         """
         ...
-
-    def push(self, state: torch.Tensor, action: torch.Tensor, reward: torch.Tensor, log_probs: torch.Tensor):
-        ...
-
-    def sample(self, batch_size: int, device: str) -> Tuple[
-        torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def push(
+        self,
+        state: torch.Tensor,
+        action: torch.Tensor,
+        reward: torch.Tensor,
+        log_probs: torch.Tensor,
+    ): ...
+    def sample(
+        self, batch_size: int, device: str
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample a batch of obs, actions, rewards and log_probs
         Args:
@@ -105,7 +108,6 @@ class ReplayBuffer:
             Tuple of obs, actions, rewards and log_probs
         """
         ...
-
     def size(self) -> int:
         """
         Get the size of replay buffer
@@ -113,7 +115,6 @@ class ReplayBuffer:
             The size of buffer, which is the amount of items
         """
         ...
-
     def get_all(self) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Get all items in the buffer
@@ -121,7 +122,6 @@ class ReplayBuffer:
             The tuple of all obs, actions, rewards and log probs
         """
         ...
-
     def num_add(self) -> int:
         """
         Get the number of items added to buffer
@@ -130,31 +130,22 @@ class ReplayBuffer:
         """
         ...
 
-
 class BridgeTransitionBuffer:
-    def __init__(self):
-        ...
-
-    def push_obs_and_reply(self, obs: TensorDict, action: TensorDict):
-        ...
-
-    def push_to_replay_buffer(self, replay_buffer: ReplayBuffer, final_reward: float):
-        ...
-
-    def pop_transitions(self) -> Tuple[List[Transition], torch.Tensor]:
-        ...
-
+    def __init__(self): ...
+    def push_obs_and_reply(self, obs: TensorDict, action: TensorDict): ...
+    def push_to_replay_buffer(
+        self, replay_buffer: ReplayBuffer, final_reward: float
+    ): ...
+    def pop_transitions(self) -> Tuple[List[Transition], torch.Tensor]: ...
 
 class MultiAgentTransitionBuffer:
-    def __init__(self, num_agents: int):
-        ...
-
-    def push_obs_and_reply(self, player: Player, obs: TensorDict, reply: TensorDict):
-        ...
-
-    def push_to_replay_buffer(self, replay_buffer: ReplayBuffer, final_reward: Union[List[float], np.ndarray]):
-        ...
-
+    def __init__(self, num_agents: int): ...
+    def push_obs_and_reply(
+        self, player: Player, obs: TensorDict, reply: TensorDict
+    ): ...
+    def push_to_replay_buffer(
+        self, replay_buffer: ReplayBuffer, final_reward: Union[List[float], np.ndarray]
+    ): ...
 
 class BridgeDeal:
     def __init__(self):
@@ -165,40 +156,30 @@ class BridgeDeal:
         self.ddt: Optional[DDTLike] = ...
         self.par_score: Optional[int] = ...
 
-class DealManager:
-    ...
+class DealManager: ...
 
 class BridgeDealManager(DealManager):
-    def __init__(self, cards: CardsLike, ddts: DDTLike, par_scores: Union[List, np.ndarray], max_size: int):
+    def __init__(self, cards: CardsLike, ddts: DDTLike):
         """
         A manager stores deals.
         Args:
             cards: A list or ndarray of cards.
             ddts: A list or ndarray of ddts.
-            par_scores: A list or ndarray of par_scores.(not used.)
-            max_size: Optional.
         """
         ...
-
     def size(self) -> int:
         """Get the size og manager."""
         ...
-
     def next(self) -> BridgeDeal:
         """Get next deal of manager."""
         ...
-
 
 class Contract:
     level: int = ...
     declarer: Player = ...
 
-    def trumps(self) -> int:
-        ...
-
-    def double_status(self) -> int:
-        ...
-
+    def trumps(self) -> int: ...
+    def double_status(self) -> int: ...
 
 class HandEvaluation:
     high_card_points: int = ...
@@ -207,7 +188,6 @@ class HandEvaluation:
     support_points: int = ...
     control_count: int = ...
     length_per_suit: List[int] = ...
-
 
 class BridgeBiddingState:
     def __init__(self, deal: BridgeDeal):
@@ -236,7 +216,6 @@ class BridgeBiddingState:
                     the ddt array should be [ 0 12  0 12  0 12  0 12 10  3 10  3  9  4  9  4  0  8  0  8]
         """
         ...
-
     def history(self) -> List[Action]:
         """
         Get history of actions so far, include deal actions
@@ -244,7 +223,6 @@ class BridgeBiddingState:
             The list of actions
         """
         ...
-
     def bid_str(self) -> str:
         """
         Get a string of bidding sequence
@@ -252,7 +230,6 @@ class BridgeBiddingState:
             The bidding string, start with the dealer, e.g. Dealer is N, 1C, Pass, Pass, Pass
         """
         ...
-
     def bid_history(self) -> List[Action]:
         """
         Get the history action of only bidding phase
@@ -260,7 +237,6 @@ class BridgeBiddingState:
             The list of bidding actions
         """
         ...
-
     def bid_str_history(self) -> List[str]:
         """
         Get the string of each bid in history
@@ -268,7 +244,6 @@ class BridgeBiddingState:
             The list of bid strings, e.g. ['1C', 'Pass', 'Pass', 'Pass']
         """
         ...
-
     def apply_action(self, action: Action):
         """
         Apply an action to the state, should not be called at terminal
@@ -281,7 +256,6 @@ class BridgeBiddingState:
 
         """
         ...
-
     def terminated(self) -> bool:
         """
         Get the terminal information
@@ -289,7 +263,6 @@ class BridgeBiddingState:
             A boolean value of whether the state is terminated
         """
         ...
-
     def returns(self) -> List[float]:
         """
         Get duplicate scores, can only be called if terminated
@@ -297,7 +270,6 @@ class BridgeBiddingState:
             A list of duplicate scores, ordered from North clockwise, e.g. [50.0, -50.0, 50.0, -50.0]
         """
         ...
-
     def contract_str(self) -> str:
         """
         Get a string of contract.
@@ -305,7 +277,6 @@ class BridgeBiddingState:
             The contract string, the string contains the contract, the declarer and whether doubled, e.g. 7NXX N.
         """
         ...
-
     def current_player(self) -> Player:
         """
         Get current player's seat
@@ -313,7 +284,6 @@ class BridgeBiddingState:
             The player id. 0 for North, clockwise.
         """
         ...
-
     def current_phase(self) -> int:
         """
         Get current phase.
@@ -321,23 +291,15 @@ class BridgeBiddingState:
             The phase, 0 for auction, 1 for game over.
         """
         ...
-
     def get_double_dummy_table(self) -> List[int]:
         """
         Get the double dummy table in 1d array
         Returns:
             The double dummy table.
         """
-
-    def get_contract(self) -> Contract:
-        ...
-
-    def observation_tensor(self, player: Optional[Player]) -> List[float]:
-        ...
-
-    def hidden_observation_tensor(self) -> List[float]:
-        ...
-
+    def get_contract(self) -> Contract: ...
+    def observation_tensor(self, player: Optional[Player]) -> List[float]: ...
+    def hidden_observation_tensor(self) -> List[float]: ...
     def terminate(self) -> NoReturn:
         """
         Force terminate the state.
@@ -345,7 +307,6 @@ class BridgeBiddingState:
             No returns.
         """
         ...
-
     def legal_actions(self) -> List[Action]:
         """
         Get legal actions.
@@ -353,7 +314,6 @@ class BridgeBiddingState:
             A list of actions which are legal at this time point.
         """
         ...
-
     def clone(self) -> BridgeBiddingState:
         """
         Get a cloned state.
@@ -361,31 +321,16 @@ class BridgeBiddingState:
             The cloned state.
         """
         ...
-
-    def get_hand_evaluation(self) -> List[HandEvaluation]:
-        ...
-
-    def observation_tensor_with_hand_evaluation(self) -> List[float]:
-        ...
-
-    def __repr__(self) -> str:
-        ...
-
-    def observation_tensor_with_legal_actions(self) -> List[float]:
-        ...
-
-    def get_partner_cards(self) -> List[int]:
-        ...
-
-    def cards_tensor(self) -> List[float]:
-        ...
-
-    def final_observation_tensor(self) -> List[float]:
-        ...
-
-    def score_for_contracts(self, player: Player, contracts: List[int]) -> List[int]:
-        ...
-
+    def get_hand_evaluation(self) -> List[HandEvaluation]: ...
+    def observation_tensor_with_hand_evaluation(self) -> List[float]: ...
+    def __repr__(self) -> str: ...
+    def observation_tensor_with_legal_actions(self) -> List[float]: ...
+    def get_partner_cards(self) -> List[int]: ...
+    def cards_tensor(self) -> List[float]: ...
+    def final_observation_tensor(self) -> List[float]: ...
+    def score_for_contracts(
+        self, player: Player, contracts: List[int]
+    ) -> List[int]: ...
     def get_player_cards(self, player: Player) -> List[int]:
         """
         Get a player's cards.
@@ -396,11 +341,12 @@ class BridgeBiddingState:
             The cards of the player.
         """
         ...
-
+    def opening_bid_and_hand_evaluation(self) -> Tuple[int, HandEvaluation, int]: ...
+    def num_declarer_tricks(self) -> int:
+        """Return the number of tricks won by the declarer side"""
 
 class BridgeBiddingEnv:
-    def __init__(self, deal_manager: BridgeDealManager,
-                 greedy: List[int]):
+    def __init__(self, deal_manager: BridgeDealManager, greedy: List[int]):
         """
         A Bridge Bidding Environment.
         Args:
@@ -408,7 +354,6 @@ class BridgeBiddingEnv:
             greedy: Whether greedy for four players. e.g. [1,1,1,1] means all the players are greedy.
         """
         ...
-
     def reset(self) -> TensorDict:
         """
         Reset the state and return an initial obs. Should be called at first of each game.
@@ -416,7 +361,6 @@ class BridgeBiddingEnv:
             The initial obs
         """
         ...
-
     def step(self, reply: TensorDict):
         """
         Make one step in environment and get next obs, reward and terminal signal.
@@ -424,7 +368,6 @@ class BridgeBiddingEnv:
             reply: The reply from actor.
         """
         ...
-
     def returns(self) -> List[float]:
         """
         Get duplicate scores for each player. Should be called after the env terminated.
@@ -432,7 +375,6 @@ class BridgeBiddingEnv:
             The list of duplicate scores.
         """
         ...
-
     def terminated(self) -> bool:
         """
         Whether the env is terminated.
@@ -440,7 +382,6 @@ class BridgeBiddingEnv:
             A boolean value of terminal.
         """
         ...
-
     def get_state(self) -> BridgeBiddingState:
         """
         Get the state.
@@ -448,7 +389,6 @@ class BridgeBiddingEnv:
             The BridgeBiddingState.
         """
         ...
-
     def get_num_deals(self) -> int:
         """
         Get the number of deals played in the env.
@@ -456,29 +396,18 @@ class BridgeBiddingEnv:
             The number of deals.
         """
         ...
-
-    def get_feature_size(self) -> int:
-        ...
-
-    def get_feature(self) -> TensorDict:
-        ...
-
-    def __repr__(self) -> str:
-        ...
-
+    def get_feature_size(self) -> int: ...
+    def get_feature(self) -> TensorDict: ...
+    def __repr__(self) -> str: ...
 
 class BridgeBiddingEnvWrapper:
-    def __init__(self, deal_manager: BridgeDealManager, greedy: List[int], replay: Replay):
-        ...
-
+    def __init__(
+        self, deal_manager: BridgeDealManager, greedy: List[int], replay: Replay
+    ): ...
 
 class BridgeWrapperVecEnv:
-    def __init__(self):
-        ...
-
-    def push(self, env: BridgeBiddingEnvWrapper):
-        ...
-
+    def __init__(self): ...
+    def push(self, env: BridgeBiddingEnvWrapper): ...
 
 class BridgeVecEnv:
     def __init__(self):
@@ -486,7 +415,6 @@ class BridgeVecEnv:
         A vectorized env to run bridge games in parallel.
         """
         ...
-
     def push(self, env: BridgeBiddingEnv):
         """
         Append a BridgeBiddingEnv to the vectorized env.
@@ -497,7 +425,6 @@ class BridgeVecEnv:
             No returns.
         """
         ...
-
     def size(self) -> int:
         """
         Get the size of the vectorized env. i.e. how many envs are in the vector.
@@ -505,7 +432,6 @@ class BridgeVecEnv:
             The number of envs.
         """
         ...
-
     def reset(self, obs: TensorDict) -> TensorDict:
         """
         Reset the vectorized env and get initial obs.
@@ -513,7 +439,6 @@ class BridgeVecEnv:
             The initial obs tensor, shape (num_envs, obs_size)
         """
         ...
-
     def step(self, action: TensorDict) -> Tuple[TensorDict, torch.Tensor, torch.Tensor]:
         """
         Step a batch of actions to envs, and get a batch of next obs, reward and terminal.
@@ -525,7 +450,6 @@ class BridgeVecEnv:
             The next obs tensor, reward tensor and terminal tensor.
         """
         ...
-
     def all_terminated(self) -> bool:
         """
         Whether the envs are all terminated.
@@ -533,13 +457,8 @@ class BridgeVecEnv:
             A boolean value indicates whether all terminated.
         """
         ...
-
-    def get_envs(self) -> List[BridgeBiddingEnv]:
-        ...
-
-    def get_returns(self, player: Player) -> List[int]:
-        ...
-
+    def get_envs(self) -> List[BridgeBiddingEnv]: ...
+    def get_returns(self, player: Player) -> List[int]: ...
 
 class ImpEnv:
     def __init__(self, deal_manager: BridgeDealManager, greedy: List[int]):
@@ -550,7 +469,6 @@ class ImpEnv:
             greedy: The greedy list.
         """
         ...
-
     def get_acting_player(self) -> int:
         """
         Get the player index. If it's the first game, the index is same as seat.
@@ -559,7 +477,6 @@ class ImpEnv:
             The acting player index.
         """
         ...
-
     def returns(self) -> List[int]:
         """
         Get imps for 2 teams.
@@ -567,7 +484,6 @@ class ImpEnv:
             The imp list.
         """
         ...
-
     def step(self, action: TensorDict) -> Tuple[TensorDict, float, bool]:
         """
         Make a step in env.
@@ -578,7 +494,6 @@ class ImpEnv:
             Next obs tensor, reward and terminal.
         """
         ...
-
     def reset(self) -> TensorDict:
         """
         Reset the env and get initial obs.
@@ -586,7 +501,6 @@ class ImpEnv:
             The initial obs tensor.
         """
         ...
-
     def terminated(self) -> bool:
         """
         Whether the env is terminated.
@@ -594,7 +508,6 @@ class ImpEnv:
             A boolean value of terminal.
         """
         ...
-
     def num_states(self) -> int:
         """
         Get the number of deals played in the env.
@@ -602,85 +515,49 @@ class ImpEnv:
             The number of deals.
         """
         ...
-
-    def __repr__(self) -> str:
-        ...
-
+    def __repr__(self) -> str: ...
 
 class Replay:
-    def __init__(self, capacity: int, seed: int, alpha: float, beta: float, prefetch: int):
-        ...
-
-    def sample(self, batch_size: int, device: str) -> Tuple[Transition, torch.Tensor]:
-        ...
-
-    def update_priority(self, priority: torch.Tensor):
-        ...
-
-    def num_add(self) -> int:
-        ...
-
-    def size(self) -> int:
-        ...
-
+    def __init__(
+        self, capacity: int, seed: int, alpha: float, beta: float, prefetch: int
+    ): ...
+    def sample(
+        self, batch_size: int, device: str
+    ) -> Tuple[Transition, torch.Tensor]: ...
+    def update_priority(self, priority: torch.Tensor): ...
+    def num_add(self) -> int: ...
+    def size(self) -> int: ...
 
 class ImpEnvWrapper:
-    def __init__(self, deal_manager: BridgeDealManager, greedy: List[int], replay_buffer: Replay):
-        ...
-
-    def get_feature(self) -> TensorDict:
-        ...
-
-    def step(self, reply: TensorDict):
-        ...
-
-    def terminated(self) -> bool:
-        ...
-
-    def reset(self):
-        ...
-
-    def __repr__(self):
-        ...
-
+    def __init__(
+        self, deal_manager: BridgeDealManager, greedy: List[int], replay_buffer: Replay
+    ): ...
+    def get_feature(self) -> TensorDict: ...
+    def step(self, reply: TensorDict): ...
+    def terminated(self) -> bool: ...
+    def reset(self): ...
+    def __repr__(self): ...
 
 class ImpVecEnv:
-    def __init__(self):
-        ...
+    def __init__(self): ...
+    def push(self, env: ImpEnvWrapper): ...
+    def reset(self): ...
+    def step(self, reply: TensorDict): ...
+    def get_feature(self) -> TensorDict: ...
+    def get_envs(self) -> List[ImpEnvWrapper]: ...
+    def any_terminated(self) -> bool: ...
+    def all_terminated(self) -> bool: ...
 
-    def push(self, env: ImpEnvWrapper):
-        ...
-
-    def reset(self):
-        ...
-
-    def step(self, reply: TensorDict):
-        ...
-
-    def get_feature(self) -> TensorDict:
-        ...
-
-    def get_envs(self) -> List[ImpEnvWrapper]:
-        ...
-
-    def any_terminated(self) -> bool:
-        ...
-
-    def all_terminated(self) -> bool:
-        ...
-
-
-class ThreadLoop:
-    ...
-
+class ThreadLoop: ...
 
 class VecEnvEvalThreadLoop(ThreadLoop):
-    def __init__(self,
-                 train_actor: VecEnvActor,
-                 oppo_actor: VecEnvActor,
-                 vec_env_0: BridgeVecEnv,
-                 vec_env_1: BridgeVecEnv,
-                 ):
+    def __init__(
+        self,
+        train_actor: VecEnvActor,
+        oppo_actor: VecEnvActor,
+        vec_env_0: BridgeVecEnv,
+        vec_env_1: BridgeVecEnv,
+    ):
         """
         A thread loop evaluates between 2 actors using vectorized env.(Recommended)
         Args:
@@ -690,25 +567,13 @@ class VecEnvEvalThreadLoop(ThreadLoop):
             oppo_actor: The opponent actor.
         """
         ...
-
-    def main_loop(self):
-        ...
-
+    def main_loop(self): ...
 
 class ImpThreadLoop(ThreadLoop):
-    def __init__(self, env: ImpVecEnv, actor: VecEnvActor):
-        ...
-
+    def __init__(self, env: ImpVecEnv, actor: VecEnvActor): ...
 
 class BridgeVecEnvThreadLoop(ThreadLoop):
-    def __init__(self, env: BridgeWrapperVecEnv, actor: VecEnvActor):
-        ...
-
-
-class DataThreadLoop(ThreadLoop):
-    def __init__(self, deal_manager: BridgeDealManager, seed: int):
-        ...
-
+    def __init__(self, env: BridgeWrapperVecEnv, actor: VecEnvActor): ...
 
 class Context:
     def __init__(self):
@@ -716,7 +581,6 @@ class Context:
         A context to run thread loop in parallel.
         """
         ...
-
     def push_thread_loop(self, thread_loop: ThreadLoop):
         """
         Push a thread loop into context.
@@ -727,7 +591,6 @@ class Context:
             No returns.
         """
         ...
-
     def start(self):
         """
         Start all the thread loops
@@ -735,7 +598,6 @@ class Context:
             No returns.
         """
         ...
-
     def pause(self):
         """
         Pause all the thread loops.
@@ -743,7 +605,6 @@ class Context:
             No returns.
         """
         ...
-
     def all_paused(self) -> bool:
         """
         Whether all the thread loops are paused.
@@ -751,7 +612,6 @@ class Context:
             A boolean value.
         """
         ...
-
     def resume(self):
         """
         Resume all the thread loops.
@@ -759,7 +619,6 @@ class Context:
             No returns.
         """
         ...
-
     def terminate(self):
         """
         Terminate all the thread loops.
@@ -767,7 +626,6 @@ class Context:
             No returns.
         """
         ...
-
     def terminated(self) -> bool:
         """
         Whether all the thread loops are terminated.
@@ -775,7 +633,6 @@ class Context:
             A boolean value.
         """
         ...
-
 
 def get_imp(my: int, other: int) -> int:
     """
@@ -789,7 +646,6 @@ def get_imp(my: int, other: int) -> int:
     """
     ...
 
-
 def bid_str_to_action(bid_str: str) -> Action:
     """
     Convert a bid str to action, bluechip
@@ -802,7 +658,6 @@ def bid_str_to_action(bid_str: str) -> Action:
     """
     ...
 
-
 def bid_action_to_str(bid: int) -> str:
     """
     Convert a bid action to string, bluechip
@@ -814,7 +669,6 @@ def bid_action_to_str(bid: int) -> str:
     """
     ...
 
-
 def get_hand_string(cards: CardsLike) -> str:
     """
     Get the string of hand according to bluechip protocol
@@ -825,11 +679,7 @@ def get_hand_string(cards: CardsLike) -> str:
         str: The string of hand
     """
 
-
-def check_prob_not_zero(action: torch.Tensor, log_probs: torch.Tensor):
-    ...
-
-
+def check_prob_not_zero(action: torch.Tensor, log_probs: torch.Tensor): ...
 def make_obs_tensor_dict(state: BridgeBiddingState, greedy: int) -> TensorDict:
     """
     Get a tensor dict as obs for current state.
@@ -842,7 +692,6 @@ def make_obs_tensor_dict(state: BridgeBiddingState, greedy: int) -> TensorDict:
     """
     ...
 
-
 class Transition:
     obs: TensorDict = ...
     reply: TensorDict = ...
@@ -850,10 +699,14 @@ class Transition:
     terminal: torch.Tensor = ...
     next_obs: TensorDict = ...
 
-    def __init__(self, obs: TensorDict, reply: TensorDict, reward: torch.Tensor, terminal: torch.Tensor,
-                 next_obs: TensorDict):
-        ...
-
+    def __init__(
+        self,
+        obs: TensorDict,
+        reply: TensorDict,
+        reward: torch.Tensor,
+        terminal: torch.Tensor,
+        next_obs: TensorDict,
+    ): ...
     def to_dict(self) -> TensorDict:
         """
         Convert transition to tensor dict
@@ -862,38 +715,58 @@ class Transition:
         """
         ...
 
-
-def bid_string(action: Action) -> str:
-    ...
-
+def bid_string(action: Action) -> str: ...
 
 class VecEnvAllTerminateThreadLoop(ThreadLoop):
-    def __init__(self, actor: VecEnvActor, env: BridgeVecEnv):
-        ...
-
+    def __init__(self, actor: VecEnvActor, env: BridgeVecEnv): ...
 
 class ObsBelief:
     obs: TensorDict
     belief: TensorDict
-
+    length: torch.Tensor
 
 class ObsBeliefReplay:
-    def __init__(self, capacity: int, seed: int, alpha: float, beta: float, prefetch: int):
-        ...
-
-    def sample(self, batch_size: int, device: str) -> Tuple[ObsBelief, torch.Tensor]:
-        ...
-
-    def update_priority(self, priority: torch.Tensor):
-        ...
-
-    def num_add(self) -> int:
-        ...
-
-    def size(self) -> int:
-        ...
-
+    def __init__(
+        self, capacity: int, seed: int, alpha: float, beta: float, prefetch: int
+    ): ...
+    def sample(
+        self, batch_size: int, device: str
+    ) -> Tuple[ObsBelief, torch.Tensor]: ...
+    def update_priority(self, priority: torch.Tensor): ...
+    def num_add(self) -> int: ...
+    def size(self) -> int: ...
 
 class BeliefThreadLoop(ThreadLoop):
-    def __init__(self, actor: VecEnvActor, env: BridgeVecEnv, replay: ObsBeliefReplay):
-        ...
+    def __init__(
+        self, actor: VecEnvActor, env: BridgeVecEnv, replay: ObsBeliefReplay
+    ): ...
+    def main_loop(self): ...
+
+class BeliefModel:
+    def __init__(self, model_locker: ModelLocker): ...
+    def sample(
+        self, obs: TensorDict, current_player: Player, num_sample: int, max_try: int
+    ): ...
+
+class SearchParams:
+    min_rollouts: int
+    max_rollouts: int
+    max_particles: int
+    min_prob: int
+    temperature: float
+    top_k: int
+    filter_batch_size: int
+    random_sample: bool
+    verbose: bool
+
+class Searcher:
+    def __init__(
+        self, params: SearchParams, belief_model: BeliefModel, actor: VecEnvActor
+    ): ...
+    def search(
+        self, state: BridgeBiddingState, obs: TensorDict, reply: TensorDict
+    ) -> TensorDict: ...
+
+class RandomDealManager:
+    def __init__(self, seed: int): ...
+    def next(self) -> BridgeDeal: ...

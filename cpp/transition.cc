@@ -146,24 +146,50 @@ ObsBelief ObsBelief::Index(int i) const {
     elem.belief.insert({name2tensor.first, name2tensor.second[i]});
   }
 
+  elem.length = length[i];
+
   return elem;
 }
-ObsBelief ObsBelief::MakeBatch(const std::vector<ObsBelief>& obs_beliefs, const std::string &device) {
+ObsBelief ObsBelief::MakeBatch(const std::vector<ObsBelief> &obs_beliefs, const std::string &device) {
   std::vector<TensorDict> obs_vec;
   std::vector<TensorDict> belief_vec;
+  std::vector<torch::Tensor> length_vec;
   for (const auto &obs_belief : obs_beliefs) {
     obs_vec.push_back(obs_belief.obs);
     belief_vec.push_back(obs_belief.belief);
+    length_vec.push_back(obs_belief.length);
   }
 
   ObsBelief ret;
   ret.obs = tensor_dict::Stack(obs_vec, 0);
   ret.belief = tensor_dict::Stack(belief_vec, 0);
+  ret.length = torch::stack(length_vec, 0);
   if (device != "cpu") {
     auto d = torch::Device(device);
     auto ToDevice = [&](const torch::Tensor &t) { return t.to(d); };
     ret.obs = tensor_dict::Apply(ret.obs, ToDevice);
     ret.belief = tensor_dict::Apply(ret.belief, ToDevice);
+    ret.length = ret.length.to(device);
+  }
+  return ret;
+}
+
+FinalObsScore FinalObsScore::MakeBatch(const std::vector<FinalObsScore>& obs_scores, const std::string &device) {
+  std::vector<TensorDict> final_obs_vec;
+  std::vector<torch::Tensor> score_vec;
+  for (const auto &obs_score : obs_scores) {
+    final_obs_vec.push_back(obs_score.final_obs);
+    score_vec.push_back(obs_score.score);
+  }
+
+  FinalObsScore ret;
+  ret.final_obs = tensor_dict::Stack(final_obs_vec, 0);
+  ret.score = torch::stack(score_vec, 0);
+  if (device != "cpu") {
+    auto d = torch::Device(device);
+    auto ToDevice = [&](const torch::Tensor &t) { return t.to(d); };
+    ret.final_obs = tensor_dict::Apply(ret.final_obs, ToDevice);
+    ret.score = ret.score.to(d);
   }
   return ret;
 }
