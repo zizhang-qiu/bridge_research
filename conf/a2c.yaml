@@ -29,6 +29,7 @@ epoch_len: 100
 # actor settings
 sync_freq: 10
 act_device: "cuda"
+perfect: true
 
 # eval settings
 num_eval_deals: 50000

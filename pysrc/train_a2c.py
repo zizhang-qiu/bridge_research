@@ -45,7 +45,7 @@ def main():
     p_lr = cfg["policy_lr"]
     v_lr = cfg["value_lr"]
     train_device = cfg["train_device"]
-    agent = VecEnvAgent(net, perfect=False).to(train_device)
+    agent = VecEnvAgent(net, perfect=cfg["perfect"]).to(train_device)
     if checkpoint_path:
         agent.v_net.load_state_dict(checkpoint["model_state_dict"]["value"])
     act_device = cfg["act_device"]

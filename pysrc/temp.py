@@ -34,8 +34,18 @@ from bridge_consts import NUM_SUITS, PLUS_MINUS_SYMBOL, NUM_CARDS, NUM_PLAYERS
 from global_vars import RLDataset
 from nets import PolicyNet, PolicyNet2, PolicyNetRelu
 import common_utils
-from utils import simple_env, sl_net, sl_single_env_agent, sl_vec_env_agent, simple_vec_env, Evaluator, load_rl_dataset, \
-    tensor_dict_to_device, analyze, sl_net2
+from utils import (
+    simple_env,
+    sl_net,
+    sl_single_env_agent,
+    sl_vec_env_agent,
+    simple_vec_env,
+    Evaluator,
+    load_rl_dataset,
+    tensor_dict_to_device,
+    analyze,
+    sl_net2,
+)
 
 
 def json_2_np(path):
@@ -66,7 +76,7 @@ def convert(usage, save_path="dataset/rl_data"):
 
 
 def _deal_trajectory(line: str) -> List[int]:
-    actions = [int(action) for action in line.split(' ')]
+    actions = [int(action) for action in line.split(" ")]
     return actions[:NUM_CARDS]
 
 
@@ -100,15 +110,49 @@ def load_models_from_directory(directory: str) -> List[nn.Module]:
     return models
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # torch.set_printoptions(threshold=1000000)
     # common_utils.set_random_seeds(1)
     # dataset = load_rl_dataset("valid")
 
-    search_imps = np.load("vs_wbridge5/folder_60/imps_0.npy")
-    original_imps = np.load("vs_wbridge5/folder_58/imps.npy")[:search_imps.size]
-    print(search_imps)
-    print(original_imps)
-    print(common_utils.get_avg_and_sem(original_imps))
-    print(common_utils.get_avg_and_sem(search_imps))
+    # search_imps = np.load("vs_wbridge5/folder_60/imps_0.npy")
+    # original_imps = np.load("vs_wbridge5/folder_58/imps.npy")[:search_imps.size]
+    # print(search_imps)
+    # print(original_imps)
+    # print(common_utils.get_avg_and_sem(original_imps))
+    # print(common_utils.get_avg_and_sem(search_imps))
+    publ_in_dim = 658
+    hid_dim = 256
+    num_ff_layer = 2
+    ff_layers = [nn.Linear(publ_in_dim, hid_dim), nn.ReLU()]
+    for i in range(1, num_ff_layer):
+        ff_layers.append(nn.Linear(hid_dim, hid_dim))
+        ff_layers.append(nn.ReLU())
+    net = nn.Sequential(*ff_layers)
 
+    publ_s = torch.rand(size=(1, 658))
+    publ_s = publ_s.unsqueeze(0)
+    x = net(publ_s)
+    print(x)
+    print(x.size())
+
+    device = "cpu"
+    num_lstm_layer = 1
+    lstm = nn.LSTM(
+        hid_dim,
+        hid_dim,
+        num_layers=num_lstm_layer,
+    ).to(device)
+    lstm.flatten_parameters()
+
+    shape = (num_lstm_layer, 1, hid_dim)
+    hid = {"h0": torch.zeros(*shape), "c0": torch.zeros(*shape)}
+
+    publ_o, (h, c) = lstm(x, (hid["h0"], hid["c0"]))
+    print(publ_o, h, c, sep="\n")
+
+    # rnn = nn.RNN(10, 20, 2, batch_first=True)
+    # input = torch.randn(3, 6, 10)
+    # h0 = torch.randn(2, 3, 20)
+    # output, hn = rnn(input, h0)
+    # print(output, hn, sep="\n")
